@@ -1,2 +1,7 @@
 build
 .cache
+.xmake/
+.devenv*
+devenv.local.nix
+.direnv
+compile_commands.json
