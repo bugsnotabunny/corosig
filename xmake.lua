@@ -5,7 +5,8 @@ set_warnings("all", "error")
 
 if is_mode("debug") then
     set_policy("build.sanitizer.address", true)
-    add_cxflags("-g -Og")
+    set_optimize("fast")
+    set_warnings("all", "extra", "pedantic")
 else
     set_symbols("hidden")
     set_optimize("fastest")

@@ -1,168 +1,216 @@
-#include <bit>
-#include <cassert>
-#include <cctype>
-#include <concepts>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <exception>
-#include <functional>
-#include <iostream>
-#include <limits>
-#include <memory>
-#include <new>
-#include <optional>
-#include <span>
-#include <type_traits>
-#include <utility>
-
 #pragma once
 
-namespace corosig::detail {
-
-// clang-format off
-    template <uintmax_t VALUE>
-    using uint_value_t =
-        std::conditional_t<VALUE <= std::numeric_limits<uint8_t>::max() ,
-        uint8_t, std::conditional_t<VALUE <=
-        std::numeric_limits<uint16_t>::max() , uint16_t,
-        std::conditional_t<VALUE <= std::numeric_limits<uint32_t>::max() ,
-        uint32_t, std::conditional_t<VALUE <=
-        std::numeric_limits<uint64_t>::max() , uint64_t, uintmax_t>>>>;
-// clang-format on
-
-} // namespace corosig::detail
+#include <algorithm>
+#include <array>
+#include <bit>
+#include <cassert>
+#include <cstddef>
+#include <limits>
 
 namespace corosig {
 
-template <size_t SIZE, size_t ALIGN = alignof(max_align_t)>
-struct static_buf_allocator {
+inline size_t padding_with_header(size_t base_address, size_t alignment, size_t header_size) {
+  size_t multiplier = (base_address / alignment) + 1;
+  size_t aligned_address = multiplier * alignment;
+  size_t padding = aligned_address - base_address;
+  size_t needed_space = header_size;
+
+  if (padding < needed_space) {
+    // Header does not fit - Calculate next aligned address that header fits
+    needed_space -= padding;
+
+    // How many alignments I need to fit the header
+    if (needed_space % alignment > 0) {
+      padding += alignment * (1 + (needed_space / alignment));
+    } else {
+      padding += alignment * (needed_space / alignment);
+    }
+  }
+
+  return padding;
+}
+
+template <size_t SIZE>
+struct StaticBufAllocator {
 private:
-  // 1 index value is reserved as npos
-  using memory_t = std::array<std::byte, SIZE - 1>;
-  using index_t = detail::uint_value_t<SIZE - 1>;
-  constexpr static index_t npos = SIZE - 1;
-
-  struct block {
-    std::byte *mem_end() noexcept {
-      return mem_begin() + size;
-    }
-
-    std::byte *mem_begin() noexcept {
-      return std::launder(reinterpret_cast<std::byte *>(this + 1));
-    }
-
-    bool contains(std::byte *p) noexcept {
-      return this < p && mem_end() > p;
-    }
-
-    constexpr void split_at(std::byte *p) noexcept {
-      assert(contains(p) && contains(p + sizeof(block)));
-      index_t old_size = std::exchange(size, p - mem_begin());
-      new (p) block{
-          .size = old_size - size,
-          .bytes_before = size,
-      };
-    }
-
-    index_t right = npos;
-    index_t left = npos;
-    index_t size = 0;
-    bool is_used = false;
+  struct FreeHeader {
+    size_t blockSize = 0;
   };
 
-  alignas(ALIGN) memory_t m_memory;
-  block *m_root;
+  struct FreeList {
+    struct Node {
+      FreeHeader data;
+      Node *next = nullptr;
+    };
+
+    Node *head = nullptr;
+
+    void insert(Node *previousNode, Node *newNode) noexcept {
+      if (previousNode == nullptr) {
+        // Is the first node
+        if (head != nullptr) {
+          // The list has more elements
+          newNode->next = head;
+        } else {
+          newNode->next = nullptr;
+        }
+        head = newNode;
+      } else {
+        if (previousNode->next == nullptr) {
+          // Is the last node
+          previousNode->next = newNode;
+          newNode->next = nullptr;
+        } else {
+          // Is a middle node
+          newNode->next = previousNode->next;
+          previousNode->next = newNode;
+        }
+      }
+    }
+
+    void remove(Node *previousNode, Node *deleteNode) noexcept {
+      if (previousNode == nullptr) {
+        // Is the first node
+        if (deleteNode->next == nullptr) {
+          // List only has one element
+          head = nullptr;
+        } else {
+          // List has more elements
+          head = deleteNode->next;
+        }
+      } else {
+        previousNode->next = deleteNode->next;
+      }
+    }
+  };
+
+  struct AllocationHeader {
+    size_t block_size = 0;
+    char padding;
+  };
+
+  using Node = typename FreeList::Node;
+
+  size_t m_used = 0;
+  size_t m_peak = 0;
+  FreeList m_free_list = {};
+  alignas(Node) std::array<char, SIZE> m_mem{0};
 
 public:
-  static_buf_allocator() noexcept {
-    new (m_memory.data()) block{
-        .size = SIZE - sizeof(block),
-    };
+  constexpr static size_t MIN_ALIGNMENT = 8;
+
+  StaticBufAllocator() noexcept {
+    Node *firstNode = new (m_mem.data()) Node{};
+    firstNode->data.blockSize = SIZE - sizeof(Node);
+    firstNode->next = nullptr;
+    m_free_list.insert(nullptr, firstNode);
   }
 
-  static static_buf_allocator zeroed() noexcept {
-    static_buf_allocator alloc;
-    std::memset(alloc.m_memory.data() + sizeof(block), 0, SIZE - sizeof(block));
-    return alloc;
+  void *allocate(size_t size, size_t alignment = MIN_ALIGNMENT) noexcept {
+    size = std::max(size, sizeof(Node));
+    alignment = std::max(alignment, MIN_ALIGNMENT);
+
+    assert("Allocation size must be bigger" && size >= sizeof(Node));
+    assert("Alignment must be 8 at least" && alignment >= 8);
+    assert("Alignment must be a power of 2" && std::has_single_bit(alignment));
+
+    // Search through the free list for a free block that has enough space to allocate our data
+    size_t padding;
+    Node *affected_node;
+    Node *previous_node;
+    find(size, alignment, padding, previous_node, affected_node);
+    if (affected_node == nullptr) {
+      return nullptr;
+    }
+
+    size_t alignmentPadding = padding - sizeof(AllocationHeader);
+    size_t requiredSize = size + padding;
+
+    size_t rest = affected_node->data.blockSize - requiredSize;
+
+    if (rest > 0) {
+      // We have to split the block into the data block and a free block of size 'rest'
+      Node *new_free_node = (Node *)((size_t)affected_node + requiredSize);
+      new_free_node->data.blockSize = rest;
+      m_free_list.insert(affected_node, new_free_node);
+    }
+    m_free_list.remove(previous_node, affected_node);
+
+    // Setup data block
+    size_t header_address = (size_t)affected_node + alignmentPadding;
+    size_t data_address = header_address + sizeof(AllocationHeader);
+    std::bit_cast<AllocationHeader *>(header_address)->block_size = requiredSize;
+    std::bit_cast<AllocationHeader *>(header_address)->padding = alignmentPadding;
+
+    m_used += requiredSize;
+    m_peak = std::max(m_peak, m_used);
+
+    return (void *)data_address;
   }
 
-  std::byte *allocate(size_t size, size_t align) noexcept {
-    assert(std::has_single_bit(align) && "Alignment must be a power of 2");
-    size = std::max(size, align);
-    block *root = find_best_fit(size);
+  void free(void *ptr) noexcept {
+    if (ptr == nullptr) {
+      return;
+    }
 
-    // void *buf = root->mem_begin();
-    // size_t buf_size = root->size;
+    // Insert it in a sorted position by the address number
+    size_t current_address = (size_t)ptr;
+    size_t header_address = current_address - sizeof(StaticBufAllocator::AllocationHeader);
+    auto *allocation_header = std::bit_cast<AllocationHeader *>(header_address);
 
-    // void *aligned_ptr = std::align(align, size, buf, buf_size);
-    // if (!aligned_ptr) {
-    //   return nullptr;
-    // }
+    Node *freenode = std::bit_cast<Node *>(header_address);
+    freenode->data.blockSize = allocation_header->block_size + allocation_header->padding;
+    freenode->next = nullptr;
 
-    // if (buf_size < size + sizeof(block)) {
-    //   return nullptr;
-    // }
+    Node *it = m_free_list.head;
+    Node *itPrev = nullptr;
+    while (it != nullptr) {
+      if (ptr < it) {
+        m_free_list.insert(itPrev, freenode);
+        break;
+      }
+      itPrev = it;
+      it = it->next;
+    }
 
-    // std::byte *aligned_byte_ptr = static_cast<std::byte *>(aligned_ptr);
-    // std::byte *aprox_allocation_place =
-    //     aligned_byte_ptr + size * ((root->mem_end() - aligned_byte_ptr) / size - 1);
+    m_used -= freenode->data.blockSize;
 
-    // std::byte *allocation_place =
-    //     aprox_allocation_place +
-    //     align * ((root->mem_end() - (aprox_allocation_place + size)) / align);
-
-    // std::byte *new_block_place = allocation_place - sizeof(block);
-
-    // root->size -= root->mem_end() - new_block_place;
-    // return allocation_place;
-  }
-
-  void deallocate(std::byte *obj) noexcept {
-    // for (std::reference_wrapper<free_space_node> node = &root(); &node.get() < m_memory.end();
-    //      node = node.get().next()) {
-
-    //   if (!node.get().contains)
-
-    //     allocation_header header;
-    //   std::memcpy(&header, obj - sizeof(header), sizeof(header));
-    // }
-  }
-
-  std::span<std::byte const> view_mem() const noexcept {
-    return m_memory;
+    // Merge contiguous nodes
+    coalescence(itPrev, freenode);
   }
 
 private:
-  block *bptr(index_t i) noexcept {
-    return i != npos ? std::launder(reinterpret_cast<block *>(m_memory.data() + i)) : nullptr;
-  }
+  StaticBufAllocator(StaticBufAllocator &freeListAllocator);
 
-  std::byte *aligned(std::byte *p, size_t align) noexcept {
-    assert(std::has_single_bit(align));
-    assert(p != nullptr);
-
-    auto addr = std::bit_cast<uintptr_t>(p);
-    if (addr % align != 0) {
-      addr += align - addr % align;
+  void coalescence(Node *prevNode, Node *freeNode) noexcept {
+    if (freeNode->next != nullptr &&
+        size_t(freeNode) + freeNode->data.blockSize == size_t(freeNode->next)) {
+      freeNode->data.blockSize += freeNode->next->data.blockSize;
+      m_free_list.remove(freeNode, freeNode->next);
     }
-    return std::bit_cast<std::byte *>(addr);
+
+    if (prevNode != nullptr && size_t(prevNode) + prevNode->data.blockSize == size_t(freeNode)) {
+      prevNode->data.blockSize += freeNode->data.blockSize;
+      m_free_list.remove(prevNode, freeNode);
+    }
   }
 
-  block *find_best_fit(size_t size, size_t align) noexcept {
-    block *root = m_root;
-    while (root) {
-      if (size <= root->size) {
-        if (block *b = bptr(root->left); b && size <= b->size) {
-          root = b;
-        } else {
-          return root;
-        }
-      } else {
-        root = bptr(root->right);
+  void find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
+            Node *&foundNode) noexcept {
+    Node *it = m_free_list.head;
+    Node *itPrev = nullptr;
+
+    while (it != nullptr) {
+      padding = padding_with_header(size_t(it), alignment, sizeof(AllocationHeader));
+      size_t requiredSpace = size + padding;
+      if (it->data.blockSize >= requiredSpace) {
+        break;
       }
+      itPrev = it;
+      it = it->next;
     }
+    previousNode = itPrev;
+    foundNode = it;
   }
 };
 
