@@ -14,11 +14,18 @@ else
     set_strip("debug")
 end
 
+add_requires("boost", {
+    configs = {
+        exception = true -- implicitly required by outcome
+    }
+})
+
 target("corosig")
 set_kind("static")
 add_includedirs("include", { public = true })
-add_files("src/*.cpp")
+add_files("src/**.cpp")
 set_default(true)
+add_packages("boost", { public = true })
 target_end()
 
 add_requires("catch2", { configs = { main = true, gmock = true } })

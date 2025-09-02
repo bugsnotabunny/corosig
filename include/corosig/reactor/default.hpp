@@ -1,0 +1,52 @@
+#pragma once
+
+#include "corosig/error_types.hpp"
+#include "corosig/reactor/custom.hpp"
+#include "corosig/result.hpp"
+#include "corosig/static_buf_allocator.hpp"
+
+#include <chrono>
+#include <coroutine>
+#include <cstddef>
+#include <sys/poll.h>
+#include <variant>
+#include <vector>
+
+namespace corosig {
+
+struct Reactor {
+  Reactor() = default;
+
+  template <size_t SIZE>
+  Reactor(Alloc::Memory<SIZE> &mem) : m_alloc{mem} {
+  }
+
+  void *allocate_frame(size_t) noexcept;
+  void free_frame(void *) noexcept;
+
+  void poll(pollfd, std::coroutine_handle<>) noexcept;
+  void yield(std::coroutine_handle<>) noexcept;
+
+  Result<std::monostate, AllocationError> do_event_loop_iteration() noexcept;
+
+  size_t peak_memory() noexcept {
+    return m_alloc.peak_memory();
+  }
+
+  size_t current_memory() noexcept {
+    return m_alloc.current_memory();
+  }
+
+private:
+  std::vector<std::coroutine_handle<>> m_ready;
+  Alloc m_alloc;
+};
+
+template <>
+struct reactor_provider<Reactor> {
+  static Reactor &engine() noexcept;
+};
+
+static_assert(AReactor<Reactor>);
+
+} // namespace corosig
