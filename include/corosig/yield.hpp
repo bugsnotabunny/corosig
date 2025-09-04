@@ -1,6 +1,7 @@
 #pragma once
 
 #include "corosig/error_types.hpp"
+#include "corosig/reactor/coroutine_list.hpp"
 #include "corosig/reactor/custom.hpp"
 #include "corosig/reactor/default.hpp"
 #include "corosig/result.hpp"
@@ -25,8 +26,9 @@ struct Yield {
     return false;
   }
 
-  void await_suspend(std::coroutine_handle<> h) const noexcept {
-    reactor_provider<REACTOR>::engine().yield(h);
+  template <std::derived_from<CoroListNode> PROMISE>
+  void await_suspend(std::coroutine_handle<PROMISE> h) const noexcept {
+    reactor_provider<REACTOR>::engine().yield(h.promise());
   }
 
   void await_resume() const noexcept {

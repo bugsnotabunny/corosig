@@ -1,5 +1,6 @@
 #include "corosig/reactor/default.hpp"
-#include "corosig/reactor/custom.hpp"
+#include "corosig/reactor/coroutine_list.hpp"
+
 #include <coroutine>
 #include <variant>
 
@@ -25,15 +26,15 @@ void Reactor::free_frame(void *frame) noexcept {
   return m_alloc.free(frame);
 }
 
-void Reactor::yield(std::coroutine_handle<> h) noexcept {
-  m_ready.push_back(h);
+void Reactor::yield(CoroListNode &node) noexcept {
+  m_ready.push_back(node);
 }
 
-Result<std::monostate, AllocationError> Reactor::do_event_loop_iteration() noexcept {
-  for (std::coroutine_handle<> h : m_ready) {
-    h.resume();
+Result<void, AllocationError> Reactor::do_event_loop_iteration() noexcept {
+  for (CoroListNode &node : m_ready) {
+    node.coro_from_this().resume();
   }
-  return std::monostate{};
+  return success();
 }
 
 } // namespace corosig

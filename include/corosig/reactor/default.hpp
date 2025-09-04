@@ -1,6 +1,7 @@
 #pragma once
 
 #include "corosig/error_types.hpp"
+#include "corosig/reactor/coroutine_list.hpp"
 #include "corosig/reactor/custom.hpp"
 #include "corosig/result.hpp"
 #include "corosig/static_buf_allocator.hpp"
@@ -24,10 +25,9 @@ struct Reactor {
   void *allocate_frame(size_t) noexcept;
   void free_frame(void *) noexcept;
 
-  void poll(pollfd, std::coroutine_handle<>) noexcept;
-  void yield(std::coroutine_handle<>) noexcept;
+  void yield(CoroListNode &) noexcept;
 
-  Result<std::monostate, AllocationError> do_event_loop_iteration() noexcept;
+  Result<void, AllocationError> do_event_loop_iteration() noexcept;
 
   size_t peak_memory() noexcept {
     return m_alloc.peak_memory();
@@ -38,7 +38,7 @@ struct Reactor {
   }
 
 private:
-  std::vector<std::coroutine_handle<>> m_ready;
+  CoroList m_ready;
   Alloc m_alloc;
 };
 

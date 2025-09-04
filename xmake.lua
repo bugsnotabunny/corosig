@@ -4,7 +4,7 @@ set_languages("c++20")
 set_warnings("all", "error")
 
 if is_mode("debug") then
-    set_policy("build.sanitizer.address", true)
+    set_policy("build.sanitizer.thread", true)
     set_optimize("fast")
     set_warnings("all", "extra", "pedantic")
 else

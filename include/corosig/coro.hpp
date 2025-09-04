@@ -1,10 +1,12 @@
 #pragma once
 
 #include "corosig/error_types.hpp"
+#include "corosig/reactor/coroutine_list.hpp"
 #include "corosig/reactor/custom.hpp"
 #include "corosig/reactor/default.hpp"
 #include "corosig/result.hpp"
 
+#include <boost/intrusive/list.hpp>
 #include <cassert>
 #include <concepts>
 #include <coroutine>
@@ -42,7 +44,7 @@ private:
 };
 
 template <typename T, AnError E, AReactor REACTOR>
-struct CoroutinePromiseType : public CoroutinePromiseReturner<T, E, REACTOR> {
+struct CoroutinePromiseType : CoroListNode, CoroutinePromiseReturner<T, E, REACTOR> {
   CoroutinePromiseType() noexcept = default;
 
   CoroutinePromiseType(const CoroutinePromiseType &) = delete;
@@ -75,9 +77,14 @@ struct CoroutinePromiseType : public CoroutinePromiseReturner<T, E, REACTOR> {
   }
 
 private:
+  std::coroutine_handle<> coro_from_this() noexcept override {
+    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
+  }
+
   friend struct CoroutinePromiseReturner<T, E, REACTOR>;
   friend struct Fut<T, E, REACTOR>;
 
+  std::coroutine_handle<> m_waiting_coro = nullptr;
   Fut<T, E, REACTOR> *m_out{nullptr};
 };
 
@@ -124,9 +131,9 @@ struct Fut {
     bool await_ready() const noexcept {
       return m_future.has_value();
     }
+
     void await_suspend(std::coroutine_handle<> h) const noexcept {
-      // reactor_provider<REACTOR>::engine().
-      m_future.m_waiting_coro = h;
+      m_future.m_promise->m_waiting_coro = h;
     }
 
     Result<T, E> await_resume() const noexcept {
@@ -137,6 +144,7 @@ struct Fut {
     friend Fut;
     Awaiter(Fut &future) noexcept : m_future{future} {
     }
+
     Fut &m_future;
   };
 
@@ -154,7 +162,6 @@ private:
   friend promise_type;
   friend detail::CoroutinePromiseReturner<T, E, REACTOR>;
 
-  std::coroutine_handle<> m_waiting_coro = nullptr;
   promise_type *m_promise = nullptr;
   std::optional<Result<T, E>> m_value = std::nullopt;
 };
