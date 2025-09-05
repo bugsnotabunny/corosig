@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 
-#include "corosig/static_buf_allocator.hpp"
+#include "corosig/Alloc.hpp"
 
 #include <catch2/catch_all.hpp>
 #include <cstddef>

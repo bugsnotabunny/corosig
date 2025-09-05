@@ -1,5 +1,5 @@
-#include "corosig/reactor/default.hpp"
-#include "corosig/reactor/coroutine_list.hpp"
+#include "corosig/reactor/Default.hpp"
+#include "corosig/reactor/CoroList.hpp"
 
 #include <coroutine>
 #include <variant>

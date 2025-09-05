@@ -1,10 +1,8 @@
 #pragma once
 
-#include "corosig/error_types.hpp"
-#include "corosig/reactor/coroutine_list.hpp"
-#include "corosig/reactor/custom.hpp"
-#include "corosig/reactor/default.hpp"
-#include "corosig/result.hpp"
+#include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/Custom.hpp"
+#include "corosig/reactor/Default.hpp"
 
 #include <cassert>
 #include <concepts>

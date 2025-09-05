@@ -1,5 +1,5 @@
 
-#include "corosig/static_buf_allocator.hpp"
+#include "corosig/Alloc.hpp"
 #include <utility>
 
 namespace {

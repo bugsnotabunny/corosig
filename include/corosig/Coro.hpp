@@ -1,10 +1,10 @@
 #pragma once
 
-#include "corosig/error_types.hpp"
-#include "corosig/reactor/coroutine_list.hpp"
-#include "corosig/reactor/custom.hpp"
-#include "corosig/reactor/default.hpp"
-#include "corosig/result.hpp"
+#include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
+#include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/Custom.hpp"
+#include "corosig/reactor/Default.hpp"
 
 #include <boost/intrusive/list.hpp>
 #include <cassert>
@@ -21,15 +21,15 @@
 
 namespace corosig {
 
-template <typename T, AnError E, AReactor REACTOR>
+template <typename T, typename E, AReactor REACTOR>
 struct Fut;
 
 namespace detail {
 
-template <typename T, AnError E, AReactor REACTOR>
+template <typename T, typename E, AReactor REACTOR>
 struct CoroutinePromiseType;
 
-template <typename T, AnError E, AReactor REACTOR>
+template <typename T, typename E, AReactor REACTOR>
 struct CoroutinePromiseReturner {
   template <std::convertible_to<Result<T, E>> U>
   void return_value(U &&value) noexcept {
@@ -43,7 +43,7 @@ private:
   }
 };
 
-template <typename T, AnError E, AReactor REACTOR>
+template <typename T, typename E, AReactor REACTOR>
 struct CoroutinePromiseType : CoroListNode, CoroutinePromiseReturner<T, E, REACTOR> {
   CoroutinePromiseType() noexcept = default;
 
@@ -90,7 +90,7 @@ private:
 
 } // namespace detail
 
-template <typename T, AnError E = AllocationError, AReactor REACTOR = Reactor>
+template <typename T, typename E = AllocationError, AReactor REACTOR = Reactor>
 struct Fut {
   using promise_type = detail::CoroutinePromiseType<T, E, REACTOR>;
 
@@ -166,14 +166,14 @@ private:
   std::optional<Result<T, E>> m_value = std::nullopt;
 };
 
-template <typename T, AnError E, AReactor REACTOR>
+template <typename T, typename E, AReactor REACTOR>
 Fut<T, E, REACTOR> detail::CoroutinePromiseType<T, E, REACTOR>::get_return_object() noexcept {
   Fut<T, E, REACTOR> fut{*this};
   m_out = &fut;
   return fut;
 }
 
-template <typename T, AnError E, AReactor REACTOR>
+template <typename T, typename E, AReactor REACTOR>
 Fut<T, E, REACTOR>
 detail::CoroutinePromiseType<T, E, REACTOR>::get_return_object_on_allocation_failure() noexcept {
   return Fut<T>{AllocationError{}};

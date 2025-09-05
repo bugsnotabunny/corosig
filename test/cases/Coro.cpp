@@ -1,16 +1,15 @@
 
 
-#include <csignal>
 #define CATCH_CONFIG_MAIN
 
-#include "boost/outcome/try.hpp"
-#include "corosig/coro.hpp"
-#include "corosig/error_types.hpp"
-#include "corosig/reactor/custom.hpp"
-#include "corosig/reactor/default.hpp"
-#include "corosig/result.hpp"
-#include "corosig/static_buf_allocator.hpp"
-#include "corosig/yield.hpp"
+#include "corosig/Coro.hpp"
+#include "corosig/Alloc.hpp"
+#include "corosig/Result.hpp"
+#include "corosig/Yield.hpp"
+#include "corosig/reactor/Default.hpp"
+#include "corosig/testing/Require.hpp"
+
+#include <csignal>
 
 #include "catch2/catch_all.hpp"
 
@@ -25,14 +24,14 @@ Fut<int> bar() noexcept {
   co_return co_await foo();
 }
 
-void sighandler(int) noexcept {
+void sighandler(int sig) noexcept {
+  std::signal(sig, SIG_DFL);
+
   Alloc::Memory<1024> mem;
   auto &reactor = reactor_provider<Reactor>::engine();
   reactor = Reactor{mem};
 
-  if (bar().block_on().value() != 20) {
-    _exit(1);
-  }
+  SIG_REQUIRE(bar().block_on().value() == 20);
 }
 
 TEST_CASE("hallo") {

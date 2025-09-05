@@ -1,10 +1,10 @@
 #pragma once
 
-#include "corosig/error_types.hpp"
-#include "corosig/reactor/coroutine_list.hpp"
-#include "corosig/reactor/custom.hpp"
-#include "corosig/result.hpp"
-#include "corosig/static_buf_allocator.hpp"
+#include "corosig/Alloc.hpp"
+#include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
+#include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/Custom.hpp"
 
 #include <chrono>
 #include <coroutine>
