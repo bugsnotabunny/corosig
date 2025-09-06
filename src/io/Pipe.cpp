@@ -99,6 +99,10 @@ os::Handle PipeWrite::underlying_handle() const noexcept {
   return m_fd.value;
 }
 
+os::Handle PipeRead::underlying_handle() const noexcept {
+  return m_fd.value;
+}
+
 Result<PipePair, SyscallError> PipePair::make() noexcept {
   int fds[2];
   if (::pipe2(fds, O_NONBLOCK) == -1) {

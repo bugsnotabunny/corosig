@@ -28,10 +28,7 @@ public:
   Result<size_t, SyscallError> try_read_some(std::span<char>) noexcept;
 
   void close() noexcept;
-
-  decltype(auto) platform_specific_descriptor() const noexcept {
-    return m_fd.value;
-  }
+  os::Handle underlying_handle() const noexcept;
 
 private:
   friend PipePair;

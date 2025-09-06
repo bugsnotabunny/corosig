@@ -1,6 +1,4 @@
 #include "corosig/util/SetDefaultOnMove.hpp"
-#include "corosig/ErrorTypes.hpp"
-#include "corosig/Result.hpp"
 #include "corosig/testing/Signals.hpp"
 
 #include <catch2/catch.hpp>
@@ -47,11 +45,13 @@ TEST_CASE("Move assignment resets source") {
 }
 
 TEST_CASE("Multiple chained moves", "[SetDefaultOnMove]") {
-  SetDefaultOnMove<int, -1> a(10);
-  SetDefaultOnMove<int, -1> b(std::move(a));
-  SetDefaultOnMove<int, -1> c(std::move(b));
+  test_in_sighandler([] {
+    SetDefaultOnMove<int, -1> a(10);
+    SetDefaultOnMove<int, -1> b(std::move(a));
+    SetDefaultOnMove<int, -1> c(std::move(b));
 
-  REQUIRE(a.value == -1);
-  REQUIRE(b.value == -1);
-  REQUIRE(c.value == 10);
+    COROSIG_REQUIRE(a.value == -1);
+    COROSIG_REQUIRE(b.value == -1);
+    COROSIG_REQUIRE(c.value == 10);
+  });
 }

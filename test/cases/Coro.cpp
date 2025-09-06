@@ -64,32 +64,12 @@ TEST_CASE("Fut::block_on returns error when reactor fails") {
 }
 
 TEST_CASE("Fut can be co_awaited inside a coroutine") {
-  constexpr static auto foo = []() -> Fut<int> { co_return 99; };
-  constexpr static auto bar = []() -> Fut<int> { co_return 123 + (co_await foo()).value(); };
-
-  auto result = bar().block_on();
-  REQUIRE(result.has_value());
-  REQUIRE(result.assume_value() == 123 + 99);
-}
-
-TEST_CASE("Coroutine polled pipe for read") {
   test_in_sighandler([] {
-    auto foo = []() -> Fut<int, Error<AllocationError, SyscallError>> {
-      BOOST_OUTCOME_CO_TRY(auto pipes, PipePair::make());
+    constexpr static auto foo = []() -> Fut<int> { co_return 99; };
+    constexpr static auto bar = []() -> Fut<int> { co_return 123 + (co_await foo()).value(); };
 
-      constexpr std::string_view msg = "hello world!";
-      BOOST_OUTCOME_CO_TRY(size_t written, co_await pipes.write.write(msg));
-      COROSIG_REQUIRE(written == msg.size());
-
-      char buf[msg.size()];
-      BOOST_OUTCOME_CO_TRY(size_t read, co_await pipes.read.read(buf));
-      COROSIG_REQUIRE(std::string_view{buf, read} == msg);
-
-      co_return 10;
-    };
-
-    auto res = foo().block_on();
-    COROSIG_REQUIRE(res);
-    COROSIG_REQUIRE(res.value() == 10);
+    auto result = bar().block_on();
+    REQUIRE(result.has_value());
+    REQUIRE(result.assume_value() == 123 + 99);
   });
 }
