@@ -1,21 +1,82 @@
 #include "corosig/reactor/Default.hpp"
+#include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/PollList.hpp"
 
+#include <chrono>
 #include <coroutine>
+#include <cstddef>
+#include <sys/poll.h>
 #include <variant>
 
 namespace {
 
 using namespace corosig;
 
-Reactor reactor;
+Result<void, SyscallError> poll_and_resume(PollList &polled,
+                                           std::chrono::milliseconds timeout) noexcept {
+  if (polled.empty()) {
+    return success();
+  }
+
+  constexpr size_t BUF_SIZE = 32;
+  ::pollfd poll_fds[BUF_SIZE];
+
+  size_t fds_count = 0;
+  for (PollListNode &node : polled) {
+    assert(node.handle != -1);
+
+    ::pollfd &poll_fd = poll_fds[fds_count];
+
+    poll_fd.fd = node.handle;
+    poll_fd.events = 0;
+
+    poll_fd.events |= [&] {
+      switch (node.event) {
+      case poll_event_e::READ:
+        return POLLIN;
+      case poll_event_e::WRITE:
+        return POLLOUT;
+      }
+      assert(false && "Unsupported poll event type");
+      return 0;
+    }();
+
+    ++fds_count;
+  }
+
+  int ret = ::poll(poll_fds, fds_count, timeout.count());
+  if (ret == -1) {
+    return SyscallError::current();
+  }
+
+  for (size_t i = 0; i < size_t(ret); ++i) {
+    auto &node = polled.front();
+    polled.pop_front();
+    node.waiting_coro.resume();
+  }
+  return success();
+}
+
+void resume(CoroList &ready) noexcept {
+  constexpr size_t ITERATIONS_LIMIT = 1024 * 1024;
+  size_t i = 0;
+  while (!ready.empty() && i < ITERATIONS_LIMIT) {
+    auto &node = ready.front();
+    ready.pop_front();
+    node.coro_from_this().resume();
+    ++i;
+  }
+}
 
 } // namespace
 
 namespace corosig {
 
 Reactor &reactor_provider<Reactor>::engine() noexcept {
-  return reactor;
+  thread_local Reactor thread_local_reactor;
+  return thread_local_reactor;
 }
 
 void *Reactor::allocate_frame(size_t n) noexcept {
@@ -30,10 +91,18 @@ void Reactor::yield(CoroListNode &node) noexcept {
   m_ready.push_back(node);
 }
 
-Result<void, AllocationError> Reactor::do_event_loop_iteration() noexcept {
-  for (CoroListNode &node : m_ready) {
-    node.coro_from_this().resume();
+void Reactor::poll(PollListNode &node) noexcept {
+  m_polled.push_back(node);
+}
+
+Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
+  resume(m_ready);
+
+  Result poll_res = poll_and_resume(m_polled, std::chrono::milliseconds{-1});
+  if (!poll_res) {
+    return poll_res.assume_error();
   }
+
   return success();
 }
 

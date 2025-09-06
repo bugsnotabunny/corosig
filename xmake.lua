@@ -15,11 +15,10 @@ else
 end
 
 add_requires("boost", {
-    configs = { exception = true } -- implicitly required by outcome
-})
-
-add_requires("ace", {
-    configs = { ssl = false }
+    configs = {
+        exception = true, -- implicitly required by outcome
+        container = true,
+    }
 })
 
 target("corosig")
@@ -28,11 +27,10 @@ add_includedirs("include", { public = true })
 add_files("src/**.cpp")
 set_default(true)
 add_packages("boost", { public = true })
-add_packages("ace", { public = true })
 target_end()
 
-add_requires("catch2", { configs = { main = true, gmock = true } })
 
+add_requires("catch2 v2.13.10", { configs = { main = true, gmock = true } })
 
 target("corosig-testing")
 set_kind("static")

@@ -35,6 +35,18 @@ struct CoroutinePromiseReturner {
   void return_value(U &&value) noexcept {
     assert(impl().m_out);
     impl().m_out->m_value.emplace(std::forward<U>(value));
+    impl().m_waiting_coro.resume();
+  }
+
+  template <std::convertible_to<T> T2, std::convertible_to<E> E2>
+  void return_value(Result<T2, E2> &&value) noexcept {
+    assert(impl().m_out);
+    if (value.has_value()) {
+      impl().m_out->m_value.emplace(std::forward<Result<T2, E2>>(value).assume_value());
+    } else {
+      impl().m_out->m_value.emplace(std::forward<Result<T2, E2>>(value).assume_error());
+    }
+    impl().m_waiting_coro.resume();
   }
 
 private:
@@ -52,16 +64,33 @@ struct CoroutinePromiseType : CoroListNode, CoroutinePromiseReturner<T, E, REACT
   CoroutinePromiseType &operator=(const CoroutinePromiseType &) = delete;
   CoroutinePromiseType &operator=(CoroutinePromiseType &&) = delete;
 
+  ~CoroutinePromiseType() {
+    assert(m_out);
+    m_out->m_promise = nullptr;
+  }
+
   template <typename... ARGS>
   static void *operator new(size_t n, ARGS &&...) noexcept {
-    return reactor_provider<REACTOR>::engine().allocate_frame(n);
+    return reactor().allocate_frame(n);
   }
 
   static void operator delete(void *frame) noexcept {
-    return reactor_provider<REACTOR>::engine().free_frame(frame);
+    return reactor().free_frame(frame);
   }
 
-  [[noreturn]] void unhandled_exception() noexcept {
+  static REACTOR &reactor() noexcept {
+    return reactor_provider<REACTOR>::engine();
+  }
+
+  void yield_to_reactor() noexcept {
+    reactor().yield(*this);
+  }
+
+  void poll_to_reactor(PollListNode &node) noexcept {
+    reactor().poll(node);
+  }
+
+  [[noreturn]] static void unhandled_exception() noexcept {
     std::terminate();
   }
 
@@ -84,7 +113,7 @@ private:
   friend struct CoroutinePromiseReturner<T, E, REACTOR>;
   friend struct Fut<T, E, REACTOR>;
 
-  std::coroutine_handle<> m_waiting_coro = nullptr;
+  std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
   Fut<T, E, REACTOR> *m_out{nullptr};
 };
 
@@ -112,14 +141,18 @@ struct Fut {
     return m_value.has_value();
   }
 
-  Result<T, E> block_on() && noexcept {
+  Result<T, extend_error_t<E, SyscallError>> block_on() && noexcept {
     while (!m_value.has_value()) {
-      Result res = reactor_provider<REACTOR>::engine().do_event_loop_iteration();
+      Result res = promise_type::reactor().do_event_loop_iteration();
       if (!res) {
-        return res.error();
+        return std::move(res).assume_error();
       }
     }
-    return *std::move(m_value);
+    if (m_value->has_value()) {
+      return std::move(m_value)->assume_value();
+    } else {
+      return std::move(m_value)->error();
+    }
   }
 
   struct Awaiter {
@@ -163,6 +196,11 @@ private:
   friend detail::CoroutinePromiseReturner<T, E, REACTOR>;
 
   promise_type *m_promise = nullptr;
+
+  struct CoroListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::auto_unlink>> {
+    virtual std::coroutine_handle<> coro_from_this() noexcept = 0;
+  };
+
   std::optional<Result<T, E>> m_value = std::nullopt;
 };
 
@@ -176,7 +214,7 @@ Fut<T, E, REACTOR> detail::CoroutinePromiseType<T, E, REACTOR>::get_return_objec
 template <typename T, typename E, AReactor REACTOR>
 Fut<T, E, REACTOR>
 detail::CoroutinePromiseType<T, E, REACTOR>::get_return_object_on_allocation_failure() noexcept {
-  return Fut<T>{AllocationError{}};
+  return Fut<T, E, REACTOR>{AllocationError{}};
 }
 
 } // namespace corosig

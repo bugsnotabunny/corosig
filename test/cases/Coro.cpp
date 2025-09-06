@@ -1,40 +1,74 @@
-
-
 #define CATCH_CONFIG_MAIN
 
 #include "corosig/Coro.hpp"
-#include "corosig/Alloc.hpp"
-#include "corosig/Result.hpp"
+#include "corosig/ErrorTypes.hpp"
 #include "corosig/Yield.hpp"
-#include "corosig/reactor/Default.hpp"
-#include "corosig/testing/Require.hpp"
+#include "corosig/io/Pipe.hpp"
+#include "corosig/testing/Signals.hpp"
 
+#include <catch2/catch.hpp>
 #include <csignal>
-
-#include "catch2/catch_all.hpp"
 
 using namespace corosig;
 
-Fut<int> foo() noexcept {
-  co_return 20;
+TEST_CASE("Coroutine executed synchronously") {
+  test_in_sighandler([] {
+    auto foo = []() -> Fut<int> { co_return 20; };
+    auto res = foo().block_on();
+    COROSIG_REQUIRE(res);
+    COROSIG_REQUIRE(res.value() == 20);
+  });
 }
 
-Fut<int> bar() noexcept {
-  co_await Yield{};
-  co_return co_await foo();
+TEST_CASE("Coroutine yielded") {
+  test_in_sighandler([] {
+    auto foo = []() -> Fut<int> {
+      co_await Yield{};
+      co_return 20;
+    };
+
+    auto res = foo().block_on();
+    COROSIG_REQUIRE(res);
+    COROSIG_REQUIRE(res.value() == 20);
+  });
 }
 
-void sighandler(int sig) noexcept {
-  std::signal(sig, SIG_DFL);
+TEST_CASE("Coroutine awaits another coroutine") {
+  test_in_sighandler([] {
+    constexpr static auto foo = []() -> Fut<int> {
+      co_await Yield{};
+      co_return 20;
+    };
 
-  Alloc::Memory<1024> mem;
-  auto &reactor = reactor_provider<Reactor>::engine();
-  reactor = Reactor{mem};
+    constexpr static auto bar = []() -> Fut<int> {
+      co_await Yield{};
+      co_return 20 + (co_await foo()).value();
+    };
 
-  SIG_REQUIRE(bar().block_on().value() == 20);
+    auto res = bar().block_on();
+    COROSIG_REQUIRE(res);
+    COROSIG_REQUIRE(res.value() == 40);
+  });
 }
 
-TEST_CASE("hallo") {
-  REQUIRE(std::signal(SIGINT, sighandler) != SIG_ERR);
-  raise(SIGINT);
+TEST_CASE("Coroutine polled pipe for read") {
+  test_in_sighandler([] {
+    auto foo = []() -> Fut<int, Error<AllocationError, SyscallError>> {
+      BOOST_OUTCOME_CO_TRY(auto pipes, PipePair::make());
+
+      constexpr std::string_view msg = "hello world!";
+      BOOST_OUTCOME_CO_TRY(size_t written, co_await pipes.write.write(msg));
+      COROSIG_REQUIRE(written == msg.size());
+
+      char buf[msg.size()];
+      BOOST_OUTCOME_CO_TRY(size_t read, co_await pipes.read.read(buf));
+      COROSIG_REQUIRE(std::string_view{buf, read} == msg);
+
+      co_return 10;
+    };
+
+    auto res = foo().block_on();
+    COROSIG_REQUIRE(res);
+    COROSIG_REQUIRE(res.value() == 10);
+  });
 }

@@ -1,10 +1,11 @@
 
-#include "corosig/coro.hpp"
-#include "corosig/error_types.hpp"
-#include "corosig/result.hpp"
-#include "corosig/util/set_on_move.hpp"
-#include <fcntl.h>
-#include <unistd.h>
+#include "corosig/Coro.hpp"
+#include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
+#include "corosig/os/Handle.hpp"
+#include "corosig/util/SetDefaultOnMove.hpp"
+
+#include <cstddef>
 #include <utility>
 
 namespace corosig {
@@ -20,28 +21,21 @@ public:
   PipeRead &operator=(const PipeRead &) = delete;
   PipeRead &operator=(PipeRead &&) = default;
 
-  ~PipeRead() {
-    close();
-  }
+  ~PipeRead();
 
-  Result<size_t, SyscallError> try_read(void *buffer, size_t size) noexcept {
-    ssize_t n = ::read(fd.value, buffer, size);
-    if (n == -1) {
-      return SyscallError{errno};
-    }
-    return size_t(n);
-  }
+  Fut<size_t, Error<AllocationError, SyscallError>> read(std::span<char>) noexcept;
+  Fut<size_t, Error<AllocationError, SyscallError>> read_some(std::span<char>) noexcept;
+  Result<size_t, SyscallError> try_read_some(std::span<char>) noexcept;
 
-  void close() noexcept {
-    if (fd.value >= 0) {
-      ::close(fd.value);
-      fd.value = -1;
-    }
+  void close() noexcept;
+
+  decltype(auto) platform_specific_descriptor() const noexcept {
+    return m_fd.value;
   }
 
 private:
   friend PipePair;
-  SetDefaultOnMove<int, -1> fd;
+  SetDefaultOnMove<int, -1> m_fd;
 };
 
 struct PipeWrite {
@@ -53,47 +47,22 @@ public:
   PipeWrite &operator=(const PipeWrite &) = delete;
   PipeWrite &operator=(PipeWrite &&) = default;
 
-  ~PipeWrite() {
-    close();
-  }
+  ~PipeWrite();
 
-  Result<size_t, SyscallError> try_write(const void *buffer, size_t size) noexcept {
-    ssize_t n = ::write(fd.value, buffer, size);
-    if (n == -1) {
-      return SyscallError{errno};
-    }
-    return size_t(n);
-  }
+  Fut<size_t, Error<AllocationError, SyscallError>> write(std::span<char const>) noexcept;
+  Fut<size_t, Error<AllocationError, SyscallError>> write_some(std::span<char const>) noexcept;
+  Result<size_t, SyscallError> try_write_some(std::span<char const>) noexcept;
 
-  void close() noexcept {
-    if (fd.value >= 0) {
-      ::close(fd.value);
-      fd.value = -1;
-    }
-  }
+  void close() noexcept;
+  os::Handle underlying_handle() const noexcept;
 
 private:
   friend PipePair;
-  SetDefaultOnMove<int, -1> fd;
+  SetDefaultOnMove<int, -1> m_fd;
 };
 
 struct PipePair {
-  Result<PipePair, SyscallError> make() noexcept {
-    int fds[2];
-    if (::pipe2(fds, O_NONBLOCK) == -1) {
-      return SyscallError{errno};
-    }
-    PipeRead read;
-    PipeWrite write;
-
-    read.fd.value = fds[0];
-    write.fd.value = fds[1];
-
-    return PipePair{
-        .read = std::move(read),
-        .write = std::move(write),
-    };
-  }
+  static Result<PipePair, SyscallError> make() noexcept;
 
   PipeRead read;
   PipeWrite write;

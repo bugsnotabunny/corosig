@@ -5,13 +5,12 @@
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Custom.hpp"
+#include "corosig/reactor/PollList.hpp"
 
 #include <chrono>
 #include <coroutine>
 #include <cstddef>
-#include <sys/poll.h>
 #include <variant>
-#include <vector>
 
 namespace corosig {
 
@@ -26,8 +25,13 @@ struct Reactor {
   void free_frame(void *) noexcept;
 
   void yield(CoroListNode &) noexcept;
+  void poll(PollListNode &) noexcept;
 
-  Result<void, AllocationError> do_event_loop_iteration() noexcept;
+  Result<void, SyscallError> do_event_loop_iteration() noexcept;
+
+  bool has_active_tasks() noexcept {
+    return !m_ready.empty() && !m_polled.empty();
+  }
 
   size_t peak_memory() noexcept {
     return m_alloc.peak_memory();
@@ -38,6 +42,7 @@ struct Reactor {
   }
 
 private:
+  PollList m_polled;
   CoroList m_ready;
   Alloc m_alloc;
 };
