@@ -1,7 +1,7 @@
 #pragma once
 
-#include <concepts>
 #include <utility>
+
 namespace corosig {
 
 template <typename T, T DEFAULT = T{}>
