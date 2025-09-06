@@ -1,5 +1,3 @@
-#define CATCH_CONFIG_MAIN
-
 #include "corosig/Alloc.hpp"
 #include "corosig/testing/Signals.hpp"
 

@@ -1,8 +1,6 @@
 #pragma once
 
 #include "corosig/reactor/CoroList.hpp"
-#include "corosig/reactor/Custom.hpp"
-#include "corosig/reactor/Default.hpp"
 
 #include <cassert>
 #include <concepts>

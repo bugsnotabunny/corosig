@@ -21,13 +21,22 @@ concept WithDescription = requires(E const &e) {
 
 template <typename... TYPES>
 struct Error : std::variant<TYPES...> {
-  using std::variant<TYPES...>::variant;
+private:
+  using Base = std::variant<TYPES...>;
+
+public:
+  using Base::Base;
 
   char const *description() const noexcept {
     return visit(Overloaded{
         [](detail::WithDescription auto const &e) { return e.description(); },
         [](auto const &e) { return typeid(std::decay_t<decltype(e)>).name(); },
     });
+  }
+
+  template <typename T>
+  bool holds() const noexcept {
+    return std::holds_alternative<T>(*this);
   }
 
   template <typename F>
@@ -52,9 +61,13 @@ struct extend_error {
 template <typename E1, typename E2>
 using extend_error_t = typename extend_error<E1, E2>::type;
 
-struct AllocationError {};
+struct AllocationError {
+  auto operator<=>(const AllocationError &) const noexcept = default;
+};
 
 struct SyscallError {
+  auto operator<=>(const SyscallError &) const noexcept = default;
+
   static SyscallError current() noexcept;
 
   char const *description() const noexcept;

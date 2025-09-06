@@ -1,6 +1,5 @@
 #pragma once
 
-#include "corosig/reactor/Custom.hpp"
 #include "corosig/reactor/Default.hpp"
 
 #include <catch2/catch.hpp>

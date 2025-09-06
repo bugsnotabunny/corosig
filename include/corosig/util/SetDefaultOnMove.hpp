@@ -1,11 +1,16 @@
 #pragma once
 
+#include <concepts>
 #include <utility>
 namespace corosig {
 
 template <typename T, T DEFAULT = T{}>
 struct SetDefaultOnMove {
   SetDefaultOnMove() noexcept = default;
+
+  template <typename... ARGS>
+  SetDefaultOnMove(ARGS &&...args) noexcept : value{std::forward<ARGS>(args)...} {
+  }
 
   SetDefaultOnMove(SetDefaultOnMove &&rhs) noexcept : value(std::exchange(rhs.value, DEFAULT)) {
   }

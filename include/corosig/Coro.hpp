@@ -6,7 +6,6 @@
 #include "corosig/reactor/Custom.hpp"
 #include "corosig/reactor/Default.hpp"
 
-#include <boost/intrusive/list.hpp>
 #include <cassert>
 #include <concepts>
 #include <coroutine>
@@ -27,36 +26,7 @@ struct Fut;
 namespace detail {
 
 template <typename T, typename E, AReactor REACTOR>
-struct CoroutinePromiseType;
-
-template <typename T, typename E, AReactor REACTOR>
-struct CoroutinePromiseReturner {
-  template <std::convertible_to<Result<T, E>> U>
-  void return_value(U &&value) noexcept {
-    assert(impl().m_out);
-    impl().m_out->m_value.emplace(std::forward<U>(value));
-    impl().m_waiting_coro.resume();
-  }
-
-  template <std::convertible_to<T> T2, std::convertible_to<E> E2>
-  void return_value(Result<T2, E2> &&value) noexcept {
-    assert(impl().m_out);
-    if (value.has_value()) {
-      impl().m_out->m_value.emplace(std::forward<Result<T2, E2>>(value).assume_value());
-    } else {
-      impl().m_out->m_value.emplace(std::forward<Result<T2, E2>>(value).assume_error());
-    }
-    impl().m_waiting_coro.resume();
-  }
-
-private:
-  auto &impl() noexcept {
-    return static_cast<CoroutinePromiseType<T, E, REACTOR> &>(*this);
-  }
-};
-
-template <typename T, typename E, AReactor REACTOR>
-struct CoroutinePromiseType : CoroListNode, CoroutinePromiseReturner<T, E, REACTOR> {
+struct CoroutinePromiseType : CoroListNode {
   CoroutinePromiseType() noexcept = default;
 
   CoroutinePromiseType(const CoroutinePromiseType &) = delete;
@@ -105,12 +75,34 @@ struct CoroutinePromiseType : CoroListNode, CoroutinePromiseReturner<T, E, REACT
     return std::suspend_never{};
   }
 
+  template <std::convertible_to<Result<T, E>> U>
+  void return_value(U &&value) noexcept {
+    assert(m_out);
+    m_out->m_value.emplace(std::forward<U>(value));
+    m_waiting_coro.resume();
+  }
+
+  template <std::convertible_to<T> T2, std::convertible_to<E> E2>
+  void return_value(Result<T2, E2> &&result) noexcept {
+    assert(m_out);
+    if (result.has_value()) {
+      if constexpr (std::same_as<void, T>) {
+        m_out->m_value.emplace();
+      } else {
+        m_out->m_value.emplace(std::forward<Result<T2, E2>>(result).assume_value());
+      }
+
+    } else {
+      m_out->m_value.emplace(std::forward<Result<T2, E2>>(result).assume_error());
+    }
+    m_waiting_coro.resume();
+  }
+
 private:
   std::coroutine_handle<> coro_from_this() noexcept override {
     return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
   }
 
-  friend struct CoroutinePromiseReturner<T, E, REACTOR>;
   friend struct Fut<T, E, REACTOR>;
 
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
@@ -119,12 +111,14 @@ private:
 
 } // namespace detail
 
-template <typename T, typename E = AllocationError, AReactor REACTOR = Reactor>
+template <typename T = void, typename E = AllocationError, AReactor REACTOR = Reactor>
 struct Fut {
   using promise_type = detail::CoroutinePromiseType<T, E, REACTOR>;
 
   Fut(const Fut &) = delete;
-  Fut(Fut &&rhs) noexcept : m_promise(std::exchange(rhs.m_promise, nullptr)) {
+  Fut(Fut &&rhs) noexcept
+      : m_promise{std::exchange(rhs.m_promise, nullptr)},
+        m_value{std::exchange(rhs.m_value, std::nullopt)} {
     if (m_promise) {
       m_promise->m_out = this;
     }
@@ -149,7 +143,11 @@ struct Fut {
       }
     }
     if (m_value->has_value()) {
-      return std::move(m_value)->assume_value();
+      if constexpr (std::same_as<void, T>) {
+        return success();
+      } else {
+        return std::move(m_value)->assume_value();
+      }
     } else {
       return std::move(m_value)->error();
     }
@@ -189,11 +187,10 @@ private:
   Fut(promise_type &prom) noexcept : m_promise{&prom} {
   }
 
-  Fut(AllocationError e) noexcept : m_value{e} {
+  Fut(AllocationError e) noexcept : m_value{failure(e)} {
   }
 
   friend promise_type;
-  friend detail::CoroutinePromiseReturner<T, E, REACTOR>;
 
   promise_type *m_promise = nullptr;
 
