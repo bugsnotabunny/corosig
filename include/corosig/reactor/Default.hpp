@@ -15,7 +15,7 @@
 namespace corosig {
 
 struct Reactor {
-  Reactor() = default;
+  Reactor() noexcept = default;
 
   template <size_t SIZE>
   Reactor(Alloc::Memory<SIZE> &mem) : m_alloc{mem} {

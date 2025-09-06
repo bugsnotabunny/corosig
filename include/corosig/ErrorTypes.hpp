@@ -1,6 +1,10 @@
 #pragma once
 
+#include "boost/mp11/algorithm.hpp"
+#include "boost/mp11/detail/mp_list.hpp"
+#include "boost/mp11/detail/mp_rename.hpp"
 #include "corosig/util/Overloaded.hpp"
+#include <boost/mp11.hpp>
 #include <concepts>
 #include <cstring>
 #include <type_traits>
@@ -45,21 +49,39 @@ public:
   }
 };
 
+namespace detail {
+
+template <template <typename...> typename TMPL, typename... TS>
+using apply_unique =
+    boost::mp11::mp_apply<TMPL, boost::mp11::mp_unique<boost::mp11::mp_list<TS...>>>;
+
 template <typename E1, typename E2>
 struct extend_error;
 
-template <typename... TYPES1, typename... TYPES2>
-struct extend_error<Error<TYPES1...>, Error<TYPES2...>> {
-  using type = Error<TYPES1..., TYPES2...>;
+template <typename... E1, typename... E2>
+struct extend_error<Error<E1...>, Error<E2...>> {
+  using type = apply_unique<Error, E1..., E2...>;
 };
 
 template <typename E1, typename E2>
 struct extend_error {
-  using type = typename extend_error<Error<E1>, Error<E2>>::type;
+  using type = extend_error<Error<E1>, Error<E2>>::type;
 };
 
+template <typename... E1, typename E2>
+struct extend_error<Error<E1...>, E2> {
+  using type = extend_error<Error<E1...>, Error<E2>>::type;
+};
+
+template <typename E1, typename... E2>
+struct extend_error<E1, Error<E2...>> {
+  using type = extend_error<Error<E1>, Error<E2...>>::type;
+};
+
+} // namespace detail
+
 template <typename E1, typename E2>
-using extend_error_t = typename extend_error<E1, E2>::type;
+using extend_error = typename detail::extend_error<E1, E2>::type;
 
 struct AllocationError {
   auto operator<=>(const AllocationError &) const noexcept = default;

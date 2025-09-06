@@ -26,7 +26,6 @@ TEST_CASE("Fut move constructor transfers ownership") {
 
     Fut<> fut1 = foo();
     COROSIG_REQUIRE(fut1.has_value());
-
     Fut<> fut2{std::move(fut1)};
     COROSIG_REQUIRE(fut2.has_value());
   });

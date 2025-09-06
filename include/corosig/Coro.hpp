@@ -87,13 +87,13 @@ struct CoroutinePromiseType : CoroListNode {
     assert(m_out);
     if (result.has_value()) {
       if constexpr (std::same_as<void, T>) {
-        m_out->m_value.emplace();
+        m_out->m_value.emplace(success());
       } else {
-        m_out->m_value.emplace(std::forward<Result<T2, E2>>(result).assume_value());
+        m_out->m_value.emplace(success(std::move(result.assume_value())));
       }
 
     } else {
-      m_out->m_value.emplace(std::forward<Result<T2, E2>>(result).assume_error());
+      m_out->m_value.emplace(std::move(result.assume_error()));
     }
     m_waiting_coro.resume();
   }
@@ -112,7 +112,7 @@ private:
 } // namespace detail
 
 template <typename T = void, typename E = AllocationError, AReactor REACTOR = Reactor>
-struct Fut {
+struct [[nodiscard("forgot to await?")]] Fut {
   using promise_type = detail::CoroutinePromiseType<T, E, REACTOR>;
 
   Fut(const Fut &) = delete;
@@ -135,21 +135,21 @@ struct Fut {
     return m_value.has_value();
   }
 
-  Result<T, extend_error_t<E, SyscallError>> block_on() && noexcept {
+  Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
     while (!m_value.has_value()) {
       Result res = promise_type::reactor().do_event_loop_iteration();
       if (!res) {
-        return std::move(res).assume_error();
+        return failure(std::move(res.assume_error()));
       }
     }
     if (m_value->has_value()) {
       if constexpr (std::same_as<void, T>) {
         return success();
       } else {
-        return std::move(m_value)->assume_value();
+        return success(std::move(m_value->assume_value()));
       }
     } else {
-      return std::move(m_value)->error();
+      return failure(std::move(m_value->error()));
     }
   }
 

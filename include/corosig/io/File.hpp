@@ -3,48 +3,47 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/os/Handle.hpp"
+#include "corosig/util/Bitmask.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cstddef>
+#include <fcntl.h>
 #include <utility>
 
 namespace corosig {
 
-struct PipePair;
-
-struct PipeRead {
+struct File {
 public:
-  PipeRead() noexcept = default;
+  /// Values are os-specific
+  enum class OpenFlags {
+    APPEND = O_APPEND,
+    CREATE = O_CREAT,
+    TRUNCATE = O_TRUNC,
+    WRONLY = O_WRONLY,
+    RDONLY = O_RDONLY,
+  };
 
-  PipeRead(const PipeRead &) = delete;
-  PipeRead(PipeRead &&) noexcept = default;
-  PipeRead &operator=(const PipeRead &) = delete;
-  PipeRead &operator=(PipeRead &&) noexcept = default;
+  /// Values are os-specific
+  enum class OpenPerms {
+    UNSPECIFIED,
+    // TODO
+  };
 
-  ~PipeRead();
+  File() noexcept = default;
+
+  static Fut<File, Error<AllocationError, SyscallError>>
+  open(char const *path, OpenFlags, OpenPerms = OpenPerms::UNSPECIFIED) noexcept;
+
+  File(const File &) = delete;
+  File(File &&) noexcept = default;
+  File &operator=(const File &) = delete;
+  File &operator=(File &&) noexcept = default;
+
+  ~File();
 
   Fut<size_t, Error<AllocationError, SyscallError>> read(std::span<char>) noexcept;
   Fut<size_t, Error<AllocationError, SyscallError>> read_some(std::span<char>) noexcept;
   Result<size_t, SyscallError> try_read_some(std::span<char>) noexcept;
-
-  void close() noexcept;
-  os::Handle underlying_handle() const noexcept;
-
-private:
-  friend PipePair;
-  SetDefaultOnMove<int, -1> m_fd;
-};
-
-struct PipeWrite {
-public:
-  PipeWrite() noexcept = default;
-
-  PipeWrite(const PipeWrite &) = delete;
-  PipeWrite(PipeWrite &&) noexcept = default;
-  PipeWrite &operator=(const PipeWrite &) = delete;
-  PipeWrite &operator=(PipeWrite &&) noexcept = default;
-
-  ~PipeWrite();
 
   Fut<size_t, Error<AllocationError, SyscallError>> write(std::span<char const>) noexcept;
   Fut<size_t, Error<AllocationError, SyscallError>> write_some(std::span<char const>) noexcept;
@@ -54,15 +53,13 @@ public:
   os::Handle underlying_handle() const noexcept;
 
 private:
-  friend PipePair;
   SetDefaultOnMove<int, -1> m_fd;
 };
 
-struct PipePair {
-  static Result<PipePair, SyscallError> make() noexcept;
+template <>
+struct is_bitmask<File::OpenFlags> : std::true_type {};
 
-  PipeRead read;
-  PipeWrite write;
-};
+template <>
+struct is_bitmask<File::OpenPerms> : std::true_type {};
 
 } // namespace corosig
