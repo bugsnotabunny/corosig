@@ -3,45 +3,26 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/os/Handle.hpp"
-#include "corosig/util/Bitmask.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cstddef>
-#include <fcntl.h>
 #include <utility>
 
 namespace corosig {
 
-struct File {
+struct Socket {
 public:
-  /// Exact values are os-specific
-  enum class OpenFlags {
-    UNSPECIFIED = 0,
-    APPEND = O_APPEND,
-    CREATE = O_CREAT,
-    TRUNCATE = O_TRUNC,
-    WRONLY = O_WRONLY,
-    RDONLY = O_RDONLY,
-  };
+  Socket() noexcept = default;
 
-  /// Exact values are os-specific
-  enum class OpenPerms {
-    UNSPECIFIED,
-    // TODO
-  };
+  Fut<Socket, Error<AllocationError, SyscallError>> connect() noexcept {
+  }
 
-  File() noexcept = default;
+  Socket(const Socket &) = delete;
+  Socket(Socket &&) noexcept = default;
+  Socket &operator=(const Socket &) = delete;
+  Socket &operator=(Socket &&) noexcept = default;
 
-  static Fut<File, Error<AllocationError, SyscallError>>
-  open(char const *path, OpenFlags = OpenFlags::UNSPECIFIED,
-       OpenPerms = OpenPerms::UNSPECIFIED) noexcept;
-
-  File(const File &) = delete;
-  File(File &&) noexcept = default;
-  File &operator=(const File &) = delete;
-  File &operator=(File &&) noexcept = default;
-
-  ~File();
+  ~Socket();
 
   Fut<size_t, Error<AllocationError, SyscallError>> read(std::span<char>) noexcept;
   Fut<size_t, Error<AllocationError, SyscallError>> read_some(std::span<char>) noexcept;
@@ -57,11 +38,5 @@ public:
 private:
   SetDefaultOnMove<int, -1> m_fd;
 };
-
-template <>
-struct is_bitmask<File::OpenFlags> : std::true_type {};
-
-template <>
-struct is_bitmask<File::OpenPerms> : std::true_type {};
 
 } // namespace corosig

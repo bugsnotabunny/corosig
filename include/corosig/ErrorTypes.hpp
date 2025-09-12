@@ -26,6 +26,11 @@ concept WithDescription = requires(E const &e) {
 template <typename... TYPES>
 struct Error : std::variant<TYPES...> {
 private:
+  static_assert(
+      boost::mp11::mp_size<boost::mp11::mp_unique<boost::mp11::mp_list<TYPES...>>>::value ==
+          sizeof...(TYPES),
+      "Error must contain unique types");
+
   using Base = std::variant<TYPES...>;
 
 public:
@@ -51,37 +56,34 @@ public:
 
 namespace detail {
 
+template <template <class...> class, class>
+struct is_instance_of : std::false_type {};
+
+template <template <class...> class TMPL, class... Args>
+struct is_instance_of<TMPL, TMPL<Args...>> : std::true_type {};
+
 template <template <typename...> typename TMPL, typename... TS>
 using apply_unique =
     boost::mp11::mp_apply<TMPL, boost::mp11::mp_unique<boost::mp11::mp_list<TS...>>>;
 
-template <typename E1, typename E2>
-struct extend_error;
+template <typename, typename>
+struct extend_error_impl;
 
 template <typename... E1, typename... E2>
-struct extend_error<Error<E1...>, Error<E2...>> {
+struct extend_error_impl<Error<E1...>, Error<E2...>> {
   using type = apply_unique<Error, E1..., E2...>;
 };
 
 template <typename E1, typename E2>
-struct extend_error {
-  using type = extend_error<Error<E1>, Error<E2>>::type;
-};
-
-template <typename... E1, typename E2>
-struct extend_error<Error<E1...>, E2> {
-  using type = extend_error<Error<E1...>, Error<E2>>::type;
-};
-
-template <typename E1, typename... E2>
-struct extend_error<E1, Error<E2...>> {
-  using type = extend_error<Error<E1>, Error<E2...>>::type;
-};
+using extend_error =
+    extend_error_impl<std::conditional_t<is_instance_of<Error, E1>::value, E1, Error<E1>>,
+                      std::conditional_t<is_instance_of<Error, E2>::value, E2, Error<E2>>>::type;
 
 } // namespace detail
 
-template <typename E1, typename E2>
-using extend_error = typename detail::extend_error<E1, E2>::type;
+template <typename... E>
+using extend_error =
+    boost::mp11::mp_fold<boost::mp11::mp_list<E...>, Error<>, detail::extend_error>;
 
 struct AllocationError {
   auto operator<=>(const AllocationError &) const noexcept = default;
