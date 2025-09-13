@@ -150,6 +150,7 @@ void Alloc::free(void *ptr) noexcept {
     it = it->next;
   }
 
+  assert(m_used >= freenode->data.block_size && "Double free detected");
   m_used -= freenode->data.block_size;
 
   // Merge contiguous nodes

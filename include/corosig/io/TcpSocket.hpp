@@ -4,25 +4,23 @@
 #include "corosig/Result.hpp"
 #include "corosig/os/Handle.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
-
-#include <cstddef>
-#include <utility>
+#include <sys/socket.h>
 
 namespace corosig {
 
-struct Socket {
+struct TcpSocket {
 public:
-  Socket() noexcept = default;
+  TcpSocket() noexcept = default;
 
-  Fut<Socket, Error<AllocationError, SyscallError>> connect() noexcept {
-  }
+  static Fut<TcpSocket, Error<AllocationError, SyscallError>>
+  connect(sockaddr_storage const &addr) noexcept;
 
-  Socket(const Socket &) = delete;
-  Socket(Socket &&) noexcept = default;
-  Socket &operator=(const Socket &) = delete;
-  Socket &operator=(Socket &&) noexcept = default;
+  TcpSocket(const TcpSocket &) = delete;
+  TcpSocket(TcpSocket &&) noexcept = default;
+  TcpSocket &operator=(const TcpSocket &) = delete;
+  TcpSocket &operator=(TcpSocket &&) noexcept = default;
 
-  ~Socket();
+  ~TcpSocket();
 
   Fut<size_t, Error<AllocationError, SyscallError>> read(std::span<char>) noexcept;
   Fut<size_t, Error<AllocationError, SyscallError>> read_some(std::span<char>) noexcept;

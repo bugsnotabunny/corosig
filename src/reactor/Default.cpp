@@ -34,9 +34,9 @@ Result<void, SyscallError> poll_and_resume(PollList &polled,
 
     poll_fd.events |= [&] {
       switch (node.event) {
-      case poll_event_e::READ:
+      case poll_event_e::CAN_READ:
         return POLLIN;
-      case poll_event_e::WRITE:
+      case poll_event_e::CAN_WRITE:
         return POLLOUT;
       }
       assert(false && "Unsupported poll event type");
@@ -98,12 +98,13 @@ void Reactor::poll(PollListNode &node) noexcept {
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   resume(m_ready);
 
-  Result poll_res = poll_and_resume(m_polled, std::chrono::milliseconds{-1});
-  if (!poll_res) {
-    return poll_res.assume_error();
+  using namespace std::chrono_literals;
+  auto poll_timeout = -1ms;
+  if (!m_ready.empty()) {
+    poll_timeout = 0ms;
   }
 
-  return success();
+  return poll_and_resume(m_polled, poll_timeout);
 }
 
 } // namespace corosig

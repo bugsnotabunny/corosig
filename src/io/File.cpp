@@ -11,28 +11,28 @@ File::~File() {
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>> File::read(std::span<char> buf) noexcept {
-  return os::read(m_fd.value, buf);
+  return os::posix::read(m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>> File::read_some(std::span<char> buf) noexcept {
-  return os::read_some(m_fd.value, buf);
+  return os::posix::read_some(m_fd.value, buf);
 }
 
 Result<size_t, SyscallError> File::try_read_some(std::span<char> buf) noexcept {
-  return os::try_read_some(m_fd.value, buf);
+  return os::posix::try_read_some(m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>> File::write(std::span<char const> buf) noexcept {
-  return os::write(m_fd.value, buf);
+  return os::posix::write(m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
 File::write_some(std::span<char const> buf) noexcept {
-  return os::write_some(m_fd.value, buf);
+  return os::posix::write_some(m_fd.value, buf);
 }
 
 Result<size_t, SyscallError> File::try_write_some(std::span<char const> buf) noexcept {
-  return os::try_write_some(m_fd.value, buf);
+  return os::posix::try_write_some(m_fd.value, buf);
 }
 
 os::Handle File::underlying_handle() const noexcept {

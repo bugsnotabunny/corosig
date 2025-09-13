@@ -18,7 +18,7 @@ namespace detail {
 
 template <typename E>
 concept WithDescription = requires(E const &e) {
-  { e.description() } -> std::same_as<char const *>;
+  { e.description() } noexcept -> std::same_as<char const *>;
 };
 
 } // namespace detail
@@ -50,6 +50,11 @@ public:
 
   template <typename F>
   decltype(auto) visit(F &&f) noexcept {
+    return std::visit(std::forward<F>(f), *this);
+  }
+
+  template <typename F>
+  decltype(auto) visit(F &&f) const noexcept {
     return std::visit(std::forward<F>(f), *this);
   }
 };

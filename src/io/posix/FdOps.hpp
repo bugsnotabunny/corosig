@@ -10,7 +10,7 @@
 static_assert(false, "Platform-specific file included on wrong platform");
 #endif
 
-namespace corosig::os {
+namespace corosig::os::posix {
 
 Fut<size_t, Error<AllocationError, SyscallError>> write(int fd, std::span<char const>) noexcept;
 Fut<size_t, Error<AllocationError, SyscallError>> write_some(int fd,
@@ -23,4 +23,4 @@ Result<size_t, SyscallError> try_read_some(int fd, std::span<char>) noexcept;
 
 void close(int &fd) noexcept;
 
-} // namespace corosig::os
+} // namespace corosig::os::posix

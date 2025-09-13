@@ -12,8 +12,8 @@ namespace corosig {
 namespace bi = boost::intrusive;
 
 enum class poll_event_e {
-  READ,
-  WRITE,
+  CAN_READ,
+  CAN_WRITE,
 };
 
 struct PollListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe_link>> {

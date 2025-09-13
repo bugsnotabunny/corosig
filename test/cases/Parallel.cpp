@@ -46,14 +46,18 @@ TEST_CASE("when_all_succeed returns all values if no errors", "[when_all_succeed
 }
 
 TEST_CASE("when_all_succeed propagates error if any future fails", "[when_all_succeed]") {
-  corosig::test_in_sighandler([]() -> Fut<> {
-    auto fut1 = []() -> Fut<int> { co_return success(100); }();
-    auto fut2 = []() -> Fut<int, Error<AllocationError, TestError>> {
-      co_return failure(TestError{});
-    }();
+  corosig::test_in_sighandler([]() {
+    auto foo = []() -> Fut<> {
+      auto fut1 = []() -> Fut<int> { co_return success(100); }();
+      auto fut2 = []() -> Fut<int, Error<AllocationError, TestError>> {
+        co_return failure(TestError{});
+      }();
 
-    Result result = co_await when_all_succeed(std::move(fut1), std::move(fut2));
-    REQUIRE(result.has_error());
-    REQUIRE(result.assume_error().holds<TestError>());
+      Result result = co_await when_all_succeed(std::move(fut1), std::move(fut2));
+      REQUIRE(result.has_error());
+      REQUIRE(result.assume_error().holds<TestError>());
+      co_return success();
+    };
+    COROSIG_REQUIRE(foo().block_on().has_value());
   });
 }

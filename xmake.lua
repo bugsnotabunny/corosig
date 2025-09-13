@@ -1,7 +1,7 @@
 add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release")
 
 set_languages("c++20")
-set_warnings("all", "error")
+set_warnings("all", "extra", "pedantic")
 
 if is_mode("release") then
     set_symbols("hidden")
@@ -10,7 +10,6 @@ if is_mode("release") then
     set_strip("debug")
 else
     set_optimize("fast")
-    set_warnings("all", "extra", "pedantic")
 end
 
 if is_mode("asan") then
