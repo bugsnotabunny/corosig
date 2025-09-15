@@ -3,10 +3,31 @@ add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release")
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
+-- needed before my patch to xmake gets accepted
+toolchain("clang++")
+    set_kind("standalone")
+    set_homepage("https://clang.llvm.org/")
+    set_description("A C language family frontend for LLVM" .. (version and (" (" .. version .. ")") or ""))
+    set_runtimes("c++_static", "c++_shared", "stdc++_static", "stdc++_shared")
+
+    set_toolset("cc",      "clang" )
+    set_toolset("cxx",     "clang++", "clang")
+    set_toolset("ld",      "clang++", "clang")
+    set_toolset("sh",      "clang++", "clang")
+    set_toolset("ar",      "ar",      "llvm-ar")
+    set_toolset("strip",   "strip",   "llvm-strip")
+    set_toolset("ranlib",  "ranlib",  "llvm-ranlib")
+    set_toolset("objcopy", "objcopy", "llvm-objcopy")
+    set_toolset("mm",      "clang")
+    set_toolset("mxx",     "clang", "clang++")
+    set_toolset("as",      "clang")
+    set_toolset("mrc",     "llvm-rc")
+    set_toolset("dlltool", "llvm-dlltool")
+toolchain_end()
+
 if is_mode("release") then
     set_symbols("hidden")
     set_optimize("fastest")
-    set_policy("build.optimization.lto", true)
     set_strip("debug")
 else
     set_optimize("fast")
@@ -26,7 +47,6 @@ end
 add_requires("boost", {
     configs = {
         exception = true, -- implicitly required by outcome
-        container = true,
     }
 })
 
@@ -39,7 +59,7 @@ target("corosig")
 target_end()
 
 
-add_requires("catch2 v2.13.10", { configs = { main = true, gmock = true } })
+add_requires("catch2 v2.13.10", { configs = { main = true, gmock = false } })
 
 target("corosig-testing")
     set_kind("static")

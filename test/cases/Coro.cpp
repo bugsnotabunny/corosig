@@ -50,12 +50,7 @@ TEST_CASE("Reactor allocation error") {
 
 TEST_CASE("Fut::block_on returns error when reactor fails") {
   test_in_sighandler([] {
-    auto foo = []() -> Fut<> {
-      [[maybe_unused]] char buf[1024 * 1024];
-      co_return success();
-    };
-
-    Result res = foo().block_on();
+    Result res = Fut<>::promise_type::get_return_object_on_allocation_failure().block_on();
     COROSIG_REQUIRE(!res.has_value());
     COROSIG_REQUIRE(res.has_error());
     COROSIG_REQUIRE(res.assume_error().holds<AllocationError>());
