@@ -1,0 +1,28 @@
+name: "Test"
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  linux-build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [debug, asan, tsan, release]
+        toolchain: [clang++, gcc]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v26
+      - uses: cachix/cachix-action@v14
+        with:
+          name: devenv
+
+      - name: devenv.sh install
+        run: nix profile install nixpkgs#devenv
+
+      - name: devenv.sh evaluation
+        run: devenv shell echo
+
+      - run: devenv shell "xmake f --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --root -y"
+      - run: devenv shell "xmake test -y"
