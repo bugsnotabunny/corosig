@@ -1,3 +1,5 @@
+#ifndef COROSIG_IO_PIPE_HPP
+#define COROSIG_IO_PIPE_HPP
 
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
@@ -66,3 +68,5 @@ struct PipePair {
 };
 
 } // namespace corosig
+
+#endif

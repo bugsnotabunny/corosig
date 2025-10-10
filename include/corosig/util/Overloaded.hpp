@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_UTILS_OVERLOADED_HPP
+#define COROSIG_UTILS_OVERLOADED_HPP
 
 namespace corosig {
 
@@ -8,3 +9,5 @@ struct Overloaded : TYPES... {
 };
 
 } // namespace corosig
+
+#endif

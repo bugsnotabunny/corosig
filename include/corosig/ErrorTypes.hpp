@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_ERROR_TYPES_HPP
+#define COROSIG_ERROR_TYPES_HPP
 
 #include "corosig/util/Overloaded.hpp"
 
@@ -104,3 +105,5 @@ struct SyscallError {
 };
 
 } // namespace corosig
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_POLL_EVENT_HPP
+#define COROSIG_POLL_EVENT_HPP
 
 #include "corosig/os/Handle.hpp"
 #include "corosig/reactor/CoroList.hpp"
@@ -31,3 +32,5 @@ struct PollEvent : PollListNode {
 };
 
 } // namespace corosig
+
+#endif

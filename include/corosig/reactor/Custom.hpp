@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_REACTOR_CUSTOM_HPP
+#define COROSIG_REACTOR_CUSTOM_HPP
 
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
@@ -19,3 +20,5 @@ concept AReactor = requires(REACTOR &reactor) {
 };
 
 } // namespace corosig
+
+#endif

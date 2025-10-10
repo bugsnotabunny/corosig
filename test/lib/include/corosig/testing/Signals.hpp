@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_TESTING_SIGNALS_HPP
+#define COROSIG_TESTING_SIGNALS_HPP
 
 #include "corosig/reactor/Default.hpp"
 
@@ -72,3 +73,5 @@ void test_in_sighandler(F &&f) {
 }
 
 } // namespace corosig
+
+#endif

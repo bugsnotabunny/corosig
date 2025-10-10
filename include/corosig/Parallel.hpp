@@ -1,3 +1,6 @@
+#ifndef COROSIG_PARALLEL_HPP
+#define COROSIG_PARALLEL_HPP
+
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
@@ -67,3 +70,5 @@ when_all_succeed(Fut<R, E> &&...futs) noexcept {
 }
 
 } // namespace corosig
+
+#endif

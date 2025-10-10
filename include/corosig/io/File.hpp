@@ -1,3 +1,5 @@
+#ifndef COROSIG_IO_FILE_HPP
+#define COROSIG_IO_FILE_HPP
 
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
@@ -65,3 +67,5 @@ template <>
 struct IsBitmask<File::OpenPerms> : std::true_type {};
 
 } // namespace corosig
+
+#endif

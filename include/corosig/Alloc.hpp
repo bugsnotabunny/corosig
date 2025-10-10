@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_ALLOC_HPP
+#define COROSIG_ALLOC_HPP
 
 #include <array>
 #include <cassert>
@@ -79,3 +80,5 @@ private:
 };
 
 } // namespace corosig
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_REACTOR_DEFAULT_HPP
+#define COROSIG_REACTOR_DEFAULT_HPP
 
 #include "corosig/Alloc.hpp"
 #include "corosig/ErrorTypes.hpp"
@@ -49,3 +50,5 @@ private:
 static_assert(AReactor<Reactor>);
 
 } // namespace corosig
+
+#endif

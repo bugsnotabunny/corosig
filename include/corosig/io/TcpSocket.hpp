@@ -1,3 +1,6 @@
+#ifndef COROSIG_IO_TCP_SOCKET_HPP
+#define COROSIG_IO_TCP_SOCKET_HPP
+
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
@@ -39,3 +42,5 @@ private:
 };
 
 } // namespace corosig
+
+#endif

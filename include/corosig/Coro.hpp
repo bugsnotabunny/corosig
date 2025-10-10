@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_CORO_HPP
+#define COROSIG_CORO_HPP
 
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
@@ -208,3 +209,5 @@ detail::CoroutinePromiseType<T, E, REACTOR>::get_return_object_on_allocation_fai
 }
 
 } // namespace corosig
+
+#endif

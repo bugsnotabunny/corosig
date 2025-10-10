@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_UTILS_BITMASK_HPP
+#define COROSIG_UTILS_BITMASK_HPP
 
 #include <type_traits>
 
@@ -67,3 +68,5 @@ constexpr E &operator^=(E &x, E y) {
 }
 
 } // namespace corosig
+
+#endif

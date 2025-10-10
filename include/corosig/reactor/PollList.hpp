@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_REACTOR_POLL_LIST_HPP
+#define COROSIG_REACTOR_POLL_LIST_HPP
 
 #include "corosig/os/Handle.hpp"
 
@@ -26,3 +27,5 @@ using PollList =
     bi::slist<PollListNode, bi::constant_time_size<false>, bi::linear<true>, bi::cache_last<true>>;
 
 } // namespace corosig
+
+#endif

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_PRIVATE_FDOPS_HPP
+#define COROSIG_PRIVATE_FDOPS_HPP
 
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
@@ -25,3 +26,5 @@ Result<size_t, SyscallError> try_read_some(int fd, std::span<char>) noexcept;
 void close(int &fd) noexcept;
 
 } // namespace corosig::os::posix
+
+#endif

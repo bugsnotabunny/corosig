@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_UTILS_SET_DEFAULT_ON_MOVE_HPP
+#define COROSIG_UTILS_SET_DEFAULT_ON_MOVE_HPP
 
 #include <utility>
 
@@ -29,3 +30,5 @@ struct SetDefaultOnMove {
 };
 
 } // namespace corosig
+
+#endif

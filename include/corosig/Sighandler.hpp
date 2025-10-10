@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_SIGHANDLER_HPP
+#define COROSIG_SIGHANDLER_HPP
 
 #include "corosig/reactor/Default.hpp"
 
@@ -35,3 +36,5 @@ void set_sighandler(int sig) {
 }
 
 } // namespace corosig
+
+#endif

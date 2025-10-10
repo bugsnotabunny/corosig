@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_REACTOR_CORO_LIST_HPP
+#define COROSIG_REACTOR_CORO_LIST_HPP
 
 #include <boost/intrusive/options.hpp>
 #include <boost/intrusive/slist.hpp>
@@ -17,3 +18,5 @@ using CoroList =
     bi::slist<CoroListNode, bi::constant_time_size<false>, bi::linear<true>, bi::cache_last<true>>;
 
 } // namespace corosig
+
+#endif

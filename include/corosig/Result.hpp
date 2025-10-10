@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_RESULT_HPP
+#define COROSIG_RESULT_HPP
 
 #include <boost/outcome.hpp>
 #include <boost/outcome/success_failure.hpp>
@@ -15,3 +16,5 @@ using boost::outcome_v2::failure;
 using boost::outcome_v2::success;
 
 } // namespace corosig
+
+#endif

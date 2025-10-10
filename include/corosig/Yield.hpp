@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COROSIG_YIELD_HPP
+#define COROSIG_YIELD_HPP
 
 #include "corosig/reactor/CoroList.hpp"
 
@@ -23,3 +24,5 @@ struct Yield {
 };
 
 } // namespace corosig
+
+#endif
