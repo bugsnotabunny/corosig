@@ -67,65 +67,69 @@ sighandler(int) noexcept {
 } // namespace
 
 int main() {
-  constexpr auto REACTOR_MEMORY = 8 * 1024;
-  for (auto signal : {SIGILL, SIGFPE, SIGTERM, SIGABRT}) {
-    corosig::set_sighandler<REACTOR_MEMORY, sighandler>(signal);
-  }
+  try {
+    constexpr auto REACTOR_MEMORY = 8 * 1024;
+    for (auto signal : {SIGILL, SIGFPE, SIGTERM, SIGABRT}) {
+      corosig::set_sighandler<REACTOR_MEMORY, sighandler>(signal);
+    }
 
-  std::string remote_server_data;
-  auto remote_server_thread = std::jthread([&] {
-    int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
-    assert(srv_fd >= 0);
+    std::string remote_server_data;
+    auto remote_server_thread = std::jthread([&] {
+      int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+      assert(srv_fd >= 0);
 
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_port = ::htons(8080);
-    addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
+      sockaddr_in addr{};
+      addr.sin_family = AF_INET;
+      addr.sin_port = ::htons(8080);
+      addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
 
-    int opt = 1;
-    setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    ::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)); // NOLINT
-    ::listen(srv_fd, 1);
+      int opt = 1;
+      setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+      ::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)); // NOLINT
+      ::listen(srv_fd, 1);
 
-    int client = ::accept(srv_fd, nullptr, nullptr);
-    char buf[1024]; // NOLINT
-    while (true) {
-      ssize_t n = ::read(client, buf, sizeof(buf));
-      if (n <= 0) {
-        break;
+      int client = ::accept(srv_fd, nullptr, nullptr);
+      char buf[1024]; // NOLINT
+      while (true) {
+        ssize_t n = ::read(client, buf, sizeof(buf));
+        if (n <= 0) {
+          break;
+        }
+        remote_server_data += std::string_view{buf, size_t(n)};
       }
-      remote_server_data += std::string_view{buf, size_t(n)};
+      ::close(client);
+      ::close(srv_fd);
+    });
+
+    logs_buffer.emplace_back("Log message 1\n");
+    logs_buffer.emplace_back("Log message 2\n");
+    logs_buffer.emplace_back("Log message 3\n");
+    logs_buffer.emplace_back("Log message 4\n");
+
+    ::raise(SIGFPE);
+
+    {
+      std::ifstream file{FILE1.data()};
+      if (!file.is_open()) {
+        std::cerr << "Failed to open file 1\n";
+      } else {
+        std::cout << "File 1 contains\n" << file.rdbuf() << '\n';
+      }
     }
-    ::close(client);
-    ::close(srv_fd);
-  });
-
-  logs_buffer.emplace_back("Log message 1\n");
-  logs_buffer.emplace_back("Log message 2\n");
-  logs_buffer.emplace_back("Log message 3\n");
-  logs_buffer.emplace_back("Log message 4\n");
-
-  ::raise(SIGFPE);
-
-  {
-    std::ifstream file{FILE1.data()};
-    if (!file.is_open()) {
-      std::cerr << "Failed to open file 1\n";
-    } else {
-      std::cout << "File 1 contains\n" << file.rdbuf() << '\n';
+    {
+      std::ifstream file{FILE2.data()};
+      if (!file.is_open()) {
+        std::cerr << "Failed to open file 2\n";
+      } else {
+        std::cout << "File 2 contains\n" << file.rdbuf() << '\n';
+      }
     }
+
+    remote_server_thread.join();
+    std::cout << "Remote server received\n" << remote_server_data << '\n';
+
+    return 0;
+  } catch (const std::exception &e) {
+    std::cout << e.what() << '\n';
   }
-  {
-    std::ifstream file{FILE2.data()};
-    if (!file.is_open()) {
-      std::cerr << "Failed to open file 2\n";
-    } else {
-      std::cout << "File 2 contains\n" << file.rdbuf() << '\n';
-    }
-  }
-
-  remote_server_thread.join();
-  std::cout << "Remote server received\n" << remote_server_data << '\n';
-
-  return 0;
 }
