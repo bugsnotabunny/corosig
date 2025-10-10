@@ -1,4 +1,5 @@
 #include "corosig/ErrorTypes.hpp"
+
 #include "catch2/catch.hpp"
 
 using namespace corosig;

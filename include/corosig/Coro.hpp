@@ -11,11 +11,7 @@
 #include <coroutine>
 #include <cstddef>
 #include <exception>
-#include <functional>
-#include <iostream>
-#include <memory>
 #include <optional>
-#include <span>
 #include <utility>
 
 namespace corosig {
@@ -77,9 +73,11 @@ struct CoroutinePromiseType : CoroListNode {
 
   template <std::convertible_to<Result<T, E>> U>
   void return_value(U &&value) noexcept {
+    // NOLINTBEGIN false positives about m_out being uninitialized
     assert(m_out);
     m_out->m_value.emplace(std::forward<U>(value));
     m_waiting_coro.resume();
+    // NOLINTEND
   }
 
   template <std::convertible_to<T> T2, std::convertible_to<E> E2>
@@ -91,7 +89,6 @@ struct CoroutinePromiseType : CoroListNode {
       } else {
         m_out->m_value.emplace(success(std::move(result.assume_value())));
       }
-
     } else {
       m_out->m_value.emplace(std::move(result.assume_error()));
     }
@@ -106,7 +103,7 @@ private:
   friend struct Fut<T, E, REACTOR>;
 
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
-  Fut<T, E, REACTOR> *m_out{nullptr};
+  Fut<T, E, REACTOR> *m_out = nullptr;
 };
 
 } // namespace detail
@@ -131,7 +128,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     return *this;
   };
 
-  bool has_value() const noexcept {
+  [[nodiscard]] bool has_value() const noexcept {
     return m_value.has_value();
   }
 
@@ -159,7 +156,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     Awaiter &operator=(const Awaiter &) = delete;
     Awaiter &operator=(Awaiter &&) = delete;
 
-    bool await_ready() const noexcept {
+    [[nodiscard]] bool await_ready() const noexcept {
       return m_future.has_value();
     }
 

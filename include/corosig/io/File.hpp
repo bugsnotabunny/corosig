@@ -8,7 +8,6 @@
 
 #include <cstddef>
 #include <fcntl.h>
-#include <utility>
 
 namespace corosig {
 
@@ -25,7 +24,7 @@ public:
   };
 
   /// Exact values are os-specific
-  enum class OpenPerms {
+  enum class OpenPerms : int {
     UNSPECIFIED,
     // TODO
   };
@@ -52,16 +51,16 @@ public:
   Result<size_t, SyscallError> try_write_some(std::span<char const>) noexcept;
 
   void close() noexcept;
-  os::Handle underlying_handle() const noexcept;
+  [[nodiscard]] os::Handle underlying_handle() const noexcept;
 
 private:
   SetDefaultOnMove<int, -1> m_fd;
 };
 
 template <>
-struct is_bitmask<File::OpenFlags> : std::true_type {};
+struct IsBitmask<File::OpenFlags> : std::true_type {};
 
 template <>
-struct is_bitmask<File::OpenPerms> : std::true_type {};
+struct IsBitmask<File::OpenPerms> : std::true_type {};
 
 } // namespace corosig

@@ -1,10 +1,9 @@
 #pragma once
 
-#include "boost/mp11/algorithm.hpp"
-#include "boost/mp11/detail/mp_list.hpp"
-#include "boost/mp11/detail/mp_rename.hpp"
 #include "corosig/util/Overloaded.hpp"
+
 #include <boost/mp11.hpp>
+#include <boost/mp11/algorithm.hpp>
 #include <concepts>
 #include <cstring>
 #include <type_traits>
@@ -36,7 +35,7 @@ private:
 public:
   using Base::Base;
 
-  char const *description() const noexcept {
+  [[nodiscard]] char const *description() const noexcept {
     return visit(Overloaded{
         [](detail::WithDescription auto const &e) { return e.description(); },
         [](auto const &e) { return typeid(std::decay_t<decltype(e)>).name(); },
@@ -44,17 +43,17 @@ public:
   }
 
   template <typename T>
-  bool holds() const noexcept {
+  [[nodiscard]] bool holds() const noexcept {
     return std::holds_alternative<T>(*this);
   }
 
   template <typename F>
-  decltype(auto) visit(F &&f) noexcept {
+  [[nodiscard]] decltype(auto) visit(F &&f) noexcept {
     return std::visit(std::forward<F>(f), *this);
   }
 
   template <typename F>
-  decltype(auto) visit(F &&f) const noexcept {
+  [[nodiscard]] decltype(auto) visit(F &&f) const noexcept {
     return std::visit(std::forward<F>(f), *this);
   }
 };
@@ -62,10 +61,10 @@ public:
 namespace detail {
 
 template <template <class...> class, class>
-struct is_instance_of : std::false_type {};
+struct IsInstanceOf : std::false_type {};
 
-template <template <class...> class TMPL, class... Args>
-struct is_instance_of<TMPL, TMPL<Args...>> : std::true_type {};
+template <template <class...> class TMPL, class... ARGS>
+struct IsInstanceOf<TMPL, TMPL<ARGS...>> : std::true_type {};
 
 template <template <typename...> typename TMPL, typename... TS>
 using apply_unique =
@@ -81,8 +80,8 @@ struct extend_error_impl<Error<E1...>, Error<E2...>> {
 
 template <typename E1, typename E2>
 using extend_error =
-    extend_error_impl<std::conditional_t<is_instance_of<Error, E1>::value, E1, Error<E1>>,
-                      std::conditional_t<is_instance_of<Error, E2>::value, E2, Error<E2>>>::type;
+    extend_error_impl<std::conditional_t<IsInstanceOf<Error, E1>::value, E1, Error<E1>>,
+                      std::conditional_t<IsInstanceOf<Error, E2>::value, E2, Error<E2>>>::type;
 
 } // namespace detail
 
@@ -99,7 +98,7 @@ struct SyscallError {
 
   static SyscallError current() noexcept;
 
-  char const *description() const noexcept;
+  [[nodiscard]] char const *description() const noexcept;
 
   int value;
 };

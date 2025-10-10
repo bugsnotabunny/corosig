@@ -1,9 +1,8 @@
 #include "corosig/util/SetDefaultOnMove.hpp"
+
 #include "corosig/testing/Signals.hpp"
 
 #include <catch2/catch.hpp>
-#include <concepts>
-#include <string>
 #include <utility>
 
 using namespace corosig;

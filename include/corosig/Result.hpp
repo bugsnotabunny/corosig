@@ -2,7 +2,6 @@
 
 #include <boost/outcome.hpp>
 #include <boost/outcome/success_failure.hpp>
-#include <concepts>
 
 namespace corosig {
 

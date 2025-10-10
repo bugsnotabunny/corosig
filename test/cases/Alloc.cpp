@@ -1,10 +1,10 @@
 #include "corosig/Alloc.hpp"
+
 #include "corosig/testing/Signals.hpp"
 
 #include <catch2/catch.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <new>
 
 using namespace corosig;
 

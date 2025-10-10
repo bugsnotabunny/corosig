@@ -1,8 +1,10 @@
 #include "corosig/Parallel.hpp"
-#include "boost/outcome/try.hpp"
+
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/testing/TestError.hpp"
+
+#include <boost/outcome/try.hpp>
 
 using namespace corosig;
 

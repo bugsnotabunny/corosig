@@ -1,9 +1,9 @@
-
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/os/Handle.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
+
 #include <sys/socket.h>
 
 namespace corosig {
@@ -31,7 +31,7 @@ public:
   Result<size_t, SyscallError> try_write_some(std::span<char const>) noexcept;
 
   void close() noexcept;
-  os::Handle underlying_handle() const noexcept;
+  [[nodiscard]] os::Handle underlying_handle() const noexcept;
 
 private:
   SetDefaultOnMove<int, -1> m_fd;

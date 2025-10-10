@@ -1,12 +1,8 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
-#include <bit>
 #include <cassert>
 #include <cstddef>
-#include <limits>
-#include <span>
 
 namespace corosig {
 
@@ -30,7 +26,7 @@ private:
 
   struct AllocationHeader {
     size_t block_size = 0;
-    char padding;
+    size_t padding = 0;
   };
 
   using Node = typename FreeList::Node;
@@ -53,10 +49,10 @@ public:
 
   template <size_t SIZE>
   Alloc(Memory<SIZE> &mem) noexcept : m_mem{mem.begin()}, m_mem_size{mem.size()} {
-    Node *firstNode = new (m_mem) Node{};
-    firstNode->data.block_size = SIZE - sizeof(Node);
-    firstNode->next = nullptr;
-    m_free_list.insert(nullptr, firstNode);
+    Node *first_node = new (m_mem) Node{};
+    first_node->data.block_size = SIZE - sizeof(Node);
+    first_node->next = nullptr;
+    m_free_list.insert(nullptr, first_node);
   }
 
   Alloc(const Alloc &) = delete;
@@ -65,21 +61,21 @@ public:
   Alloc &operator=(Alloc &&) noexcept;
   ~Alloc();
 
-  size_t peak_memory() noexcept {
+  [[nodiscard]] size_t peak_memory() const noexcept {
     return m_peak;
   }
 
-  size_t current_memory() noexcept {
+  [[nodiscard]] size_t current_memory() const noexcept {
     return m_peak;
   }
 
-  void *allocate(size_t size, size_t alignment = MIN_ALIGNMENT) noexcept;
+  [[nodiscard]] void *allocate(size_t size, size_t alignment = MIN_ALIGNMENT) noexcept;
   void free(void *ptr) noexcept;
 
 private:
   void coalescence(Node *prevNode, Node *freeNode) noexcept;
   void find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
-            Node *&foundNode) noexcept;
+            Node *&foundNode) const noexcept;
 };
 
 } // namespace corosig

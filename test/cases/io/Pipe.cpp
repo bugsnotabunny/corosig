@@ -1,10 +1,9 @@
 #include "corosig/io/Pipe.hpp"
+
 #include "corosig/testing/Signals.hpp"
 
 #include <boost/outcome/try.hpp>
 #include <catch2/catch.hpp>
-#include <string>
-#include <vector>
 
 using namespace corosig;
 

@@ -1,8 +1,9 @@
 #include "corosig/io/TcpSocket.hpp"
-#include "boost/outcome/try.hpp"
+
 #include "corosig/testing/Signals.hpp"
 
 #include <arpa/inet.h>
+#include <boost/outcome/try.hpp>
 #include <catch2/catch.hpp>
 #include <cstring>
 #include <netinet/in.h>

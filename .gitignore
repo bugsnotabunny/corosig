@@ -4,6 +4,7 @@ build
 .devenv*
 devenv.local.nix
 .direnv
+.clangd
 compile_commands.json
 
 .zed

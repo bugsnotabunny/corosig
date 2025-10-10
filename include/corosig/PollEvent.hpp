@@ -7,14 +7,6 @@
 #include <cassert>
 #include <concepts>
 #include <coroutine>
-#include <cstddef>
-#include <exception>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <optional>
-#include <span>
-#include <utility>
 
 namespace corosig {
 
@@ -24,7 +16,7 @@ struct PollEvent : PollListNode {
     this->event = event;
   }
 
-  bool await_ready() const noexcept {
+  static bool await_ready() noexcept {
     return false;
   }
 

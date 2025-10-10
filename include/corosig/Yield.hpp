@@ -5,19 +5,11 @@
 #include <cassert>
 #include <concepts>
 #include <coroutine>
-#include <cstddef>
-#include <exception>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <optional>
-#include <span>
-#include <utility>
 
 namespace corosig {
 
 struct Yield {
-  bool await_ready() const noexcept {
+  [[nodiscard]] static bool await_ready() noexcept {
     return false;
   }
 

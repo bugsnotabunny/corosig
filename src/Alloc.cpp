@@ -1,5 +1,5 @@
-
 #include "corosig/Alloc.hpp"
+
 #include <utility>
 
 namespace {
@@ -100,29 +100,28 @@ void *Alloc::allocate(size_t size, size_t alignment) noexcept {
     return nullptr;
   }
 
-  size_t alignmentPadding = padding - sizeof(AllocationHeader);
-  size_t requiredSize = size + padding;
+  size_t alignment_padding = padding - sizeof(AllocationHeader);
+  size_t required_size = size + padding;
 
-  size_t rest = affected_node->data.block_size - requiredSize;
+  size_t rest = affected_node->data.block_size - required_size;
 
   if (rest > 0) {
     // We have to split the block into the data block and a free block of size 'rest'
-    Node *new_free_node = (Node *)((size_t)affected_node + requiredSize);
+    Node *new_free_node = (Node *)((char *)affected_node + required_size);
     new_free_node->data.block_size = rest;
     m_free_list.insert(affected_node, new_free_node);
   }
   m_free_list.remove(previous_node, affected_node);
 
   // Setup data block
-  size_t header_address = (size_t)affected_node + alignmentPadding;
-  size_t data_address = header_address + sizeof(AllocationHeader);
-  std::bit_cast<AllocationHeader *>(header_address)->block_size = requiredSize;
-  std::bit_cast<AllocationHeader *>(header_address)->padding = alignmentPadding;
+  auto *header_ptr = (AllocationHeader *)((char *)affected_node + alignment_padding);
+  header_ptr->block_size = required_size;
+  header_ptr->padding = alignment_padding;
 
-  m_used += requiredSize;
+  m_used += required_size;
   m_peak = std::max(m_peak, m_used);
 
-  return (void *)data_address;
+  return (void *)((char *)header_ptr + sizeof(AllocationHeader));
 }
 
 void Alloc::free(void *ptr) noexcept {
@@ -131,7 +130,7 @@ void Alloc::free(void *ptr) noexcept {
   }
 
   // Insert it in a sorted position by the address number
-  size_t current_address = (size_t)ptr;
+  auto current_address = (size_t)ptr;
   size_t header_address = current_address - sizeof(Alloc::AllocationHeader);
   auto *allocation_header = std::bit_cast<AllocationHeader *>(header_address);
 
@@ -140,13 +139,13 @@ void Alloc::free(void *ptr) noexcept {
   freenode->next = nullptr;
 
   Node *it = m_free_list.head;
-  Node *itPrev = nullptr;
+  Node *it_prev = nullptr;
   while (it != nullptr) {
     if (ptr < it) {
-      m_free_list.insert(itPrev, freenode);
+      m_free_list.insert(it_prev, freenode);
       break;
     }
-    itPrev = it;
+    it_prev = it;
     it = it->next;
   }
 
@@ -154,7 +153,7 @@ void Alloc::free(void *ptr) noexcept {
   m_used -= freenode->data.block_size;
 
   // Merge contiguous nodes
-  coalescence(itPrev, freenode);
+  coalescence(it_prev, freenode);
 }
 
 void Alloc::coalescence(Node *prevNode, Node *freeNode) noexcept {
@@ -171,20 +170,20 @@ void Alloc::coalescence(Node *prevNode, Node *freeNode) noexcept {
 }
 
 void Alloc::find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
-                 Node *&foundNode) noexcept {
+                 Node *&foundNode) const noexcept {
   Node *it = m_free_list.head;
-  Node *itPrev = nullptr;
+  Node *it_prev = nullptr;
 
   while (it != nullptr) {
     padding = padding_with_header(size_t(it), alignment, sizeof(AllocationHeader));
-    size_t requiredSpace = size + padding;
-    if (it->data.block_size >= requiredSpace) {
+    size_t required_space = size + padding;
+    if (it->data.block_size >= required_space) {
       break;
     }
-    itPrev = it;
+    it_prev = it;
     it = it->next;
   }
-  previousNode = itPrev;
+  previousNode = it_prev;
   foundNode = it;
 }
 

@@ -1,4 +1,5 @@
 #include "corosig/reactor/Default.hpp"
+
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
@@ -7,21 +8,21 @@
 #include <chrono>
 #include <coroutine>
 #include <cstddef>
+#include <ratio>
 #include <sys/poll.h>
-#include <variant>
 
 namespace {
 
 using namespace corosig;
 
-Result<void, SyscallError> poll_and_resume(PollList &polled,
-                                           std::chrono::milliseconds timeout) noexcept {
+Result<void, SyscallError>
+poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout) noexcept {
   if (polled.empty()) {
     return success();
   }
 
   constexpr size_t BUF_SIZE = 32;
-  ::pollfd poll_fds[BUF_SIZE];
+  std::array<::pollfd, BUF_SIZE> poll_fds;
 
   size_t fds_count = 0;
   for (PollListNode &node : polled) {
@@ -30,9 +31,7 @@ Result<void, SyscallError> poll_and_resume(PollList &polled,
     ::pollfd &poll_fd = poll_fds[fds_count];
 
     poll_fd.fd = node.handle;
-    poll_fd.events = 0;
-
-    poll_fd.events |= [&] {
+    poll_fd.events = [&]() -> short {
       switch (node.event) {
       case poll_event_e::CAN_READ:
         return POLLIN;
@@ -46,7 +45,7 @@ Result<void, SyscallError> poll_and_resume(PollList &polled,
     ++fds_count;
   }
 
-  int ret = ::poll(poll_fds, fds_count, timeout.count());
+  int ret = ::poll(poll_fds.data(), fds_count, timeout.count());
   if (ret == -1) {
     return SyscallError::current();
   }
@@ -60,7 +59,7 @@ Result<void, SyscallError> poll_and_resume(PollList &polled,
 }
 
 void resume(CoroList &ready) noexcept {
-  constexpr size_t ITERATIONS_LIMIT = 1024 * 1024;
+  constexpr auto ITERATIONS_LIMIT = 1024 * 1024;
   size_t i = 0;
   while (!ready.empty() && i < ITERATIONS_LIMIT) {
     auto &node = ready.front();

@@ -1,11 +1,10 @@
-name: "Test"
+name: "TestUbuntu"
 
 on:
-  pull_request:
   push:
 
 jobs:
-  linux-build-and-test:
+  ubuntu-build-and-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:

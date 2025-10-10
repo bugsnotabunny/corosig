@@ -1,5 +1,6 @@
 # https://devenv.sh/
-{ pkgs, ... }: {
+{ pkgs, ... }:
+{
   packages = with pkgs; [
     llvmPackages_latest.clang-tools
     xmake
@@ -7,6 +8,4 @@
   ];
 
   languages.cplusplus.enable = true;
-  languages.nix.enable = true;
-  languages.lua.enable = true;
 }

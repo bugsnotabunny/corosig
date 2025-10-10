@@ -4,7 +4,6 @@
 
 #include <catch2/catch.hpp>
 #include <charconv>
-#include <concepts>
 #include <csignal>
 #include <cstddef>
 #include <optional>
@@ -58,7 +57,7 @@ void test_in_sighandler(F &&f) {
   constexpr auto sighandler = [](int sig) noexcept {
     std::signal(sig, SIG_DFL);
 
-    Alloc::Memory<1024 * 8> mem;
+    Alloc::Memory<size_t(1024 * 8)> mem;
     Reactor &reactor = reactor_provider<Reactor>::engine();
     reactor = Reactor{mem};
 

@@ -1,7 +1,10 @@
 #include "corosig/io/Pipe.hpp"
+
 #include "corosig/ErrorTypes.hpp"
 #include "posix/FdOps.hpp"
+
 #include <fcntl.h>
+#include <utility>
 
 namespace corosig {
 
@@ -57,8 +60,8 @@ void PipeRead::close() noexcept {
 }
 
 Result<PipePair, SyscallError> PipePair::make() noexcept {
-  int fds[2];
-  if (::pipe2(fds, O_NONBLOCK) == -1) {
+  std::array<int, 2> fds;
+  if (::pipe2(fds.data(), O_NONBLOCK) == -1) {
     return SyscallError{errno};
   }
   PipeRead read;

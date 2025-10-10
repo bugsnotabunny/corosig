@@ -11,7 +11,7 @@ namespace corosig {
 
 namespace bi = boost::intrusive;
 
-enum class poll_event_e {
+enum class poll_event_e : uint8_t {
   CAN_READ,
   CAN_WRITE,
 };

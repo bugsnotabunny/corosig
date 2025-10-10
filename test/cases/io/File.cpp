@@ -1,10 +1,11 @@
 #include "corosig/io/File.hpp"
-#include "boost/outcome/try.hpp"
+
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/testing/Signals.hpp"
 
 #include <algorithm>
+#include <boost/outcome/try.hpp>
 #include <catch2/catch.hpp>
 #include <cstddef>
 #include <cstdio>
