@@ -73,7 +73,7 @@ void resume(CoroList &ready) noexcept {
 
 namespace corosig {
 
-Reactor &reactor_provider<Reactor>::engine() noexcept {
+Reactor &Reactor::instance() noexcept {
   thread_local Reactor thread_local_reactor;
   return thread_local_reactor;
 }

@@ -7,14 +7,13 @@
 #include "corosig/reactor/Custom.hpp"
 #include "corosig/reactor/PollList.hpp"
 
-#include <chrono>
-#include <coroutine>
 #include <cstddef>
-#include <variant>
 
 namespace corosig {
 
 struct Reactor {
+  static Reactor &instance() noexcept;
+
   Reactor() noexcept = default;
 
   template <size_t SIZE>
@@ -45,11 +44,6 @@ private:
   PollList m_polled;
   CoroList m_ready;
   Alloc m_alloc;
-};
-
-template <>
-struct reactor_provider<Reactor> {
-  static Reactor &engine() noexcept;
 };
 
 static_assert(AReactor<Reactor>);

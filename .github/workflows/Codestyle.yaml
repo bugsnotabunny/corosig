@@ -26,4 +26,4 @@ jobs:
         run: devenv shell "xmake project -k compile_commands -y"
 
       - name: clang-tidy checks
-        run: devenv shell "find include src -type f \( -name \*.cpp -o -name \*.hpp \) -print0 | xargs -0 -n1 -P$(nproc) clang-tidy -p build"
+        run: devenv shell "find include src example -type f \( -name \*.cpp -o -name \*.hpp \) -print0 | xargs -0 -n1 -P$(nproc) clang-tidy -p build"

@@ -4,6 +4,7 @@
 #include "corosig/os/Handle.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
+#include <span>
 #include <sys/socket.h>
 
 namespace corosig {

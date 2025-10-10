@@ -61,6 +61,7 @@ target_end()
 
 add_requires("catch2 v2.13.10", { configs = { main = true, gmock = false } })
 
+
 target("corosig-testing")
     set_kind("static")
     add_includedirs("test/lib/include", { public = true })
@@ -77,4 +78,13 @@ for _, file in ipairs(os.files("test/cases/**.cpp")) do
         add_deps("corosig-testing")
         add_files(file)
     add_tests("default")
+end
+
+
+for _, file in ipairs(os.files("example/**.cpp")) do
+    local name = "example_" .. path.basename(file)
+    target(name)
+        set_kind("binary")
+        add_deps("corosig")
+        add_files(file)
 end

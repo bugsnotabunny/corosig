@@ -3,6 +3,7 @@ Checks: >
     -performance-enum-size,
     bugprone-*,
     -bugprone-easily-swappable-parameters,
+    -bugprone-suspicious-stringview-data-usage,
     modernize-*,
     -modernize-use-trailing-return-type,
     portability-*,

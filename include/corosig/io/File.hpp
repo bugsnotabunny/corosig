@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <fcntl.h>
+#include <span>
 
 namespace corosig {
 

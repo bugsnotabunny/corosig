@@ -52,13 +52,13 @@ void test_in_sighandler(F &&f) {
   COROSIG_REQUIRE(!g_foo);
   g_foo = std::forward<F>(f);
 
-  reactor_provider<Reactor>::engine(); // allocate TLS for reactor
+  Reactor::instance(); // allocate TLS for reactor
 
   constexpr auto sighandler = [](int sig) noexcept {
     std::signal(sig, SIG_DFL);
 
     Alloc::Memory<size_t(1024 * 8)> mem;
-    Reactor &reactor = reactor_provider<Reactor>::engine();
+    Reactor &reactor = Reactor::instance();
     reactor = Reactor{mem};
 
     (*g_foo)();

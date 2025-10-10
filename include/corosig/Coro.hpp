@@ -37,23 +37,19 @@ struct CoroutinePromiseType : CoroListNode {
 
   template <typename... ARGS>
   static void *operator new(size_t n, ARGS &&...) noexcept {
-    return reactor().allocate_frame(n);
+    return REACTOR::instance().allocate_frame(n);
   }
 
   static void operator delete(void *frame) noexcept {
-    return reactor().free_frame(frame);
-  }
-
-  static REACTOR &reactor() noexcept {
-    return reactor_provider<REACTOR>::engine();
+    return REACTOR::instance().free_frame(frame);
   }
 
   void yield_to_reactor() noexcept {
-    reactor().yield(*this);
+    REACTOR::instance().yield(*this);
   }
 
   void poll_to_reactor(PollListNode &node) noexcept {
-    reactor().poll(node);
+    REACTOR::instance().poll(node);
   }
 
   [[noreturn]] static void unhandled_exception() noexcept {
@@ -134,7 +130,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
 
   Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
     while (!m_value.has_value()) {
-      Result res = promise_type::reactor().do_event_loop_iteration();
+      Result res = REACTOR::instance().do_event_loop_iteration();
       if (!res) {
         return failure(std::move(res.assume_error()));
       }

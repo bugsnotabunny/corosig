@@ -90,7 +90,7 @@ TEST_CASE("TcpSocket write/read roundtrip") {
       BOOST_OUTCOME_CO_TRY(auto sock, co_await TcpSocket::connect(ss));
 
       constexpr static std::string_view msg = "hello";
-      BOOST_OUTCOME_CO_TRY(auto written, co_await sock.write(msg));
+      BOOST_OUTCOME_CO_TRY(auto written, co_await sock.write_some(msg));
       COROSIG_REQUIRE(written == msg.size());
 
       char buf[msg.size()];

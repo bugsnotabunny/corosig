@@ -3,7 +3,11 @@
 #include "corosig/Result.hpp"
 
 #include <boost/mp11/algorithm.hpp>
+#include <concepts>
 #include <optional>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 namespace corosig {
 
@@ -31,13 +35,17 @@ std::optional<ERROR> first_error(std::tuple<RESULTS...> &t) noexcept {
   return error_opt;
 }
 
+template <typename T>
+using WrapVoid = std::conditional_t<std::same_as<void, T>, std::monostate, T>;
+
 } // namespace detail
 
 template <typename... REACTOR, typename... R, typename... E>
-Fut<std::tuple<R...>, extend_error<E...>> when_all_succeed(Fut<R, E> &&...futs) noexcept {
+Fut<std::tuple<detail::WrapVoid<R>...>, extend_error<E...>>
+when_all_succeed(Fut<R, E> &&...futs) noexcept {
   Result results_res = co_await when_all(std::move(futs)...);
   if (results_res.has_error()) {
-    co_return failure(results_res.assume_error());
+    co_return failure(std::move(results_res.assume_error()));
   }
   std::tuple<Result<R, E>...> &results = results_res.assume_value();
 
@@ -47,7 +55,13 @@ Fut<std::tuple<R...>, extend_error<E...>> when_all_succeed(Fut<R, E> &&...futs) 
 
   co_return success(std::apply(
       [](Result<R, E> &&...current_result) {
-        return std::tuple<R...>{std::move(current_result.assume_value())...};
+        return std::tuple{[](Result<R, E> &&r) {
+          if constexpr (std::same_as<void, R>) {
+            return std::monostate{};
+          } else {
+            return std::move(r.assume_value());
+          }
+        }(std::move(current_result))...};
       },
       std::move(results)));
 }

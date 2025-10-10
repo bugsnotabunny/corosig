@@ -6,6 +6,7 @@
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cstddef>
+#include <span>
 
 namespace corosig {
 

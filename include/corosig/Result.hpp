@@ -6,7 +6,8 @@
 namespace corosig {
 
 template <typename R, typename E>
-struct Result : boost::outcome_v2::result<R, E, boost::outcome_v2::policy::terminate> {
+struct [[nodiscard]] Result
+    : boost::outcome_v2::result<R, E, boost::outcome_v2::policy::terminate> {
   using boost::outcome_v2::result<R, E, boost::outcome_v2::policy::terminate>::result;
 };
 
