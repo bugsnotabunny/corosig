@@ -7,5 +7,6 @@
     gdb
   ];
 
+  languages.nix.enable = true;
   languages.cplusplus.enable = true;
 }

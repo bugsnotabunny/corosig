@@ -1,4 +1,4 @@
-#include "corosig/reactor/Default.hpp"
+#include "corosig/reactor/Reactor.hpp"
 
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"

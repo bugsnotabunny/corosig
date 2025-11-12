@@ -2,7 +2,7 @@
 #define COROSIG_TESTING_SIGNALS_HPP
 
 #include "corosig/Coro.hpp"
-#include "corosig/reactor/Default.hpp"
+#include "corosig/reactor/Reactor.hpp"
 
 #include <catch2/catch_all.hpp>
 #include <charconv>

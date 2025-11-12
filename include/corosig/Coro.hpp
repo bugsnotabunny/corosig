@@ -4,8 +4,7 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
-#include "corosig/reactor/Custom.hpp"
-#include "corosig/reactor/Default.hpp"
+#include "corosig/reactor/Reactor.hpp"
 
 #include <cassert>
 #include <concepts>
@@ -17,12 +16,12 @@
 
 namespace corosig {
 
-template <typename T, typename E, AReactor REACTOR>
+template <typename T, typename E>
 struct Fut;
 
 namespace detail {
 
-template <typename T, typename E, AReactor REACTOR>
+template <typename T, typename E>
 struct CoroutinePromiseType : CoroListNode {
   CoroutinePromiseType() noexcept = default;
 
@@ -38,27 +37,27 @@ struct CoroutinePromiseType : CoroListNode {
 
   template <typename... ARGS>
   static void *operator new(size_t n, ARGS &&...) noexcept {
-    return REACTOR::instance().allocate_frame(n);
+    return Reactor::instance().allocate_frame(n);
   }
 
   static void operator delete(void *frame) noexcept {
-    return REACTOR::instance().free_frame(frame);
+    return Reactor::instance().free_frame(frame);
   }
 
   void yield_to_reactor() noexcept {
-    REACTOR::instance().yield(*this);
+    Reactor::instance().yield(*this);
   }
 
   void poll_to_reactor(PollListNode &node) noexcept {
-    REACTOR::instance().poll(node);
+    Reactor::instance().poll(node);
   }
 
   [[noreturn]] static void unhandled_exception() noexcept {
     std::terminate();
   }
 
-  Fut<T, E, REACTOR> get_return_object() noexcept;
-  static Fut<T, E, REACTOR> get_return_object_on_allocation_failure() noexcept;
+  Fut<T, E> get_return_object() noexcept;
+  static Fut<T, E> get_return_object_on_allocation_failure() noexcept;
 
   auto initial_suspend() noexcept {
     return std::suspend_never{};
@@ -97,17 +96,17 @@ private:
     return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
   }
 
-  friend struct Fut<T, E, REACTOR>;
+  friend struct Fut<T, E>;
 
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
-  Fut<T, E, REACTOR> *m_out = nullptr;
+  Fut<T, E> *m_out = nullptr;
 };
 
 } // namespace detail
 
-template <typename T = void, typename E = AllocationError, AReactor REACTOR = Reactor>
+template <typename T = void, typename E = AllocationError>
 struct [[nodiscard("forgot to await?")]] Fut {
-  using promise_type = detail::CoroutinePromiseType<T, E, REACTOR>;
+  using promise_type = detail::CoroutinePromiseType<T, E>;
 
   Fut(const Fut &) = delete;
   Fut(Fut &&rhs) noexcept
@@ -131,7 +130,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
 
   Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
     while (!m_value.has_value()) {
-      Result res = REACTOR::instance().do_event_loop_iteration();
+      Result res = Reactor::instance().do_event_loop_iteration();
       if (!res) {
         return failure(std::move(res.assume_error()));
       }
@@ -195,17 +194,17 @@ private:
   std::optional<Result<T, E>> m_value = std::nullopt;
 };
 
-template <typename T, typename E, AReactor REACTOR>
-Fut<T, E, REACTOR> detail::CoroutinePromiseType<T, E, REACTOR>::get_return_object() noexcept {
-  Fut<T, E, REACTOR> fut{*this};
+template <typename T, typename E>
+Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object() noexcept {
+  Fut<T, E> fut{*this};
   m_out = &fut;
   return fut;
 }
 
-template <typename T, typename E, AReactor REACTOR>
-Fut<T, E, REACTOR>
-detail::CoroutinePromiseType<T, E, REACTOR>::get_return_object_on_allocation_failure() noexcept {
-  return Fut<T, E, REACTOR>{AllocationError{}};
+template <typename T, typename E>
+Fut<T, E>
+detail::CoroutinePromiseType<T, E>::get_return_object_on_allocation_failure() noexcept {
+  return Fut<T, E>{AllocationError{}};
 }
 
 } // namespace corosig

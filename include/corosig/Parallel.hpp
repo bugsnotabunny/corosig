@@ -14,7 +14,7 @@
 
 namespace corosig {
 
-template <typename... REACTOR, typename... R, typename... E>
+template <typename... R, typename... E>
 Fut<std::tuple<Result<R, E>...>> when_all(Fut<R, E> &&...futs) noexcept {
   co_return std::tuple{co_await std::move(futs)...};
 }
@@ -43,7 +43,7 @@ using WrapVoid = std::conditional_t<std::same_as<void, T>, std::monostate, T>;
 
 } // namespace detail
 
-template <typename... REACTOR, typename... R, typename... E>
+template <typename... R, typename... E>
 Fut<std::tuple<detail::WrapVoid<R>...>, extend_error<E...>>
 when_all_succeed(Fut<R, E> &&...futs) noexcept {
   Result results_res = co_await when_all(std::move(futs)...);

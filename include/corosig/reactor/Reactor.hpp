@@ -5,7 +5,6 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
-#include "corosig/reactor/Custom.hpp"
 #include "corosig/reactor/PollList.hpp"
 
 #include <cstddef>
@@ -46,8 +45,6 @@ private:
   CoroList m_ready;
   Alloc m_alloc;
 };
-
-static_assert(AReactor<Reactor>);
 
 } // namespace corosig
 
