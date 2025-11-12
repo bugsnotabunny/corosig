@@ -1,7 +1,7 @@
 #ifndef COROSIG_TESTING_TEST_ERROR_HPP
 #define COROSIG_TESTING_TEST_ERROR_HPP
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 #include <csignal>
 #include <unistd.h>
 

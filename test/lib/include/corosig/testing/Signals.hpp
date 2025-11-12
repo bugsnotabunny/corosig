@@ -1,9 +1,10 @@
 #ifndef COROSIG_TESTING_SIGNALS_HPP
 #define COROSIG_TESTING_SIGNALS_HPP
 
+#include "corosig/Coro.hpp"
 #include "corosig/reactor/Default.hpp"
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 #include <charconv>
 #include <csignal>
 #include <cstddef>
@@ -27,7 +28,7 @@ inline void print(std::string_view msg) noexcept {
 
 template <typename T>
 inline void print_num(T value) noexcept {
-  char buf[100];
+  std::array<char, 100> buf;
   auto res = std::to_chars(std::begin(buf), std::end(buf), value);
   if (res.ec != std::errc{}) {
     return;
@@ -48,12 +49,12 @@ inline void print_num(T value) noexcept {
   } while (false)
 
 template <typename F>
-void test_in_sighandler(F &&f) {
+void run_in_sighandler(F &&f) {
   static std::optional<F> g_foo;
   COROSIG_REQUIRE(!g_foo);
   g_foo = std::forward<F>(f);
 
-  Reactor::instance(); // allocate TLS for reactor
+  (void)Reactor::instance();
 
   constexpr auto sighandler = [](int sig) noexcept {
     std::signal(sig, SIG_DFL);
@@ -71,6 +72,17 @@ void test_in_sighandler(F &&f) {
   ::raise(SIGNAL);
   COROSIG_REQUIRE(std::signal(SIGNAL, old_handler) != SIG_ERR);
 }
+
+#define INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_TEST_NAME, ...)                             \
+  static void INTERNAL_TEST_NAME();                                                                \
+  TEST_CASE(__VA_ARGS__) {                                                                         \
+    run_in_sighandler([] { return INTERNAL_TEST_NAME(); });                                        \
+  }                                                                                                \
+  void INTERNAL_TEST_NAME()
+
+#define COROSIG_SIGHANDLER_TEST_CASE(...)                                                          \
+  INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_CATCH_UNIQUE_NAME(COROSIG_SIGHANDLER_TEST),       \
+                                        __VA_ARGS__)
 
 } // namespace corosig
 

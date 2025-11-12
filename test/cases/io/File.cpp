@@ -6,13 +6,16 @@
 
 #include <algorithm>
 #include <boost/outcome/try.hpp>
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
+#include <catch2/reporters/catch_reporter_event_listener.hpp>
+#include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <random>
 #include <span>
+#include <string_view>
 
 using namespace corosig;
 
@@ -22,46 +25,46 @@ char const *g_test_file{nullptr};
 
 std::filesystem::path tmp_file() {
   auto tmp_dir = std::filesystem::temp_directory_path();
-  char filename[11]{};
+  std::array<char, 11> filename{};
   do {
     std::random_device rd;
     std::mt19937 gen{rd()};
     std::uniform_int_distribution<char> distr{'a', 'z'};
     auto rand_letter = [&] { return distr(gen); };
-    std::ranges::generate_n(filename, std::size(filename) - 1, rand_letter);
-  } while (std::filesystem::exists(tmp_dir / filename));
-  return tmp_dir / filename;
+    std::ranges::generate_n(filename.begin(), std::size(filename) - 1, rand_letter);
+  } while (std::filesystem::exists(tmp_dir / std::string_view{filename.data(), filename.size()}));
+  return tmp_dir / std::string_view{filename.data(), filename.size()};
 }
 
-struct TestFixture {
-  TestFixture() {
+struct TestListener : Catch::EventListenerBase {
+  using Catch::EventListenerBase::EventListenerBase;
+
+  void testCaseStarting(Catch::TestCaseInfo const &) override {
+    file = tmp_file();
     g_test_file = file.c_str();
   }
-
-  ~TestFixture() {
+  void testCaseEnded(Catch::TestCaseStats const &) override {
     std::filesystem::remove(file);
     g_test_file = nullptr;
   }
 
-  std::filesystem::path file = tmp_file();
+  std::filesystem::path file;
 };
+
+CATCH_REGISTER_LISTENER(TestListener);
 
 } // namespace
 
-TEST_CASE("Opening a non-existent file without CREATE fails") {
-  TestFixture _;
-  test_in_sighandler([] {
-    auto res = File::open(g_test_file, File::OpenFlags::RDONLY).block_on();
-    COROSIG_REQUIRE(res.has_error());
-    COROSIG_REQUIRE(res.error().holds<SyscallError>());
-  });
+COROSIG_SIGHANDLER_TEST_CASE("Opening a non-existent file without CREATE fails") {
+  auto res = File::open(g_test_file, File::OpenFlags::RDONLY).block_on();
+  COROSIG_REQUIRE(res.has_error());
+  COROSIG_REQUIRE(res.error().holds<SyscallError>());
 }
 
 TEST_CASE("Create and write to a file") {
-  TestFixture _;
   constexpr static std::string_view content = "hello world\n";
 
-  test_in_sighandler([] {
+  run_in_sighandler([] {
     auto foo = []() -> Fut<void, Error<AllocationError, SyscallError>> {
       BOOST_OUTCOME_CO_TRY(
           auto file,
@@ -84,21 +87,19 @@ TEST_CASE("Create and write to a file") {
 }
 
 TEST_CASE("Read file contents") {
-  TestFixture _;
-
   {
     std::ofstream ofs(g_test_file);
     ofs << "abc123";
   }
 
-  test_in_sighandler([] {
+  run_in_sighandler([] {
     auto foo = []() -> Fut<void, Error<AllocationError, SyscallError>> {
       BOOST_OUTCOME_CO_TRY(auto file, co_await File::open(g_test_file, File::OpenFlags::RDONLY));
 
-      char buf[16];
-      BOOST_OUTCOME_CO_TRY(size_t rres, co_await file.read(buf));
-      COROSIG_REQUIRE(rres == 6u);
-      COROSIG_REQUIRE(std::string_view{buf, rres} == "abc123");
+      std::array<char, 16> buf;
+      BOOST_OUTCOME_CO_TRY(size_t read, co_await file.read(buf));
+      COROSIG_REQUIRE(read == 6u);
+      COROSIG_REQUIRE(std::string_view{buf.begin(), read} == "abc123");
       co_return success();
     };
     COROSIG_REQUIRE(foo().block_on().has_value());
@@ -106,14 +107,12 @@ TEST_CASE("Read file contents") {
 }
 
 TEST_CASE("Append mode writes at end of file") {
-  TestFixture _;
-
   {
     std::ofstream ofs(g_test_file);
     ofs << "start";
   }
 
-  test_in_sighandler([] {
+  run_in_sighandler([] {
     auto foo = []() -> Fut<void, Error<AllocationError, SyscallError>> {
       BOOST_OUTCOME_CO_TRY(
           auto file,
@@ -132,19 +131,15 @@ TEST_CASE("Append mode writes at end of file") {
   REQUIRE(file_contents == "startend");
 }
 
-TEST_CASE("Move semantics") {
-  TestFixture _;
-
-  test_in_sighandler([] {
-    auto foo = []() -> Fut<void, Error<AllocationError, SyscallError>> {
-      BOOST_OUTCOME_CO_TRY(File f1, co_await File::open(g_test_file, File::OpenFlags::CREATE |
-                                                                         File::OpenFlags::WRONLY));
-      int fd_before = f1.underlying_handle();
-      File f2 = std::move(f1);
-      CHECK(f1.underlying_handle() == -1);
-      CHECK(f2.underlying_handle() == fd_before);
-      co_return success();
-    };
-    COROSIG_REQUIRE(foo().block_on().has_value());
-  });
+COROSIG_SIGHANDLER_TEST_CASE("Move semantics") {
+  auto foo = []() -> Fut<void, Error<AllocationError, SyscallError>> {
+    BOOST_OUTCOME_CO_TRY(File f1, co_await File::open(g_test_file, File::OpenFlags::CREATE |
+                                                                       File::OpenFlags::WRONLY));
+    int fd_before = f1.underlying_handle();
+    File f2 = std::move(f1);
+    CHECK(f1.underlying_handle() == -1);
+    CHECK(f2.underlying_handle() == fd_before);
+    co_return success();
+  };
+  COROSIG_REQUIRE(foo().block_on().has_value());
 }

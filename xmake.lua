@@ -59,7 +59,7 @@ target("corosig")
 target_end()
 
 
-add_requires("catch2 v2.13.10", { configs = { main = true, gmock = false } })
+add_requires("catch2 v3.10.0", { configs = { main = true, gmock = false } })
 
 
 target("corosig-testing")

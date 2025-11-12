@@ -4,7 +4,7 @@
 
 #include <arpa/inet.h>
 #include <boost/outcome/try.hpp>
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
 #include <cstring>
 #include <netinet/in.h>
 #include <span>
@@ -32,12 +32,12 @@ int start_echo_server(uint16_t port) {
 
   std::thread([srv_fd]() {
     int client = ::accept(srv_fd, nullptr, nullptr);
-    char buf[1024];
+    std::array<char, 1024> buf;
     while (true) {
-      ssize_t n = ::read(client, buf, sizeof(buf));
+      ssize_t n = ::read(client, buf.begin(), sizeof(buf));
       if (n <= 0)
         break;
-      COROSIG_REQUIRE(::write(client, buf, n) == n);
+      COROSIG_REQUIRE(::write(client, buf.begin(), n) == n);
     }
     ::close(client);
     ::close(srv_fd);
@@ -53,7 +53,7 @@ TEST_CASE("TcpSocket connect to server succeeds") {
   constexpr static uint16_t port = 5555;
   start_echo_server(port);
 
-  test_in_sighandler([] {
+  run_in_sighandler([] {
     auto foo = [&]() -> Fut<int, Error<AllocationError, SyscallError>> {
       sockaddr_in addr;
       addr.sin_port = htons(port);
@@ -75,8 +75,7 @@ TEST_CASE("TcpSocket connect to server succeeds") {
 TEST_CASE("TcpSocket write/read roundtrip") {
   constexpr static uint16_t port = 5556;
   start_echo_server(port);
-
-  test_in_sighandler([] {
+  run_in_sighandler([] {
     auto foo = [&]() -> Fut<int, Error<AllocationError, SyscallError>> {
       sockaddr_in addr{};
       addr.sin_family = AF_INET;
@@ -93,9 +92,9 @@ TEST_CASE("TcpSocket write/read roundtrip") {
       BOOST_OUTCOME_CO_TRY(auto written, co_await sock.write_some(msg));
       COROSIG_REQUIRE(written == msg.size());
 
-      char buf[msg.size()];
+      std::array<char, msg.size()> buf;
       BOOST_OUTCOME_CO_TRY(auto read, co_await sock.read(buf));
-      COROSIG_REQUIRE(std::string_view{buf, read} == msg);
+      COROSIG_REQUIRE(std::string_view{buf.begin(), read} == msg);
 
       co_return success();
     };

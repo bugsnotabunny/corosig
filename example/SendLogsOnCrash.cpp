@@ -64,6 +64,33 @@ sighandler(int) noexcept {
   co_return success();
 }
 
+void run_tcp_server(std::string &out) {
+  int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
+  assert(srv_fd >= 0);
+
+  sockaddr_in addr{};
+  addr.sin_family = AF_INET;
+  addr.sin_port = ::htons(8080);
+  addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
+
+  int opt = 1;
+  setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+  ::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)); // NOLINT
+  ::listen(srv_fd, 1);
+
+  int client = ::accept(srv_fd, nullptr, nullptr);
+  char buf[1024]; // NOLINT
+  while (true) {
+    ssize_t n = ::read(client, buf, sizeof(buf));
+    if (n <= 0) {
+      break;
+    }
+    out += std::string_view{buf, size_t(n)};
+  }
+  ::close(client);
+  ::close(srv_fd);
+}
+
 } // namespace
 
 int main() {
@@ -74,32 +101,7 @@ int main() {
     }
 
     std::string remote_server_data;
-    auto remote_server_thread = std::jthread([&] {
-      int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
-      assert(srv_fd >= 0);
-
-      sockaddr_in addr{};
-      addr.sin_family = AF_INET;
-      addr.sin_port = ::htons(8080);
-      addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
-
-      int opt = 1;
-      setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-      ::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)); // NOLINT
-      ::listen(srv_fd, 1);
-
-      int client = ::accept(srv_fd, nullptr, nullptr);
-      char buf[1024]; // NOLINT
-      while (true) {
-        ssize_t n = ::read(client, buf, sizeof(buf));
-        if (n <= 0) {
-          break;
-        }
-        remote_server_data += std::string_view{buf, size_t(n)};
-      }
-      ::close(client);
-      ::close(srv_fd);
-    });
+    auto remote_server_thread = std::jthread(run_tcp_server, std::ref(remote_server_data));
 
     logs_buffer.emplace_back("Log message 1\n");
     logs_buffer.emplace_back("Log message 2\n");
@@ -131,5 +133,6 @@ int main() {
     return 0;
   } catch (const std::exception &e) {
     std::cout << e.what() << '\n';
+    return 1;
   }
 }
