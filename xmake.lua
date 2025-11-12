@@ -44,7 +44,7 @@ if is_mode("tsan") then
 end
 
 
-add_requires("boost", {
+add_requires("boost 1.88.0", {
     configs = {
         exception = true, -- implicitly required by outcome
     }
