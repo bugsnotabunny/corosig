@@ -6,6 +6,7 @@ Checks: >
     -bugprone-suspicious-stringview-data-usage,
     modernize-*,
     -modernize-use-trailing-return-type,
+    -modernize-use-integer-sign-comparison,
     portability-*,
     readability-*,
     -readability-identifier-length,

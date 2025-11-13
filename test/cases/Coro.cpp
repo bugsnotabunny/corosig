@@ -2,7 +2,6 @@
 
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
-#include "corosig/io/Pipe.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
@@ -48,10 +47,10 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut::block_on returns error when reactor fails") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut can be co_awaited inside a coroutine") {
-  constexpr static auto foo = []() -> Fut<int> { co_return 99; };
-  constexpr static auto bar = []() -> Fut<int> { co_return 123 + (co_await foo()).value(); };
+  constexpr static auto FOO = []() -> Fut<int> { co_return 99; };
+  constexpr static auto BAR = []() -> Fut<int> { co_return 123 + (co_await FOO()).value(); };
 
-  auto result = bar().block_on();
+  auto result = BAR().block_on();
   REQUIRE(result.has_value());
   REQUIRE(result.assume_value() == 123 + 99);
 }

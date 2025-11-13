@@ -34,11 +34,11 @@ COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
   Alloc::Memory<1024> mem;
   Alloc alloc{mem};
 
-  constexpr size_t align = alignof(std::max_align_t);
-  void *p = alloc.allocate(64, align);
+  constexpr size_t ALIGN = alignof(std::max_align_t);
+  void *p = alloc.allocate(64, ALIGN);
 
   COROSIG_REQUIRE(p != nullptr);
-  COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % align == 0);
+  COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % ALIGN == 0);
   alloc.free(p);
 }
 

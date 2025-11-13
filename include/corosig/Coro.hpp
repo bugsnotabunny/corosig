@@ -132,7 +132,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     while (!m_value.has_value()) {
       Result res = Reactor::instance().do_event_loop_iteration();
       if (!res) {
-        return failure(std::move(res.assume_error()));
+        return failure(res.assume_error());
       }
     }
     if (m_value->has_value()) {
@@ -202,8 +202,7 @@ Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object() noexcept {
 }
 
 template <typename T, typename E>
-Fut<T, E>
-detail::CoroutinePromiseType<T, E>::get_return_object_on_allocation_failure() noexcept {
+Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object_on_allocation_failure() noexcept {
   return Fut<T, E>{AllocationError{}};
 }
 
