@@ -53,19 +53,23 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
   for (size_t i = 0; i < size_t(ret); ++i) {
     auto &node = polled.front();
     polled.pop_front();
+
+    assert(node.waiting_coro != nullptr);
+    assert(!node.waiting_coro.done());
     node.waiting_coro.resume();
   }
   return success();
 }
 
 void resume(CoroList &ready) noexcept {
-  constexpr auto ITERATIONS_LIMIT = 1024 * 1024;
-  size_t i = 0;
-  while (!ready.empty() && i < ITERATIONS_LIMIT) {
+  constexpr auto ITERATIONS_LIMIT = 1024;
+
+  for (size_t i = 0; !ready.empty() && i < ITERATIONS_LIMIT; ++i) {
     auto &node = ready.front();
     ready.pop_front();
-    node.coro_from_this().resume();
-    ++i;
+    auto coro = node.coro_from_this();
+    assert(!coro.done());
+    coro.resume();
   }
 }
 
@@ -73,17 +77,12 @@ void resume(CoroList &ready) noexcept {
 
 namespace corosig {
 
-Reactor &Reactor::instance() noexcept {
-  thread_local Reactor thread_local_reactor;
-  return thread_local_reactor;
-}
-
-void *Reactor::allocate_frame(size_t n) noexcept {
+void *Reactor::allocate(size_t n) noexcept {
   return m_alloc.allocate(n);
 }
 
-void Reactor::free_frame(void *frame) noexcept {
-  return m_alloc.free(frame);
+void Reactor::free(void *p) noexcept {
+  return m_alloc.free(p);
 }
 
 void Reactor::yield(CoroListNode &node) noexcept {
@@ -95,6 +94,7 @@ void Reactor::poll(PollListNode &node) noexcept {
 }
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
+  assert((!m_ready.empty() || !m_polled.empty()) && "Nothing to process. Deadlock will happen");
   resume(m_ready);
 
   using namespace std::chrono_literals;

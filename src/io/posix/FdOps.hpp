@@ -14,13 +14,15 @@ static_assert(false, "Platform-specific file included on wrong platform");
 
 namespace corosig::os::posix {
 
-Fut<size_t, Error<AllocationError, SyscallError>> write(int fd, std::span<char const>) noexcept;
-Fut<size_t, Error<AllocationError, SyscallError>> write_some(int fd,
+Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &, int fd,
+                                                        std::span<char const>) noexcept;
+Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &, int fd,
                                                              std::span<char const>) noexcept;
 Result<size_t, SyscallError> try_write_some(int fd, std::span<char const>) noexcept;
 
-Fut<size_t, Error<AllocationError, SyscallError>> read(int fd, std::span<char>) noexcept;
-Fut<size_t, Error<AllocationError, SyscallError>> read_some(int fd, std::span<char>) noexcept;
+Fut<size_t, Error<AllocationError, SyscallError>> read(Reactor &, int fd, std::span<char>) noexcept;
+Fut<size_t, Error<AllocationError, SyscallError>> read_some(Reactor &, int fd,
+                                                            std::span<char>) noexcept;
 Result<size_t, SyscallError> try_read_some(int fd, std::span<char>) noexcept;
 
 void close(int &fd) noexcept;

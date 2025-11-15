@@ -4,6 +4,7 @@
 #include "corosig/reactor/Reactor.hpp"
 
 #include <csignal>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace corosig {
@@ -12,23 +13,16 @@ namespace detail {
 
 template <size_t MEMORY, auto F>
 void sighandler(int sig) noexcept {
-  std::signal(sig, SIG_DFL);
-
-  Alloc::Memory<MEMORY> mem;
-  auto &reactor = Reactor::instance();
-  reactor = Reactor{mem};
-
-  (void)F(sig).block_on();
+  std::signal(sig, SIG_DFL); // to avoid recursive call if something inside sighandler goes wrong
+  Allocator::Memory<MEMORY> mem;
+  Reactor reactor{mem};
+  (void)F(reactor, sig).block_on();
 }
 
 } // namespace detail
 
 template <size_t MEMORY, auto F>
 void set_sighandler(int sig) {
-  // initialize underlying TLS with default reactor
-  // important to do it here since it may cause allocation
-  // which is not safe to do inside sighandler
-  (void)Reactor::instance();
 
   if (std::signal(sig, detail::sighandler<MEMORY, F>) == SIG_ERR) {
     throw std::runtime_error{"std::signal failed"};

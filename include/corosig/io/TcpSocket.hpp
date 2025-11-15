@@ -17,7 +17,7 @@ public:
   TcpSocket() noexcept = default;
 
   static Fut<TcpSocket, Error<AllocationError, SyscallError>>
-  connect(sockaddr_storage const &addr) noexcept;
+  connect(Reactor &, sockaddr_storage const &addr) noexcept;
 
   TcpSocket(const TcpSocket &) = delete;
   TcpSocket(TcpSocket &&) noexcept = default;
@@ -26,12 +26,14 @@ public:
 
   ~TcpSocket();
 
-  Fut<size_t, Error<AllocationError, SyscallError>> read(std::span<char>) noexcept;
-  Fut<size_t, Error<AllocationError, SyscallError>> read_some(std::span<char>) noexcept;
+  Fut<size_t, Error<AllocationError, SyscallError>> read(Reactor &, std::span<char>) noexcept;
+  Fut<size_t, Error<AllocationError, SyscallError>> read_some(Reactor &, std::span<char>) noexcept;
   Result<size_t, SyscallError> try_read_some(std::span<char>) noexcept;
 
-  Fut<size_t, Error<AllocationError, SyscallError>> write(std::span<char const>) noexcept;
-  Fut<size_t, Error<AllocationError, SyscallError>> write_some(std::span<char const>) noexcept;
+  Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &,
+                                                          std::span<char const>) noexcept;
+  Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &,
+                                                               std::span<char const>) noexcept;
   Result<size_t, SyscallError> try_write_some(std::span<char const>) noexcept;
 
   void close() noexcept;

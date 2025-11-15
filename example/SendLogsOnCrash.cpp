@@ -1,10 +1,12 @@
 /// Use case: there is an application, producing logs. Logs are initially stored
 /// in some in-memory buffer. Periodically, a flush operation is triggered and all
 /// logs are written to various outputs: to remote udp server and to file. But what if
-/// an app receives malicious signal (such as SIGTERM when std::terminate is called or
+/// an app receives malicious signal (such as SIGABRT when std::terminate is called or
 /// SIGFPE if current c++ implementation raises it on zero division) then in-buffer
 /// logs are lost by default. To prevent this we have to write custom signal handler.
 /// And to speed this sighandler up we will use corosig-powered async io
+
+#include "corosig/reactor/Reactor.hpp"
 
 #include <boost/outcome/try.hpp>
 #include <corosig/Coro.hpp>
@@ -37,32 +39,36 @@ constexpr std::string_view FILE2 = "file2.log";
 
 std::vector<std::string> logs_buffer;
 
-corosig::Fut<void, corosig::Error<corosig::AllocationError, corosig::SyscallError>>
-sighandler(int) noexcept {
-  using namespace corosig;
+namespace sighandling {
 
-  auto write_to_file = [](char const *path) -> Fut<void, Error<AllocationError, SyscallError>> {
-    using enum File::OpenFlags;
-    BOOST_OUTCOME_CO_TRY(auto file, co_await File::open(path, CREATE | TRUNCATE | WRONLY));
-    for (auto &log : logs_buffer) {
-      BOOST_OUTCOME_CO_TRY(co_await file.write(log));
-    }
-    co_return success();
-  };
+using namespace corosig;
 
-  auto send_via_tcp = []() -> Fut<void, Error<AllocationError, SyscallError>> {
-    BOOST_OUTCOME_CO_TRY(auto socket, co_await TcpSocket::connect(SERVER_ADDR));
-    for (auto &log : logs_buffer) {
-      BOOST_OUTCOME_CO_TRY(co_await socket.write(log));
-    }
-    co_return success();
-  };
+Fut<void, Error<AllocationError, SyscallError>> write_to_file(Reactor &r,
+                                                              char const *path) noexcept {
+  using enum File::OpenFlags;
+  BOOST_OUTCOME_CO_TRY(auto file, co_await File::open(r, path, CREATE | TRUNCATE | WRONLY));
+  for (auto &log : logs_buffer) {
+    BOOST_OUTCOME_CO_TRY(co_await file.write(r, log));
+  }
+  co_return success();
+};
 
-  BOOST_OUTCOME_CO_TRY(co_await when_all_succeed(write_to_file(FILE1.data()),
-                                                 write_to_file(FILE2.data()), send_via_tcp()));
+Fut<void, Error<AllocationError, SyscallError>> send_via_tcp(Reactor &r) {
+  BOOST_OUTCOME_CO_TRY(auto socket, co_await TcpSocket::connect(r, SERVER_ADDR));
+  for (auto &log : logs_buffer) {
+    BOOST_OUTCOME_CO_TRY(co_await socket.write(r, log));
+  }
+  co_return success();
+};
 
+Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noexcept {
+
+  BOOST_OUTCOME_CO_TRY(co_await when_all_succeed(r, write_to_file(r, FILE1.data()),
+                                                 write_to_file(r, FILE2.data()), send_via_tcp(r)));
   co_return success();
 }
+
+} // namespace sighandling
 
 void run_tcp_server(std::string &out) {
   int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -79,13 +85,13 @@ void run_tcp_server(std::string &out) {
   ::listen(srv_fd, 1);
 
   int client = ::accept(srv_fd, nullptr, nullptr);
-  char buf[1024]; // NOLINT
+  std::array<char, 1024> buf;
   while (true) {
-    ssize_t n = ::read(client, buf, sizeof(buf));
+    ssize_t n = ::read(client, buf.begin(), buf.size());
     if (n <= 0) {
       break;
     }
-    out += std::string_view{buf, size_t(n)};
+    out += std::string_view{buf.begin(), size_t(n)};
   }
   ::close(client);
   ::close(srv_fd);
@@ -97,7 +103,7 @@ int main() {
   try {
     constexpr auto REACTOR_MEMORY = 8 * 1024;
     for (auto signal : {SIGILL, SIGFPE, SIGTERM, SIGABRT}) {
-      corosig::set_sighandler<REACTOR_MEMORY, sighandler>(signal);
+      corosig::set_sighandler<REACTOR_MEMORY, sighandling::sighandler>(signal);
     }
 
     std::string remote_server_data;

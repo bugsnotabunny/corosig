@@ -12,10 +12,10 @@ namespace bi = boost::intrusive;
 
 struct CoroListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe_link>> {
   virtual std::coroutine_handle<> coro_from_this() noexcept = 0;
+  virtual ~CoroListNode() = default;
 };
 
-using CoroList =
-    bi::slist<CoroListNode, bi::constant_time_size<false>, bi::linear<true>, bi::cache_last<true>>;
+using CoroList = bi::slist<CoroListNode, bi::constant_time_size<false>, bi::cache_last<true>>;
 
 } // namespace corosig
 

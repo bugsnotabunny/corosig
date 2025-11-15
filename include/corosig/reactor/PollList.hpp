@@ -18,7 +18,7 @@ enum class poll_event_e : uint8_t {
 };
 
 struct PollListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe_link>> {
-  std::coroutine_handle<> waiting_coro;
+  std::coroutine_handle<> waiting_coro = std::noop_coroutine();
   os::Handle handle;
   poll_event_e event;
 };

@@ -1,4 +1,4 @@
-#include "corosig/Alloc.hpp"
+#include "corosig/Allocator.hpp"
 
 #include <utility>
 
@@ -29,23 +29,23 @@ size_t padding_with_header(size_t base_address, size_t alignment, size_t header_
 
 namespace corosig {
 
-Alloc::Alloc(Alloc &&rhs) noexcept
+Allocator::Allocator(Allocator &&rhs) noexcept
     : m_used{std::exchange(rhs.m_used, 0)}, m_peak{std::exchange(rhs.m_peak, 0)},
       m_free_list{std::exchange(rhs.m_free_list, FreeList{})},
       m_mem{std::exchange(rhs.m_mem, nullptr)}, m_mem_size{std::exchange(rhs.m_mem_size, 0)} {
 }
 
-Alloc &Alloc::operator=(Alloc &&rhs) noexcept {
-  this->~Alloc();
-  new (this) Alloc{std::move(rhs)};
+Allocator &Allocator::operator=(Allocator &&rhs) noexcept {
+  this->~Allocator();
+  new (this) Allocator{std::move(rhs)};
   return *this;
 }
 
-Alloc::~Alloc() {
+Allocator::~Allocator() {
   assert(m_used == 0 && "Memory leak detected");
 }
 
-void Alloc::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
+void Allocator::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
   if (previousNode == nullptr) {
     // Is the first node
     if (head != nullptr) {
@@ -68,7 +68,7 @@ void Alloc::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
   }
 }
 
-void Alloc::FreeList::remove(Node *previousNode, Node *deleteNode) noexcept {
+void Allocator::FreeList::remove(Node *previousNode, Node *deleteNode) noexcept {
   if (previousNode == nullptr) {
     // Is the first node
     if (deleteNode->next == nullptr) { // List only has one element
@@ -83,7 +83,7 @@ void Alloc::FreeList::remove(Node *previousNode, Node *deleteNode) noexcept {
   }
 }
 
-void *Alloc::allocate(size_t size, size_t alignment) noexcept {
+void *Allocator::allocate(size_t size, size_t alignment) noexcept {
   size = std::max(size, sizeof(Node));
   alignment = std::max(alignment, MIN_ALIGNMENT);
 
@@ -120,18 +120,17 @@ void *Alloc::allocate(size_t size, size_t alignment) noexcept {
 
   m_used += required_size;
   m_peak = std::max(m_peak, m_used);
-
   return (void *)((char *)header_ptr + sizeof(AllocationHeader));
 }
 
-void Alloc::free(void *ptr) noexcept {
+void Allocator::free(void *ptr) noexcept {
   if (ptr == nullptr) {
     return;
   }
 
   // Insert it in a sorted position by the address number
   auto current_address = (size_t)ptr;
-  size_t header_address = current_address - sizeof(Alloc::AllocationHeader);
+  size_t header_address = current_address - sizeof(Allocator::AllocationHeader);
   auto *allocation_header = std::bit_cast<AllocationHeader *>(header_address);
 
   Node *freenode = std::bit_cast<Node *>(header_address);
@@ -156,7 +155,7 @@ void Alloc::free(void *ptr) noexcept {
   coalescence(it_prev, freenode);
 }
 
-void Alloc::coalescence(Node *prevNode, Node *freeNode) noexcept {
+void Allocator::coalescence(Node *prevNode, Node *freeNode) noexcept {
   if (freeNode->next != nullptr &&
       size_t(freeNode) + freeNode->data.block_size == size_t(freeNode->next)) {
     freeNode->data.block_size += freeNode->next->data.block_size;
@@ -169,8 +168,8 @@ void Alloc::coalescence(Node *prevNode, Node *freeNode) noexcept {
   }
 }
 
-void Alloc::find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
-                 Node *&foundNode) const noexcept {
+void Allocator::find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
+                     Node *&foundNode) const noexcept {
   Node *it = m_free_list.head;
   Node *it_prev = nullptr;
 

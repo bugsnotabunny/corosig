@@ -16,13 +16,14 @@ PipeWrite::~PipeWrite() {
   close();
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> PipeRead::read(std::span<char> buf) noexcept {
-  return os::posix::read(m_fd.value, buf);
+Fut<size_t, Error<AllocationError, SyscallError>> PipeRead::read(Reactor &r,
+                                                                 std::span<char> buf) noexcept {
+  return os::posix::read(r, m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-PipeRead::read_some(std::span<char> buf) noexcept {
-  return os::posix::read_some(m_fd.value, buf);
+PipeRead::read_some(Reactor &r, std::span<char> buf) noexcept {
+  return os::posix::read_some(r, m_fd.value, buf);
 }
 
 Result<size_t, SyscallError> PipeRead::try_read_some(std::span<char> buf) noexcept {
@@ -30,13 +31,13 @@ Result<size_t, SyscallError> PipeRead::try_read_some(std::span<char> buf) noexce
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-PipeWrite::write(std::span<char const> buf) noexcept {
-  return os::posix::write(m_fd.value, buf);
+PipeWrite::write(Reactor &r, std::span<char const> buf) noexcept {
+  return os::posix::write(r, m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-PipeWrite::write_some(std::span<char const> buf) noexcept {
-  return os::posix::write_some(m_fd.value, buf);
+PipeWrite::write_some(Reactor &r, std::span<char const> buf) noexcept {
+  return os::posix::write_some(r, m_fd.value, buf);
 }
 
 Result<size_t, SyscallError> PipeWrite::try_write_some(std::span<char const> buf) noexcept {

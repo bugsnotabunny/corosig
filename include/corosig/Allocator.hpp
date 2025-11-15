@@ -7,7 +7,7 @@
 
 namespace corosig {
 
-struct Alloc {
+struct Allocator {
 private:
   struct FreeHeader {
     size_t block_size = 0;
@@ -46,21 +46,21 @@ private:
 public:
   constexpr static size_t MIN_ALIGNMENT = 8;
 
-  Alloc() noexcept = default;
+  Allocator() noexcept = default;
 
   template <size_t SIZE>
-  Alloc(Memory<SIZE> &mem) noexcept : m_mem{mem.begin()}, m_mem_size{mem.size()} {
+  Allocator(Memory<SIZE> &mem) noexcept : m_mem{mem.begin()}, m_mem_size{mem.size()} {
     Node *first_node = new (m_mem) Node{};
     first_node->data.block_size = SIZE - sizeof(Node);
     first_node->next = nullptr;
     m_free_list.insert(nullptr, first_node);
   }
 
-  Alloc(const Alloc &) = delete;
-  Alloc(Alloc &&) noexcept;
-  Alloc &operator=(const Alloc &) = delete;
-  Alloc &operator=(Alloc &&) noexcept;
-  ~Alloc();
+  Allocator(const Allocator &) = delete;
+  Allocator(Allocator &&) noexcept;
+  Allocator &operator=(const Allocator &) = delete;
+  Allocator &operator=(Allocator &&) noexcept;
+  ~Allocator();
 
   [[nodiscard]] size_t peak_memory() const noexcept {
     return m_peak;

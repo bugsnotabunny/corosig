@@ -20,13 +20,14 @@ TcpSocket::~TcpSocket() {
   close();
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> TcpSocket::read(std::span<char> buf) noexcept {
-  return os::posix::read(m_fd.value, buf);
+Fut<size_t, Error<AllocationError, SyscallError>> TcpSocket::read(Reactor &r,
+                                                                  std::span<char> buf) noexcept {
+  return os::posix::read(r, m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-TcpSocket::read_some(std::span<char> buf) noexcept {
-  return os::posix::read_some(m_fd.value, buf);
+TcpSocket::read_some(Reactor &r, std::span<char> buf) noexcept {
+  return os::posix::read_some(r, m_fd.value, buf);
 }
 
 Result<size_t, SyscallError> TcpSocket::try_read_some(std::span<char> buf) noexcept {
@@ -34,13 +35,13 @@ Result<size_t, SyscallError> TcpSocket::try_read_some(std::span<char> buf) noexc
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-TcpSocket::write(std::span<char const> buf) noexcept {
-  return os::posix::write(m_fd.value, buf);
+TcpSocket::write(Reactor &r, std::span<char const> buf) noexcept {
+  return os::posix::write(r, m_fd.value, buf);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-TcpSocket::write_some(std::span<char const> buf) noexcept {
-  return os::posix::write_some(m_fd.value, buf);
+TcpSocket::write_some(Reactor &r, std::span<char const> buf) noexcept {
+  return os::posix::write_some(r, m_fd.value, buf);
 }
 
 Result<size_t, SyscallError> TcpSocket::try_write_some(std::span<char const> buf) noexcept {
@@ -56,7 +57,7 @@ void TcpSocket::close() noexcept {
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
-TcpSocket::connect(sockaddr_storage const &addr) noexcept {
+TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
   int sock = ::socket(addr.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
   if (sock == -1) {
     co_return SyscallError::current();

@@ -4,6 +4,7 @@
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/reactor/Reactor.hpp"
 
 #include <boost/mp11/algorithm.hpp>
 #include <concepts>
@@ -15,7 +16,7 @@
 namespace corosig {
 
 template <typename... R, typename... E>
-Fut<std::tuple<Result<R, E>...>> when_all(Fut<R, E> &&...futs) noexcept {
+Fut<std::tuple<Result<R, E>...>> when_all(Reactor &, Fut<R, E> &&...futs) noexcept {
   co_return std::tuple{co_await std::move(futs)...};
 }
 
@@ -45,8 +46,8 @@ using WrapVoid = std::conditional_t<std::same_as<void, T>, std::monostate, T>;
 
 template <typename... R, typename... E>
 Fut<std::tuple<detail::WrapVoid<R>...>, extend_error<E...>>
-when_all_succeed(Fut<R, E> &&...futs) noexcept {
-  Result results_res = co_await when_all(std::move(futs)...);
+when_all_succeed(Reactor &r, Fut<R, E> &&...futs) noexcept {
+  Result results_res = co_await when_all(r, std::move(futs)...);
   if (results_res.has_error()) {
     co_return failure(std::move(results_res.assume_error()));
   }

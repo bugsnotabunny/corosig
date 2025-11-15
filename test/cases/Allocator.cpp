@@ -1,4 +1,4 @@
-#include "corosig/Alloc.hpp"
+#include "corosig/Allocator.hpp"
 
 #include "corosig/testing/Signals.hpp"
 
@@ -9,8 +9,8 @@
 using namespace corosig;
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
-  Alloc::Memory<1024> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<1024> mem;
+  Allocator alloc{mem};
 
   void *p1 = alloc.allocate(128);
   COROSIG_REQUIRE(p1 != nullptr);
@@ -23,16 +23,16 @@ COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation exceeds capacity") {
-  Alloc::Memory<256> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<256> mem;
+  Allocator alloc{mem};
 
   void *p = alloc.allocate(512);
   COROSIG_REQUIRE(p == nullptr);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
-  Alloc::Memory<1024> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<1024> mem;
+  Allocator alloc{mem};
 
   constexpr size_t ALIGN = alignof(std::max_align_t);
   void *p = alloc.allocate(64, ALIGN);
@@ -43,8 +43,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
-  Alloc::Memory<128> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<128> mem;
+  Allocator alloc{mem};
 
   std::array<void *, 10> blocks = {};
   size_t count = 0;
@@ -60,15 +60,15 @@ COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Freeing nullptr should be safe") {
-  Alloc::Memory<128> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<128> mem;
+  Allocator alloc{mem};
 
   alloc.free(nullptr);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or null consistently") {
-  Alloc::Memory<128> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<128> mem;
+  Allocator alloc{mem};
 
   void *p = alloc.allocate(0);
   // Depending on implementation: could return nullptr or a valid pointer.
@@ -77,8 +77,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or nul
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
-  Alloc::Memory<128> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<128> mem;
+  Allocator alloc{mem};
 
   void *p1 = alloc.allocate(64);
   COROSIG_REQUIRE(p1 != nullptr);
@@ -90,8 +90,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Stress test with varied sizes and alignments") {
-  Alloc::Memory<512> mem;
-  Alloc alloc{mem};
+  Allocator::Memory<512> mem;
+  Allocator alloc{mem};
 
   void *a = alloc.allocate(32, alignof(int));
   COROSIG_REQUIRE(a != nullptr);

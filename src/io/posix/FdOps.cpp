@@ -4,6 +4,7 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/reactor/Reactor.hpp"
 
 #include <cstddef>
 #include <span>
@@ -14,11 +15,12 @@ static_assert(false, "Platform-specific file included on wrong platform");
 
 namespace corosig::os::posix {
 
-Fut<size_t, Error<AllocationError, SyscallError>> read(int fd, std::span<char> buf) noexcept {
+Fut<size_t, Error<AllocationError, SyscallError>> read(Reactor &, int fd,
+                                                       std::span<char> buf) noexcept {
   size_t read = 0;
   while (read < buf.size()) {
-    co_await PollEvent{fd, poll_event_e::CAN_READ};
 
+    co_await PollEvent{fd, poll_event_e::CAN_READ};
     Result current_read = try_read_some(fd, buf);
     if (current_read.has_value()) {
       size_t value = current_read.assume_value();
@@ -35,7 +37,8 @@ Fut<size_t, Error<AllocationError, SyscallError>> read(int fd, std::span<char> b
   co_return read;
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> read_some(int fd, std::span<char> buf) noexcept {
+Fut<size_t, Error<AllocationError, SyscallError>> read_some(Reactor &, int fd,
+                                                            std::span<char> buf) noexcept {
   co_await PollEvent{fd, poll_event_e::CAN_READ};
   co_return try_read_some(fd, buf);
 }
@@ -48,7 +51,7 @@ Result<size_t, SyscallError> try_read_some(int fd, std::span<char> buf) noexcept
   return size_t(n);
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> write(int fd,
+Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &, int fd,
                                                         std::span<char const> buf) noexcept {
   size_t written = 0;
   while (written < buf.size()) {
@@ -63,10 +66,11 @@ Fut<size_t, Error<AllocationError, SyscallError>> write(int fd,
       break;
     }
   }
+
   co_return written;
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> write_some(int fd,
+Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &, int fd,
                                                              std::span<char const> buf) noexcept {
   co_await PollEvent{fd, poll_event_e::CAN_WRITE};
   co_return try_write_some(fd, buf);

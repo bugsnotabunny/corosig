@@ -27,7 +27,7 @@ struct PollEvent : PollListNode {
     h.promise().poll_to_reactor(*this);
   }
 
-  void await_resume() const noexcept {
+  static void await_resume() noexcept {
   }
 };
 

@@ -1,11 +1,11 @@
 #ifndef COROSIG_TESTING_SIGNALS_HPP
 #define COROSIG_TESTING_SIGNALS_HPP
 
-#include "corosig/Coro.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
 #include <catch2/catch_all.hpp>
 #include <charconv>
+#include <concepts>
 #include <csignal>
 #include <cstddef>
 #include <optional>
@@ -48,40 +48,36 @@ inline void print_num(T value) noexcept {
     }                                                                                              \
   } while (false)
 
-template <typename F>
+template <std::invocable<Reactor &> F>
 void run_in_sighandler(F &&f) {
   static std::optional<F> g_foo;
   COROSIG_REQUIRE(!g_foo);
   g_foo = std::forward<F>(f);
 
-  (void)Reactor::instance();
-
-  constexpr auto sighandler = [](int sig) noexcept {
+  constexpr auto SIGHANDLER = [](int sig) noexcept {
     std::signal(sig, SIG_DFL);
 
-    Alloc::Memory<size_t(1024 * 8)> mem;
-    Reactor &reactor = Reactor::instance();
-    reactor = Reactor{mem};
-
-    (*g_foo)();
+    Allocator::Memory<size_t(1024 * 8)> mem;
+    Reactor reactor{mem};
+    (*g_foo)(reactor);
   };
 
   constexpr auto SIGNAL = SIGILL;
-  auto old_handler = std::signal(SIGNAL, sighandler);
+  auto old_handler = std::signal(SIGNAL, SIGHANDLER);
   COROSIG_REQUIRE(old_handler != SIG_ERR);
   ::raise(SIGNAL);
   COROSIG_REQUIRE(std::signal(SIGNAL, old_handler) != SIG_ERR);
 }
 
 #define INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_TEST_NAME, ...)                             \
-  static void INTERNAL_TEST_NAME();                                                                \
+  static void INTERNAL_TEST_NAME(Reactor &reactor);                                                \
   TEST_CASE(__VA_ARGS__) {                                                                         \
-    run_in_sighandler([] { return INTERNAL_TEST_NAME(); });                                        \
+    run_in_sighandler([](Reactor &reactor) { return INTERNAL_TEST_NAME(reactor); });               \
   }                                                                                                \
-  void INTERNAL_TEST_NAME()
+  void INTERNAL_TEST_NAME([[maybe_unused]] Reactor &reactor)
 
 #define COROSIG_SIGHANDLER_TEST_CASE(...)                                                          \
-  INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_CATCH_UNIQUE_NAME(COROSIG_SIGHANDLER_TEST),       \
+  INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_CATCH_UNIQUE_NAME(COROSIG_SIGHANDLER_TEST_),      \
                                         __VA_ARGS__)
 
 } // namespace corosig

@@ -1,7 +1,7 @@
 #ifndef COROSIG_REACTOR_DEFAULT_HPP
 #define COROSIG_REACTOR_DEFAULT_HPP
 
-#include "corosig/Alloc.hpp"
+#include "corosig/Allocator.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
@@ -12,16 +12,19 @@
 namespace corosig {
 
 struct Reactor {
-  static Reactor &instance() noexcept;
-
   Reactor() noexcept = default;
 
+  Reactor(const Reactor &) = delete;
+  Reactor(Reactor &&) = delete;
+  Reactor &operator=(const Reactor &) = delete;
+  Reactor &operator=(Reactor &&) = delete;
+
   template <size_t SIZE>
-  Reactor(Alloc::Memory<SIZE> &mem) : m_alloc{mem} {
+  Reactor(Allocator::Memory<SIZE> &mem) : m_alloc{mem} {
   }
 
-  void *allocate_frame(size_t) noexcept;
-  void free_frame(void *) noexcept;
+  void *allocate(size_t) noexcept;
+  void free(void *) noexcept;
 
   void yield(CoroListNode &) noexcept;
   void poll(PollListNode &) noexcept;
@@ -43,7 +46,7 @@ struct Reactor {
 private:
   PollList m_polled;
   CoroList m_ready;
-  Alloc m_alloc;
+  Allocator m_alloc;
 };
 
 } // namespace corosig
