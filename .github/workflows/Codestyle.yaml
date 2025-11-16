@@ -20,10 +20,7 @@ jobs:
         run: devenv shell echo
 
       - name: clang-format checks
-        run: devenv shell "find . -type f \( -name \*.cpp -o -name \*.hpp \) -print0 | xargs -0 -n1 -P$(nproc) clang-format --Werror -n"
-
-      - name: generate compile-commands
-        run: devenv shell "xmake project -k compile_commands -y"
+        run: devenv shell "xmake format -ne"
 
       - name: clang-tidy checks
-        run: devenv shell "find include src example -type f \( -name \*.cpp -o -name \*.hpp \) -print0 | xargs -0 -n1 -P$(nproc) clang-tidy -p build"
+        run: devenv shell "xmake check clang.tidy"
