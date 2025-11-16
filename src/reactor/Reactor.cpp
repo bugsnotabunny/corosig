@@ -47,7 +47,7 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
 
   int ret = ::poll(poll_fds.data(), fds_count, timeout.count());
   if (ret == -1) {
-    return SyscallError::current();
+    return failure(SyscallError::current());
   }
 
   for (size_t i = 0; i < size_t(ret); ++i) {

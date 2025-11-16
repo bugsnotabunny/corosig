@@ -4,15 +4,15 @@
 
 using namespace corosig;
 
-struct a1 {};
-struct a2 {};
-struct a3 {};
-struct a4 {};
+struct A1 {};
+struct A2 {};
+struct A3 {};
+struct A4 {};
 
 TEST_CASE("Extend error") {
-  static_assert(std::same_as<extend_error<Error<a1, a2>, a3, Error<a4>>, Error<a1, a2, a3, a4>>);
-  static_assert(std::same_as<extend_error<a1, a2, a3, a4>, Error<a1, a2, a3, a4>>);
-  static_assert(std::same_as<extend_error<a1, a2, a3, a4, a4, a4>, Error<a1, a2, a3, a4>>);
+  static_assert(std::same_as<extend_error<Error<A1, A2>, A3, Error<A4>>, Error<A1, A2, A3, A4>>);
+  static_assert(std::same_as<extend_error<A1, A2, A3, A4>, Error<A1, A2, A3, A4>>);
+  static_assert(std::same_as<extend_error<A1, A2, A3, A4, A4, A4>, Error<A1, A2, A3, A4>>);
   static_assert(
-      std::same_as<extend_error<Error<a1, a2, a3>, a2, a3, a4, a4, a4>, Error<a1, a2, a3, a4>>);
+      std::same_as<extend_error<Error<A1, A2, A3>, A2, A3, A4, A4, A4>, Error<A1, A2, A3, A4>>);
 }

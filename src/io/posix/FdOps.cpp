@@ -22,14 +22,14 @@ Fut<size_t, Error<AllocationError, SyscallError>> read(Reactor &, int fd,
 
     co_await PollEvent{fd, poll_event_e::CAN_READ};
     Result current_read = try_read_some(fd, buf);
-    if (current_read.has_value()) {
-      size_t value = current_read.assume_value();
+    if (current_read.is_ok()) {
+      size_t value = current_read.value();
       if (value == 0) {
         break;
       }
       read += value;
     } else if (read == 0) {
-      co_return current_read.assume_error();
+      co_return failure(current_read.error());
     } else {
       break;
     }
@@ -46,7 +46,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> read_some(Reactor &, int fd,
 Result<size_t, SyscallError> try_read_some(int fd, std::span<char> buf) noexcept {
   ssize_t n = ::read(fd, buf.data(), buf.size());
   if (n == -1) {
-    return SyscallError::current();
+    return failure(SyscallError::current());
   }
   return size_t(n);
 }
@@ -58,10 +58,10 @@ Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &, int fd,
     co_await PollEvent{fd, poll_event_e::CAN_WRITE};
 
     Result current_write = try_write_some(fd, buf);
-    if (current_write.has_value()) {
-      written += current_write.assume_value();
+    if (current_write.is_ok()) {
+      written += current_write.value();
     } else if (written == 0) {
-      co_return SyscallError::current();
+      co_return failure(SyscallError::current());
     } else {
       break;
     }
@@ -79,7 +79,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &, int fd,
 Result<size_t, SyscallError> try_write_some(int fd, std::span<char const> buf) noexcept {
   ssize_t n = ::write(fd, buf.data(), buf.size());
   if (n == -1) {
-    return SyscallError::current();
+    return failure(SyscallError::current());
   }
   return size_t(n);
 }

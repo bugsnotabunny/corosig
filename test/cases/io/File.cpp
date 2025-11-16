@@ -6,7 +6,6 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <algorithm>
-#include <boost/outcome/try.hpp>
 #include <catch2/catch_all.hpp>
 #include <catch2/reporters/catch_reporter_event_listener.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
@@ -58,7 +57,7 @@ CATCH_REGISTER_LISTENER(TestListener);
 
 COROSIG_SIGHANDLER_TEST_CASE("Opening a non-existent file without CREATE fails") {
   auto res = File::open(reactor, g_test_file, File::OpenFlags::RDONLY).block_on();
-  COROSIG_REQUIRE(res.has_error());
+  COROSIG_REQUIRE(!res.is_ok());
   COROSIG_REQUIRE(res.error().holds<SyscallError>());
 }
 
@@ -67,17 +66,17 @@ TEST_CASE("Create and write to a file") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      BOOST_OUTCOME_CO_TRY(
+      COROSIG_CO_TRY(
           auto file,
           co_await File::open(r, g_test_file, File::OpenFlags::CREATE | File::OpenFlags::WRONLY));
 
       auto wres = co_await file.write(r, CONTENT);
-      COROSIG_REQUIRE(wres.has_value());
-      COROSIG_REQUIRE(wres.assume_value() == CONTENT.size());
+      COROSIG_REQUIRE(wres.is_ok());
+      COROSIG_REQUIRE(wres.value() == CONTENT.size());
       co_return success();
     };
 
-    COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+    COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });
 
   std::ifstream ifs(g_test_file);
@@ -95,15 +94,15 @@ TEST_CASE("Read file contents") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      BOOST_OUTCOME_CO_TRY(auto file, co_await File::open(r, g_test_file, File::OpenFlags::RDONLY));
+      COROSIG_CO_TRY(auto file, co_await File::open(r, g_test_file, File::OpenFlags::RDONLY));
 
       std::array<char, 16> buf;
-      BOOST_OUTCOME_CO_TRY(size_t read, co_await file.read(r, buf));
+      COROSIG_CO_TRY(size_t read, co_await file.read(r, buf));
       COROSIG_REQUIRE(read == 6u);
       COROSIG_REQUIRE(std::string_view{buf.begin(), read} == "abc123");
       co_return success();
     };
-    COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+    COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });
 }
 
@@ -115,15 +114,15 @@ TEST_CASE("Append mode writes at end of file") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      BOOST_OUTCOME_CO_TRY(
+      COROSIG_CO_TRY(
           auto file,
           co_await File::open(r, g_test_file, File::OpenFlags::APPEND | File::OpenFlags::WRONLY));
       constexpr std::string_view EXTRA = "end";
-      BOOST_OUTCOME_CO_TRY(size_t written, co_await file.write(r, EXTRA));
+      COROSIG_CO_TRY(size_t written, co_await file.write(r, EXTRA));
       COROSIG_REQUIRE(written == EXTRA.size());
       co_return success();
     };
-    COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+    COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });
 
   std::ifstream ifs(g_test_file);
@@ -134,14 +133,13 @@ TEST_CASE("Append mode writes at end of file") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Move semantics") {
   auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    BOOST_OUTCOME_CO_TRY(
-        File f1,
-        co_await File::open(r, g_test_file, File::OpenFlags::CREATE | File::OpenFlags::WRONLY));
+    COROSIG_CO_TRY(File f1, co_await File::open(r, g_test_file,
+                                                File::OpenFlags::CREATE | File::OpenFlags::WRONLY));
     int fd_before = f1.underlying_handle();
     File f2 = std::move(f1);
     CHECK(f1.underlying_handle() == -1);
     CHECK(f2.underlying_handle() == fd_before);
     co_return success();
   };
-  COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }

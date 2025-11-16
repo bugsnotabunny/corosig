@@ -5,7 +5,7 @@
 
 namespace corosig {
 
-template <typename T, T DEFAULT = T{}>
+template <typename T, auto DEFAULT = T{}>
 struct SetDefaultOnMove {
   SetDefaultOnMove() noexcept = default;
 

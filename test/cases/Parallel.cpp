@@ -5,8 +5,6 @@
 #include "corosig/testing/Signals.hpp"
 #include "corosig/testing/TestError.hpp"
 
-#include <boost/outcome/try.hpp>
-
 using namespace corosig;
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all aggregates multiple futures", "[when_all]") {
@@ -15,16 +13,16 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all aggregates multiple futures", "[when_all]
     auto fut2 = [](Reactor &) -> Fut<int> { co_return success(2); }(r);
     auto fut3 = [](Reactor &) -> Fut<int> { co_return success(3); }(r);
 
-    BOOST_OUTCOME_CO_TRY(auto result,
-                         co_await when_all(r, std::move(fut1), std::move(fut2), std::move(fut3)));
+    COROSIG_CO_TRY(auto result,
+                   co_await when_all(r, std::move(fut1), std::move(fut2), std::move(fut3)));
 
-    REQUIRE(std::get<0>(result).assume_value() == 1);
-    REQUIRE(std::get<1>(result).assume_value() == 2);
-    REQUIRE(std::get<2>(result).assume_value() == 3);
+    REQUIRE(std::get<0>(result).value() == 1);
+    REQUIRE(std::get<1>(result).value() == 2);
+    REQUIRE(std::get<2>(result).value() == 3);
 
     co_return success();
   };
-  COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed returns all values if no errors",
@@ -37,14 +35,14 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed returns all values if no errors",
 
     auto result = co_await when_all_succeed(r, std::move(fut1), std::move(fut2));
 
-    REQUIRE_FALSE(result.has_error());
-    auto values = result.assume_value();
+    REQUIRE(result.is_ok());
+    auto values = result.value();
     REQUIRE(std::get<0>(values) == 10);
     REQUIRE(std::get<1>(values) == 20);
 
     co_return success();
   };
-  COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed propagates error if any future fails",
@@ -56,9 +54,9 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed propagates error if any future fa
     }(r);
 
     Result result = co_await when_all_succeed(r, std::move(fut1), std::move(fut2));
-    REQUIRE(result.has_error());
-    REQUIRE(result.assume_error().holds<TestError>());
+    REQUIRE(!result.is_ok());
+    REQUIRE(result.error().holds<TestError>());
     co_return success();
   };
-  COROSIG_REQUIRE(foo(reactor).block_on().has_value());
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }

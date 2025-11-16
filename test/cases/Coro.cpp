@@ -25,9 +25,9 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor transfers ownership") {
   auto foo = [](Reactor &) -> Fut<> { co_return success(); };
 
   Fut<> fut1 = foo(reactor);
-  COROSIG_REQUIRE(fut1.has_value());
+  COROSIG_REQUIRE(fut1.completed());
   Fut<> fut2{std::move(fut1)};
-  COROSIG_REQUIRE(fut2.has_value());
+  COROSIG_REQUIRE(fut2.completed());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor with nontrivial move") {
@@ -36,17 +36,16 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor with nontrivial move") {
   auto foo = [](Reactor &) -> Fut<MoveType> { co_return success(MoveType{123.0}); };
 
   Fut<MoveType> fut1 = foo(reactor);
-  COROSIG_REQUIRE(fut1.has_value());
+  COROSIG_REQUIRE(fut1.completed());
 
   Fut<MoveType> fut2{std::move(fut1)};
-  COROSIG_REQUIRE(fut2.has_value());
+  COROSIG_REQUIRE(fut2.completed());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut::block_on returns error when reactor fails") {
   Result res = Fut<>::promise_type::get_return_object_on_allocation_failure().block_on();
-  COROSIG_REQUIRE(!res.has_value());
-  COROSIG_REQUIRE(res.has_error());
-  COROSIG_REQUIRE(res.assume_error().holds<AllocationError>());
+  COROSIG_REQUIRE(!res.is_ok());
+  COROSIG_REQUIRE(res.error().holds<AllocationError>());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut can be co_awaited inside a coroutine") {
@@ -56,6 +55,6 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut can be co_awaited inside a coroutine") {
   };
 
   auto result = BAR(reactor).block_on();
-  REQUIRE(result.has_value());
-  REQUIRE(result.assume_value() == 123 + 99);
+  REQUIRE(result.is_ok());
+  REQUIRE(result.value() == 123 + 99);
 }

@@ -5,12 +5,12 @@
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Reactor.hpp"
+#include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cassert>
 #include <concepts>
 #include <coroutine>
 #include <cstddef>
-#include <optional>
 #include <utility>
 
 namespace corosig {
@@ -26,9 +26,7 @@ concept NotReactor = !std::same_as<Reactor, T>;
 template <typename T, typename E>
 struct CoroutinePromiseType : CoroListNode {
 
-  CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
-      // reuse m_out to pass reactor to future to avoid creating additional buffer
-      : m_reactor{reactor} {
+  CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept : m_reactor{reactor} {
   }
 
   CoroutinePromiseType(NotReactor auto const &, Reactor &reactor,
@@ -96,26 +94,22 @@ struct CoroutinePromiseType : CoroListNode {
 
   template <std::convertible_to<Result<T, E>> U>
   void return_value(U &&value) noexcept {
-    // NOLINTBEGIN false positives about m_out being uninitialized
-    assert(m_out);
-    assert(!m_out->m_value);
+    assert(m_value.is_nothing());
     assert(!m_waiting_coro.done());
-    m_out->m_value.emplace(std::forward<U>(value));
-    // NOLINTEND
+    m_value = Result<T, E>{std::forward<U>(value)};
   }
 
   template <std::convertible_to<T> T2, std::convertible_to<E> E2>
   void return_value(Result<T2, E2> &&result) noexcept {
-    assert(m_out);
-    assert(!m_out->m_value);
-    if (result.has_value()) {
+    assert(m_value.is_nothing());
+    if (result.is_ok()) {
       if constexpr (std::same_as<void, T>) {
-        m_out->m_value.emplace(success());
+        m_value = success();
       } else {
-        m_out->m_value.emplace(success(std::move(result.assume_value())));
+        m_value = success(std::move(result.value()));
       }
     } else {
-      m_out->m_value.emplace(std::move(result.assume_error()));
+      m_value = failure(std::move(result.error()));
     }
 
     assert(!m_waiting_coro.done() && "Waiting coro was destroyed before child has finished");
@@ -130,7 +124,7 @@ private:
 
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
   Reactor &m_reactor;
-  Fut<T, E> *m_out = nullptr;
+  Result<T, E> m_value;
 };
 
 } // namespace detail
@@ -140,48 +134,41 @@ struct [[nodiscard("forgot to await?")]] Fut {
   using promise_type = detail::CoroutinePromiseType<T, E>;
 
   Fut(const Fut &) = delete;
-  Fut(Fut &&rhs) noexcept
-      : m_handle{std::exchange(rhs.m_handle, nullptr)},
-        m_value{std::exchange(rhs.m_value, std::nullopt)} {
-    if (m_handle) {
-      m_handle.promise().m_out = this;
-    }
-  }
-
+  Fut(Fut &&rhs) noexcept = default;
   Fut &operator=(const Fut &) = delete;
-  Fut &operator=(Fut &&rhs) noexcept {
-    ~Fut();
-    new (*this) Fut{std::move(rhs)};
-    return *this;
-  };
+  Fut &operator=(Fut &&rhs) noexcept = default;
 
   ~Fut() {
-    if (m_handle != nullptr) {
-      Reactor &reactor = m_handle.promise().m_reactor;
-      m_handle.destroy();
-      reactor.free(m_handle.address());
+    if (m_handle.value != nullptr) {
+      Reactor &reactor = promise().m_reactor;
+      m_handle.value.destroy();
+      reactor.free(m_handle.value.address());
     }
   }
 
-  [[nodiscard]] bool has_value() const noexcept {
-    return m_value.has_value();
+  [[nodiscard]] bool completed() const noexcept {
+    return m_handle.value == nullptr || !promise().m_value.is_nothing();
   }
 
   Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
-    while (!m_value.has_value()) {
-      Result res = m_handle.promise().m_reactor.do_event_loop_iteration();
-      if (!res) {
-        return failure(res.assume_error());
-      }
+    while (!completed()) {
+      COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
     }
-    if (m_value->has_value()) {
-      if constexpr (std::same_as<void, T>) {
-        return success();
-      } else {
-        return success(std::move(m_value->assume_value()));
-      }
+
+    if (!m_handle.value) {
+      return failure(AllocationError{});
+    }
+
+    // Result's error type may be extended with errors from reactor's event loop. This is why we
+    // have to unpack result by hand here
+    if (!promise().m_value.is_ok()) {
+      return failure(std::move(promise().m_value.error()));
+    }
+
+    if constexpr (std::same_as<void, T>) {
+      return success();
     } else {
-      return failure(std::move(m_value->error()));
+      return success(std::move(promise().m_value.value()));
     }
   }
 
@@ -192,16 +179,20 @@ struct [[nodiscard("forgot to await?")]] Fut {
     Awaiter &operator=(Awaiter &&) = delete;
 
     [[nodiscard]] bool await_ready() const noexcept {
-      return m_future.has_value();
+      return m_future.completed();
     }
 
     void await_suspend(std::coroutine_handle<> h) const noexcept {
-      m_future.m_handle.promise().m_waiting_coro = h;
+      m_future.promise().m_waiting_coro = h;
     }
 
     Result<T, E> await_resume() const noexcept {
-      assert(m_future.m_value.has_value());
-      return *std::move(m_future.m_value);
+      if (m_future.m_handle.value == nullptr) {
+        return failure(AllocationError{});
+      }
+
+      assert(!m_future.promise().m_value.is_nothing());
+      return std::move(m_future.promise().m_value);
     }
 
   private:
@@ -220,25 +211,27 @@ private:
   Fut(std::coroutine_handle<promise_type> handle) noexcept : m_handle{handle} {
   }
 
-  Fut(AllocationError e) noexcept : m_value{failure(e)} {
+  promise_type &promise() noexcept {
+    return m_handle.value.promise();
+  }
+
+  promise_type const &promise() const noexcept {
+    return m_handle.value.promise();
   }
 
   friend promise_type;
 
-  std::coroutine_handle<promise_type> m_handle = nullptr;
-  [[no_unique_address]] std::optional<Result<T, E>> m_value = std::nullopt;
+  SetDefaultOnMove<std::coroutine_handle<promise_type>, nullptr> m_handle;
 };
 
 template <typename T, typename E>
 Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object() noexcept {
-  Fut<T, E> fut{std::coroutine_handle<CoroutinePromiseType>::from_promise(*this)};
-  m_out = &fut;
-  return fut;
+  return Fut<T, E>{std::coroutine_handle<CoroutinePromiseType>::from_promise(*this)};
 }
 
 template <typename T, typename E>
 Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object_on_allocation_failure() noexcept {
-  return Fut<T, E>{AllocationError{}};
+  return Fut<T, E>{nullptr};
 }
 
 } // namespace corosig

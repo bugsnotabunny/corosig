@@ -28,8 +28,8 @@ std::optional<ERROR> first_error(std::tuple<RESULTS...> &t) noexcept {
   std::apply(
       [&](RESULTS &...current_result) {
         ([&]() -> bool {
-          if (current_result.has_error()) {
-            error_opt.emplace(std::move(current_result.assume_error()));
+          if (!current_result.is_ok()) {
+            error_opt.emplace(std::move(current_result.error()));
             return true;
           }
           return false;
@@ -46,28 +46,24 @@ using WrapVoid = std::conditional_t<std::same_as<void, T>, std::monostate, T>;
 
 template <typename... R, typename... E>
 Fut<std::tuple<detail::WrapVoid<R>...>, extend_error<E...>>
-when_all_succeed(Reactor &r, Fut<R, E> &&...futs) noexcept {
-  Result results_res = co_await when_all(r, std::move(futs)...);
-  if (results_res.has_error()) {
-    co_return failure(std::move(results_res.assume_error()));
-  }
-  std::tuple<Result<R, E>...> &results = results_res.assume_value();
+when_all_succeed(Reactor &, Fut<R, E> &&...futs) noexcept {
+  std::tuple<Result<R, E>...> results = std::tuple{co_await std::move(futs)...};
 
   if (std::optional first_error = detail::first_error<extend_error<E...>>(results)) {
     co_return failure(std::move(*first_error));
   }
 
-  co_return success(std::apply(
+  co_return std::apply(
       [](Result<R, E> &&...current_result) {
         return std::tuple{[](Result<R, E> &&r) {
           if constexpr (std::same_as<void, R>) {
             return std::monostate{};
           } else {
-            return std::move(r.assume_value());
+            return std::move(r.value());
           }
         }(std::move(current_result))...};
       },
-      std::move(results)));
+      std::move(results));
 }
 
 } // namespace corosig
