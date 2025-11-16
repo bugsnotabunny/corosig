@@ -43,12 +43,7 @@ if is_mode("tsan") then
     set_policy("build.sanitizer.thread", true)
 end
 
-
-add_requires("boost 1.88.0", {
-    configs = {
-        exception = true, -- implicitly required by outcome
-    }
-})
+add_requires("boost 1.86.0")
 
 target("corosig")
     set_kind("static")
@@ -59,7 +54,7 @@ target("corosig")
 target_end()
 
 
-add_requires("catch2 v3.10.0", { configs = { main = true, gmock = false } })
+add_requires("catch2 v3.10.0", { configs = { main = false, gmock = false } })
 
 
 target("corosig-testing")
