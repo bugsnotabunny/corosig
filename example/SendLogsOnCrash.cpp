@@ -75,7 +75,9 @@ Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noex
 
 void run_tcp_server(std::string &out) {
   int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
-  assert(srv_fd >= 0);
+  if (srv_fd == -1) {
+    throw std::system_error{errno, std::system_category(), "socket"};
+  }
 
   sockaddr_in addr{};
   addr.sin_family = AF_INET;

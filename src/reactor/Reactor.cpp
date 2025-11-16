@@ -82,7 +82,7 @@ void *Reactor::allocate(size_t n) noexcept {
 }
 
 void Reactor::deallocate(void *p) noexcept {
-  return m_alloc.free(p);
+  return m_alloc.deallocate(p);
 }
 
 void Reactor::yield(CoroListNode &node) noexcept {

@@ -63,7 +63,7 @@ public:
   }
 
   [[nodiscard]] void *allocate(size_t size, size_t alignment = MIN_ALIGNMENT) noexcept;
-  void free(void *ptr) noexcept;
+  void deallocate(void *ptr) noexcept;
 
 private:
   void coalescence(Node *prevNode, Node *freeNode) noexcept;

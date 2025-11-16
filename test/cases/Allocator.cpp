@@ -18,8 +18,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
   void *p2 = alloc.allocate(256);
   COROSIG_REQUIRE(p2 != nullptr);
 
-  alloc.free(p1);
-  alloc.free(p2);
+  alloc.deallocate(p1);
+  alloc.deallocate(p2);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation exceeds capacity") {
@@ -39,7 +39,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
 
   COROSIG_REQUIRE(p != nullptr);
   COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % ALIGN == 0);
-  alloc.free(p);
+  alloc.deallocate(p);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
@@ -55,7 +55,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
   COROSIG_REQUIRE(count * 16 <= 128);
 
   for (size_t i = 0; i < count; ++i) {
-    alloc.free(blocks[i]);
+    alloc.deallocate(blocks[i]);
   }
 }
 
@@ -63,7 +63,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Freeing nullptr should be safe") {
   Allocator::Memory<128> mem;
   Allocator alloc{mem};
 
-  alloc.free(nullptr);
+  alloc.deallocate(nullptr);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or null consistently") {
@@ -73,7 +73,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or nul
   void *p = alloc.allocate(0);
   // Depending on implementation: could return nullptr or a valid pointer.
   // Just ensure it doesn't crash.
-  alloc.free(p);
+  alloc.deallocate(p);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
@@ -82,11 +82,11 @@ COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
 
   void *p1 = alloc.allocate(64);
   COROSIG_REQUIRE(p1 != nullptr);
-  alloc.free(p1);
+  alloc.deallocate(p1);
 
   void *p2 = alloc.allocate(64);
   COROSIG_REQUIRE(p2 != nullptr);
-  alloc.free(p2);
+  alloc.deallocate(p2);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Stress test with varied sizes and alignments") {
@@ -102,7 +102,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Stress test with varied sizes and alignments") {
   void *c = alloc.allocate(128, alignof(std::max_align_t));
   COROSIG_REQUIRE(c != nullptr);
 
-  alloc.free(a);
-  alloc.free(b);
-  alloc.free(c);
+  alloc.deallocate(a);
+  alloc.deallocate(b);
+  alloc.deallocate(c);
 }

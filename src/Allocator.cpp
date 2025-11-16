@@ -123,7 +123,7 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
   return (void *)((char *)header_ptr + sizeof(AllocationHeader));
 }
 
-void Allocator::free(void *ptr) noexcept {
+void Allocator::deallocate(void *ptr) noexcept {
   if (ptr == nullptr) {
     return;
   }
