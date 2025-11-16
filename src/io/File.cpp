@@ -59,7 +59,7 @@ File::open(Reactor &, char const *path, OpenFlags flags, OpenPerms perms) noexce
   // systems to implement nonblocking open
   int fd = ::open(path, int(flags) | O_NONBLOCK, int(perms) | S_IRWXU | S_IRWXG | S_IRWXO);
   if (fd == -1) {
-    co_return failure(SyscallError::current());
+    co_return Failure{SyscallError::current()};
   }
   File self;
   self.m_fd = fd;

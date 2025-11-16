@@ -29,7 +29,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> read(Reactor &, int fd,
       }
       read += value;
     } else if (read == 0) {
-      co_return failure(current_read.error());
+      co_return Failure{current_read.error()};
     } else {
       break;
     }
@@ -46,7 +46,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> read_some(Reactor &, int fd,
 Result<size_t, SyscallError> try_read_some(int fd, std::span<char> buf) noexcept {
   ssize_t n = ::read(fd, buf.data(), buf.size());
   if (n == -1) {
-    return failure(SyscallError::current());
+    return Failure{SyscallError::current()};
   }
   return size_t(n);
 }
@@ -61,7 +61,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &, int fd,
     if (current_write.is_ok()) {
       written += current_write.value();
     } else if (written == 0) {
-      co_return failure(SyscallError::current());
+      co_return Failure{SyscallError::current()};
     } else {
       break;
     }
@@ -79,7 +79,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &, int fd,
 Result<size_t, SyscallError> try_write_some(int fd, std::span<char const> buf) noexcept {
   ssize_t n = ::write(fd, buf.data(), buf.size());
   if (n == -1) {
-    return failure(SyscallError::current());
+    return Failure{SyscallError::current()};
   }
   return size_t(n);
 }

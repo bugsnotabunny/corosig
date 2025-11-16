@@ -22,7 +22,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Coroutine executed synchronously") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor transfers ownership") {
-  auto foo = [](Reactor &) -> Fut<> { co_return success(); };
+  auto foo = [](Reactor &) -> Fut<> { co_return Ok{}; };
 
   Fut<> fut1 = foo(reactor);
   COROSIG_REQUIRE(fut1.completed());
@@ -33,7 +33,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor transfers ownership") {
 COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor with nontrivial move") {
   using MoveType = SetDefaultOnMove<double, double(2 << 10)>;
 
-  auto foo = [](Reactor &) -> Fut<MoveType> { co_return success(MoveType{123.0}); };
+  auto foo = [](Reactor &) -> Fut<MoveType> { co_return Ok(MoveType{123.0}); };
 
   Fut<MoveType> fut1 = foo(reactor);
   COROSIG_REQUIRE(fut1.completed());

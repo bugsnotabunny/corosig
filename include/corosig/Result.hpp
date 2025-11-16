@@ -10,30 +10,30 @@
 namespace corosig {
 
 template <typename T>
-struct success { // NOLINT
-  success(T &&value) : value{std::forward<T>(value)} {
+struct Ok { // NOLINT
+  Ok(T &&value) : value{std::forward<T>(value)} {
   }
 
   T &&value;
 };
 
 template <>
-struct success<void> {};
+struct Ok<void> {};
 
 template <typename T>
-success(T const &) -> success<T const &>;
+Ok(T const &) -> Ok<T const &>;
 
-success() -> success<void>;
+Ok() -> Ok<void>;
 
 template <typename T>
-struct failure { // NOLINT
-  failure(T &&value) : value{std::forward<T>(value)} {
+struct Failure { // NOLINT
+  Failure(T &&value) : value{std::forward<T>(value)} {
   }
   T &&value;
 };
 
 template <typename T>
-failure(T const &) -> failure<T const &>;
+Failure(T const &) -> Failure<T const &>;
 
 namespace detail {
 
@@ -51,22 +51,27 @@ public:
 
   template <typename T>
     requires(!std::same_as<T, void>)
-  Result(success<T> &&success)
-      : m_value{std::in_place_type<WrapVoidR>, std::forward<T>(success.value)} {
+  Result(Ok<T> &&success) : m_value{std::in_place_type<WrapVoidR>, std::forward<T>(success.value)} {
   }
 
   template <typename T>
     requires(std::same_as<T, void>)
-  Result(success<T> &&) : m_value{std::in_place_type<WrapVoidR>} {
+  Result(Ok<T> &&) : m_value{std::in_place_type<WrapVoidR>} {
   }
 
   template <typename T>
-  Result(failure<T> &&failure) : m_value{std::in_place_type<E>, std::forward<T>(failure.value)} {
+  Result(Failure<T> &&failure) : m_value{std::in_place_type<E>, std::forward<T>(failure.value)} {
+  }
+
+  template <typename R1, typename E1>
+    requires(!std::same_as<R, R1> || !std::same_as<E, E1>)
+  Result(Result<R1, E1> &&other)
+      : Result{converting_ctor_impl(std::forward<Result<R1, E1>>(other))} {
   }
 
   template <typename T>
     requires(!std::same_as<Result, T>)
-  Result(T &&value) : Result{success{std::forward<T>(value)}} {
+  Result(T &&value) : Result{Ok{std::forward<T>(value)}} {
   }
 
   explicit constexpr operator bool() const noexcept {
@@ -112,6 +117,19 @@ private:
     return *std::get_if<E>(&self.m_value);
   }
 
+  template <typename R1, typename E1>
+  static Result<R, E> converting_ctor_impl(Result<R1, E1> &&other) noexcept {
+    if (!other.is_ok()) {
+      return Failure{std::move(other.error())};
+    }
+
+    if constexpr (std::same_as<void, R1>) {
+      return Ok{};
+    } else {
+      return Ok{std::move(other.value())};
+    }
+  }
+
   std::variant<detail::Nullopt, WrapVoidR, E> m_value;
 };
 
@@ -124,9 +142,9 @@ private:
 #define COROSIG_TRY_IMPL(NAME, TEMPORARY_NAME, RETURN, ...)                                        \
   auto TEMPORARY_NAME = __VA_ARGS__;                                                               \
   if (!TEMPORARY_NAME.is_ok()) {                                                                   \
-    RETURN ::corosig::failure{std::move(TEMPORARY_NAME.error())};                                  \
+    RETURN ::corosig::Failure{::std::move(TEMPORARY_NAME.error())};                                \
   }                                                                                                \
-  NAME = std::move(TEMPORARY_NAME.value())
+  NAME = ::std::move(TEMPORARY_NAME.value())
 
 #define COROSIG_TRY(name, ...)                                                                     \
   COROSIG_TRY_IMPL(name, COROSIG_TRY_UNIQUE_NAME(corosig_temporary_value_), return, __VA_ARGS__)
@@ -138,7 +156,7 @@ private:
   do {                                                                                             \
     auto TEMPORARY_NAME = __VA_ARGS__;                                                             \
     if (!TEMPORARY_NAME.is_ok()) {                                                                 \
-      RETURN ::corosig::failure{std::move(TEMPORARY_NAME.error())};                                \
+      RETURN ::corosig::Failure{::std::move(TEMPORARY_NAME.error())};                              \
     }                                                                                              \
   } while (false)
 

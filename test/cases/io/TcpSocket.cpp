@@ -67,7 +67,7 @@ TEST_CASE("TcpSocket connect to server succeeds") {
       COROSIG_CO_TRY(auto socket, co_await TcpSocket::connect(r, ss));
       COROSIG_REQUIRE(socket.underlying_handle() >= 0);
 
-      co_return success();
+      co_return Ok();
     };
     COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });
@@ -98,7 +98,7 @@ TEST_CASE("TcpSocket write/read roundtrip") {
       // valueCO_TRY(auto read, co_await sock.read(r, buf));
       // COROSIG_REQUIRE(std::string_view{buf.begin(), read} == MSG);
 
-      co_return success();
+      co_return Ok();
     };
     COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });

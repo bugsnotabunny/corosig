@@ -73,7 +73,7 @@ TEST_CASE("Create and write to a file") {
       auto wres = co_await file.write(r, CONTENT);
       COROSIG_REQUIRE(wres.is_ok());
       COROSIG_REQUIRE(wres.value() == CONTENT.size());
-      co_return success();
+      co_return Ok();
     };
 
     COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
@@ -100,7 +100,7 @@ TEST_CASE("Read file contents") {
       COROSIG_CO_TRY(size_t read, co_await file.read(r, buf));
       COROSIG_REQUIRE(read == 6u);
       COROSIG_REQUIRE(std::string_view{buf.begin(), read} == "abc123");
-      co_return success();
+      co_return Ok();
     };
     COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });
@@ -120,7 +120,7 @@ TEST_CASE("Append mode writes at end of file") {
       constexpr std::string_view EXTRA = "end";
       COROSIG_CO_TRY(size_t written, co_await file.write(r, EXTRA));
       COROSIG_REQUIRE(written == EXTRA.size());
-      co_return success();
+      co_return Ok();
     };
     COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
   });
@@ -139,7 +139,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Move semantics") {
     File f2 = std::move(f1);
     CHECK(f1.underlying_handle() == -1);
     CHECK(f2.underlying_handle() == fd_before);
-    co_return success();
+    co_return Ok();
   };
   COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }

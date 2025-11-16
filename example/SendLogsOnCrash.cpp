@@ -51,7 +51,7 @@ Fut<void, Error<AllocationError, SyscallError>> write_to_file(Reactor &r,
   for (auto &log : logs_buffer) {
     COROSIG_CO_TRYV(co_await file.write(r, log));
   }
-  co_return success();
+  co_return Ok{};
 };
 
 Fut<void, Error<AllocationError, SyscallError>> send_via_tcp(Reactor &r) {
@@ -59,14 +59,14 @@ Fut<void, Error<AllocationError, SyscallError>> send_via_tcp(Reactor &r) {
   for (auto &log : logs_buffer) {
     COROSIG_CO_TRYV(co_await socket.write(r, log));
   }
-  co_return success();
+  co_return Ok{};
 };
 
 Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noexcept {
 
   COROSIG_CO_TRYV(co_await when_all_succeed(r, write_to_file(r, FILE1.data()),
                                             write_to_file(r, FILE2.data()), send_via_tcp(r)));
-  co_return success();
+  co_return Ok{};
 }
 
 } // namespace sighandling

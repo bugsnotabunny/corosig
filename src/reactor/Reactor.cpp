@@ -18,7 +18,7 @@ using namespace corosig;
 Result<void, SyscallError>
 poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout) noexcept {
   if (polled.empty()) {
-    return success();
+    return Ok{};
   }
 
   constexpr size_t BUF_SIZE = 32;
@@ -47,7 +47,7 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
 
   int ret = ::poll(poll_fds.data(), fds_count, timeout.count());
   if (ret == -1) {
-    return failure(SyscallError::current());
+    return Failure{SyscallError::current()};
   }
 
   for (size_t i = 0; i < size_t(ret); ++i) {
@@ -58,7 +58,7 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
     assert(!node.waiting_coro.done());
     node.waiting_coro.resume();
   }
-  return success();
+  return Ok{};
 }
 
 void resume(CoroList &ready) noexcept {

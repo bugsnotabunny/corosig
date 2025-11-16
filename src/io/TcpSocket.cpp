@@ -60,7 +60,7 @@ Fut<TcpSocket, Error<AllocationError, SyscallError>>
 TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
   int sock = ::socket(addr.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
   if (sock == -1) {
-    co_return failure(SyscallError::current());
+    co_return Failure{SyscallError::current()};
   }
 
   TcpSocket self;
@@ -87,7 +87,7 @@ TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
   if (::connect(sock, (sockaddr const *)&addr, len) == -1) {
     auto current_error = SyscallError::current();
     if (current_error.value != EINPROGRESS) {
-      co_return failure(current_error);
+      co_return Failure{current_error};
     }
   }
 

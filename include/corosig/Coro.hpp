@@ -104,12 +104,12 @@ struct CoroutinePromiseType : CoroListNode {
     assert(m_value.is_nothing());
     if (result.is_ok()) {
       if constexpr (std::same_as<void, T>) {
-        m_value = success();
+        m_value = Ok{};
       } else {
-        m_value = success(std::move(result.value()));
+        m_value = Ok{std::move(result.value())};
       }
     } else {
-      m_value = failure(std::move(result.error()));
+      m_value = Failure{std::move(result.error())};
     }
 
     assert(!m_waiting_coro.done() && "Waiting coro was destroyed before child has finished");
@@ -154,22 +154,10 @@ struct [[nodiscard("forgot to await?")]] Fut {
     while (!completed()) {
       COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
     }
-
     if (!m_handle.value) {
-      return failure(AllocationError{});
+      return Failure{AllocationError{}};
     }
-
-    // Result's error type may be extended with errors from reactor's event loop. This is why we
-    // have to unpack result by hand here
-    if (!promise().m_value.is_ok()) {
-      return failure(std::move(promise().m_value.error()));
-    }
-
-    if constexpr (std::same_as<void, T>) {
-      return success();
-    } else {
-      return success(std::move(promise().m_value.value()));
-    }
+    return std::move(promise().m_value);
   }
 
   struct Awaiter {
@@ -188,7 +176,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
 
     Result<T, E> await_resume() const noexcept {
       if (m_future.m_handle.value == nullptr) {
-        return failure(AllocationError{});
+        return Failure{AllocationError{}};
       }
 
       assert(!m_future.promise().m_value.is_nothing());

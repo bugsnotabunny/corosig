@@ -50,7 +50,7 @@ when_all_succeed(Reactor &, Fut<R, E> &&...futs) noexcept {
   std::tuple<Result<R, E>...> results = std::tuple{co_await std::move(futs)...};
 
   if (std::optional first_error = detail::first_error<extend_error<E...>>(results)) {
-    co_return failure(std::move(*first_error));
+    co_return Failure{std::move(*first_error)};
   }
 
   co_return std::apply(

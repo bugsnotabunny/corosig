@@ -63,7 +63,7 @@ void PipeRead::close() noexcept {
 Result<PipePair, SyscallError> PipePair::make() noexcept {
   std::array<int, 2> fds;
   if (::pipe2(fds.data(), O_NONBLOCK) == -1) {
-    return failure(SyscallError{errno});
+    return Failure{SyscallError{errno}};
   }
   PipeRead read;
   PipeWrite write;
