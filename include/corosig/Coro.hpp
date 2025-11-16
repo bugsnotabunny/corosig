@@ -142,7 +142,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     if (m_handle.value != nullptr) {
       Reactor &reactor = promise().m_reactor;
       m_handle.value.destroy();
-      reactor.free(m_handle.value.address());
+      reactor.deallocate(m_handle.value.address());
     }
   }
 

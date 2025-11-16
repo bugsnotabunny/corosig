@@ -36,14 +36,6 @@ public:
   template <size_t SIZE>
   struct alignas(Node) Memory : public std::array<char, SIZE> {};
 
-private:
-  size_t m_used = 0;
-  size_t m_peak = 0;
-  FreeList m_free_list = {};
-  char *m_mem = nullptr;
-  size_t m_mem_size = 0;
-
-public:
   constexpr static size_t MIN_ALIGNMENT = 8;
 
   Allocator() noexcept = default;
@@ -77,6 +69,12 @@ private:
   void coalescence(Node *prevNode, Node *freeNode) noexcept;
   void find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
             Node *&foundNode) const noexcept;
+
+  size_t m_used = 0;
+  size_t m_peak = 0;
+  FreeList m_free_list = {};
+  char *m_mem = nullptr;
+  size_t m_mem_size = 0;
 };
 
 } // namespace corosig

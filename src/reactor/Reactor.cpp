@@ -81,7 +81,7 @@ void *Reactor::allocate(size_t n) noexcept {
   return m_alloc.allocate(n);
 }
 
-void Reactor::free(void *p) noexcept {
+void Reactor::deallocate(void *p) noexcept {
   return m_alloc.free(p);
 }
 
