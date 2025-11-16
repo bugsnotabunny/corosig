@@ -22,7 +22,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Move constructor resets source") {
   SetDefaultOnMove<int, -1> t(std::move(s));
 
   COROSIG_REQUIRE(t.value == 42);
-  COROSIG_REQUIRE(s.value == -1);
+  COROSIG_REQUIRE(s.value == -1); // NOLINT
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Move assignment resets source") {
@@ -32,7 +32,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Move assignment resets source") {
   t = std::move(s);
 
   COROSIG_REQUIRE(t.value == 100);
-  COROSIG_REQUIRE(s.value == -1);
+  COROSIG_REQUIRE(s.value == -1); // NOLINT
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Multiple chained moves", "[SetDefaultOnMove]") {
@@ -40,7 +40,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Multiple chained moves", "[SetDefaultOnMove]") {
   SetDefaultOnMove<int, -1> b(std::move(a));
   SetDefaultOnMove<int, -1> c(std::move(b));
 
-  COROSIG_REQUIRE(a.value == -1);
-  COROSIG_REQUIRE(b.value == -1);
+  COROSIG_REQUIRE(a.value == -1); // NOLINT
+  COROSIG_REQUIRE(b.value == -1); // NOLINT
   COROSIG_REQUIRE(c.value == 10);
 }

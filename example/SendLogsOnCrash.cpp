@@ -16,9 +16,11 @@
 #include <corosig/io/File.hpp>
 #include <corosig/io/TcpSocket.hpp>
 #include <csignal>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <netinet/in.h>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -81,9 +83,17 @@ void run_tcp_server(std::string &out) {
   addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
 
   int opt = 1;
-  setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  ::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)); // NOLINT
-  ::listen(srv_fd, 1);
+  if (::setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+    throw std::system_error{errno, std::system_category(), "setsockopt"};
+  }
+
+  if (::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)) == -1) {
+    throw std::system_error{errno, std::system_category(), "bind"};
+  }
+
+  if (::listen(srv_fd, 1) == -1) {
+    throw std::system_error{errno, std::system_category(), "listen"};
+  }
 
   int client = ::accept(srv_fd, nullptr, nullptr);
   std::array<char, 1024> buf;

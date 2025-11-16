@@ -137,7 +137,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Move semantics") {
                                                 File::OpenFlags::CREATE | File::OpenFlags::WRONLY));
     int fd_before = f1.underlying_handle();
     File f2 = std::move(f1);
-    CHECK(f1.underlying_handle() == -1);
+    CHECK(f1.underlying_handle() == -1); // NOLINT
     CHECK(f2.underlying_handle() == fd_before);
     co_return Ok();
   };

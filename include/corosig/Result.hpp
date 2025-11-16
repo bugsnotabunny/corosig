@@ -10,7 +10,7 @@
 namespace corosig {
 
 template <typename T>
-struct Ok { // NOLINT
+struct Ok {
   Ok(T &&value) : value{std::forward<T>(value)} {
   }
 
@@ -26,7 +26,7 @@ Ok(T const &) -> Ok<T const &>;
 Ok() -> Ok<void>;
 
 template <typename T>
-struct Failure { // NOLINT
+struct Failure {
   Failure(T &&value) : value{std::forward<T>(value)} {
   }
   T &&value;
