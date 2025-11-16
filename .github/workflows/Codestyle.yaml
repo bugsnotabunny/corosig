@@ -22,5 +22,8 @@ jobs:
       - name: clang-format checks
         run: devenv shell "xmake format -ne"
 
+      - name: generate compile-commands
+        run: devenv shell "xmake project -k compile_commands -y"
+
       - name: clang-tidy checks
         run: devenv shell "xmake check clang.tidy"
