@@ -7,6 +7,7 @@
 #include "corosig/reactor/Reactor.hpp"
 
 #include <cstddef>
+#include <limits>
 #include <span>
 
 #ifndef __unix__
@@ -88,6 +89,20 @@ void close(int &fd) noexcept {
   if (fd >= 0) {
     ::close(fd);
     fd = -1;
+  }
+}
+
+socklen_t addr_length(sockaddr_storage const &storage) noexcept {
+  switch (storage.ss_family) {
+  case AF_INET:
+    return sizeof(sockaddr_in);
+  case AF_INET6:
+    return sizeof(sockaddr_in6);
+  case AF_UNIX:
+    return sizeof(sockaddr_un);
+  default:
+    assert(false && "Unsupported address family");
+    return std::numeric_limits<socklen_t>::max();
   }
 }
 

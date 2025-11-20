@@ -8,7 +8,6 @@
 #include <cerrno>
 #include <cstddef>
 #include <fcntl.h>
-#include <limits>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -70,20 +69,7 @@ TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
   // Not a hard failure. Just a little bit of performance loss
   (void)::setsockopt(sock, SOL_SOCKET, O_NDELAY, &on, sizeof(on));
 
-  auto len = [family = addr.ss_family]() -> socklen_t {
-    switch (family) {
-    case AF_INET:
-      return sizeof(sockaddr_in);
-    case AF_INET6:
-      return sizeof(sockaddr_in6);
-    case AF_UNIX:
-      return sizeof(sockaddr_un);
-    default:
-      assert(false && "Unsupported address family");
-      return std::numeric_limits<socklen_t>::max();
-    }
-  }();
-
+  auto len = os::posix::addr_length(addr);
   if (::connect(sock, (sockaddr const *)&addr, len) == -1) {
     auto current_error = SyscallError::current();
     if (current_error.value != EINPROGRESS) {

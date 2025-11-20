@@ -39,12 +39,12 @@ inline void print_num(T value) noexcept {
 #define COROSIG_REQUIRE(...)                                                                       \
   do {                                                                                             \
     if (!(__VA_ARGS__)) {                                                                          \
-      auto loc = std::source_location::current();                                                  \
-      print(loc.file_name());                                                                      \
-      print(":");                                                                                  \
-      print_num(loc.line());                                                                       \
-      print("\n");                                                                                 \
-      _exit(EXIT_FAILURE);                                                                         \
+      auto loc = ::std::source_location::current();                                                \
+      ::corosig::print(loc.file_name());                                                           \
+      ::corosig::print(":");                                                                       \
+      ::corosig::print_num(loc.line());                                                            \
+      ::corosig::print("\n");                                                                      \
+      ::_exit(EXIT_FAILURE);                                                                       \
     }                                                                                              \
   } while (false)
 
