@@ -31,16 +31,7 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
     ::pollfd &poll_fd = poll_fds[fds_count];
 
     poll_fd.fd = node.handle;
-    poll_fd.events = [&]() -> short {
-      switch (node.event) {
-      case poll_event_e::CAN_READ:
-        return POLLIN;
-      case poll_event_e::CAN_WRITE:
-        return POLLOUT;
-      }
-      assert(false && "Unsupported poll event type");
-      return 0;
-    }();
+    poll_fd.events = short(node.event);
 
     ++fds_count;
   }

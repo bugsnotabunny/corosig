@@ -7,14 +7,16 @@
 #include <boost/intrusive/slist.hpp>
 #include <boost/intrusive/slist_hook.hpp>
 #include <coroutine>
+#include <sys/poll.h>
 
 namespace corosig {
 
 namespace bi = boost::intrusive;
 
-enum class poll_event_e : uint8_t {
-  CAN_READ,
-  CAN_WRITE,
+/// Exact values and underlying type are os-specific
+enum class poll_event_e : short {
+  CAN_READ = POLLIN,
+  CAN_WRITE = POLLOUT,
 };
 
 struct PollListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe_link>> {
