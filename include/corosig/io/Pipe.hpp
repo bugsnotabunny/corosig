@@ -19,6 +19,8 @@ struct PipeRead {
 public:
   PipeRead() noexcept = default;
 
+  static PipeRead stdin() noexcept;
+
   PipeRead(const PipeRead &) = delete;
   PipeRead(PipeRead &&) noexcept = default;
   PipeRead &operator=(const PipeRead &) = delete;
@@ -41,6 +43,9 @@ private:
 struct PipeWrite {
 public:
   PipeWrite() noexcept = default;
+
+  static PipeWrite stdout() noexcept;
+  static PipeWrite stderr() noexcept;
 
   PipeWrite(const PipeWrite &) = delete;
   PipeWrite(PipeWrite &&) noexcept = default;
