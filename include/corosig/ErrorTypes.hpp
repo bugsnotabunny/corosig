@@ -7,6 +7,7 @@
 #include <boost/mp11/algorithm.hpp>
 #include <concepts>
 #include <cstring>
+#include <string_view>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -18,7 +19,7 @@ namespace detail {
 
 template <typename E>
 concept WithDescription = requires(E const &e) {
-  { e.description() } noexcept -> std::same_as<char const *>;
+  { e.description() } noexcept -> std::same_as<std::string_view>;
 };
 
 } // namespace detail
@@ -36,10 +37,10 @@ private:
 public:
   using Base::Base;
 
-  [[nodiscard]] char const *description() const noexcept {
+  [[nodiscard]] std::string_view description() const noexcept {
     return visit(Overloaded{
         [](detail::WithDescription auto const &e) { return e.description(); },
-        [](auto const &e) { return typeid(std::decay_t<decltype(e)>).name(); },
+        [](auto const &e) { return std::string_view{typeid(std::decay_t<decltype(e)>).name()}; },
     });
   }
 
@@ -99,7 +100,7 @@ struct SyscallError {
 
   static SyscallError current() noexcept;
 
-  [[nodiscard]] char const *description() const noexcept;
+  [[nodiscard]] std::string_view description() const noexcept;
 
   int value;
 };

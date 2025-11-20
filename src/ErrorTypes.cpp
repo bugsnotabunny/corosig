@@ -9,7 +9,7 @@ SyscallError SyscallError::current() noexcept {
   return SyscallError{errno};
 }
 
-char const *SyscallError::description() const noexcept {
+std::string_view SyscallError::description() const noexcept {
   return ::strerror(value);
 }
 
