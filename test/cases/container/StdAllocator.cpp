@@ -1,4 +1,4 @@
-#include "corosig/StdAllocator.hpp"
+#include "corosig/container/StdAllocator.hpp"
 
 #include <catch2/catch_all.hpp>
 #include <cstddef>

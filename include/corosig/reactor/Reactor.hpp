@@ -4,7 +4,7 @@
 #include "corosig/Allocator.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
-#include "corosig/StdAllocator.hpp"
+#include "corosig/container/StdAllocator.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
 
