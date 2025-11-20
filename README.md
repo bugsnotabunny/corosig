@@ -21,7 +21,7 @@ Library is within it's very early stage of development and interfaces may change
 Currently, you have to do this in order to get access to coroutines in SIGFPE handler:
 
 ```cpp
-corosig::Fut<void> sighandler(int sig) noexcept {
+corosig::Fut<void> sighandler(Reactor& r, int sig) noexcept {
     // here you can co_await and do any other nasty stuff
 }
 
