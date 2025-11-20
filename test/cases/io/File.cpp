@@ -133,8 +133,9 @@ TEST_CASE("Append mode writes at end of file") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Move semantics") {
   auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    COROSIG_CO_TRY(File f1, co_await File::open(r, g_test_file,
-                                                File::OpenFlags::CREATE | File::OpenFlags::WRONLY));
+    COROSIG_CO_TRY(
+        File f1,
+        co_await File::open(r, g_test_file, File::OpenFlags::CREATE | File::OpenFlags::WRONLY));
     int fd_before = f1.underlying_handle();
     File f2 = std::move(f1);
     CHECK(f1.underlying_handle() == -1); // NOLINT

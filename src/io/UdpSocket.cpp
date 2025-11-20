@@ -64,7 +64,11 @@ UdpSocket::send_to(Reactor &, std::span<char const> message,
 
 Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> message,
                                                     sockaddr_storage const &dest) noexcept {
-  ssize_t result = ::sendto(m_fd.value, message.data(), message.size(), 0, (sockaddr const *)&dest,
+  ssize_t result = ::sendto(m_fd.value,
+                            message.data(),
+                            message.size(),
+                            0,
+                            (sockaddr const *)&dest,
                             os::posix::addr_length(dest));
   if (result == -1) {
     return Failure{SyscallError::current()};
