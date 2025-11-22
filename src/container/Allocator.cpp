@@ -1,8 +1,14 @@
-#include "corosig/Allocator.hpp"
+#include "corosig/container/Allocator.hpp"
+
+#include "corosig/meta/AnAllocator.hpp"
 
 #include <utility>
 
 namespace {
+
+using namespace corosig;
+
+static_assert(AnAllocator<Allocator>);
 
 size_t padding_with_header(size_t base_address, size_t alignment, size_t header_size) noexcept {
   size_t multiplier = (base_address / alignment) + 1;
@@ -43,6 +49,14 @@ Allocator &Allocator::operator=(Allocator &&rhs) noexcept {
 
 Allocator::~Allocator() {
   assert(m_used == 0 && "Memory leak detected");
+}
+
+size_t Allocator::peak_memory() const noexcept {
+  return m_peak;
+}
+
+size_t Allocator::current_memory() const noexcept {
+  return m_used;
 }
 
 void Allocator::FreeList::insert(Node *previousNode, Node *newNode) noexcept {

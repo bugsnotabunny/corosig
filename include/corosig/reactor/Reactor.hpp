@@ -1,16 +1,13 @@
 #ifndef COROSIG_REACTOR_DEFAULT_HPP
 #define COROSIG_REACTOR_DEFAULT_HPP
 
-#include "corosig/Allocator.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
-#include "corosig/container/StdAllocator.hpp"
+#include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
 
 #include <cstddef>
-#include <string>
-#include <vector>
 
 namespace corosig {
 
@@ -26,24 +23,7 @@ struct Reactor {
   Reactor(Allocator::Memory<SIZE> &mem) : m_alloc{mem} {
   }
 
-  void *allocate(size_t) noexcept;
-  void deallocate(void *) noexcept;
-
-  template <typename T>
-  StdAllocator<T, Reactor &> get_std_allocator() noexcept {
-    return StdAllocator<T, Reactor &>{*this};
-  }
-
-  template <typename T>
-  auto get_vector() noexcept {
-    return std::vector<T, StdAllocator<T, Reactor &>>{get_std_allocator<T>()};
-  }
-
-  template <typename CHAR>
-  auto get_string() noexcept {
-    return std::basic_string<CHAR, std::char_traits<CHAR>, StdAllocator<CHAR, Reactor &>>{
-        get_std_allocator<CHAR>()};
-  }
+  Allocator &allocator() noexcept;
 
   void yield(CoroListNode &) noexcept;
   void poll(PollListNode &) noexcept;

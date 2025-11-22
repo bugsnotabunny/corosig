@@ -1,4 +1,4 @@
-#include "corosig/Allocator.hpp"
+#include "corosig/container/Allocator.hpp"
 
 #include "corosig/testing/Signals.hpp"
 

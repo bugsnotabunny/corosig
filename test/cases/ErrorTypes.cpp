@@ -15,4 +15,8 @@ TEST_CASE("Extend error") {
   static_assert(std::same_as<extend_error<A1, A2, A3, A4, A4, A4>, Error<A1, A2, A3, A4>>);
   static_assert(
       std::same_as<extend_error<Error<A1, A2, A3>, A2, A3, A4, A4, A4>, Error<A1, A2, A3, A4>>);
+
+  static_assert(std::same_as<extend_error<Error<A1, A2, A3>, A4, NoError>, Error<A1, A2, A3, A4>>);
+
+  static_assert(std::same_as<extend_error<A1, A1>, A1>);
 }

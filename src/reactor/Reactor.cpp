@@ -68,12 +68,8 @@ void resume(CoroList &ready) noexcept {
 
 namespace corosig {
 
-void *Reactor::allocate(size_t n) noexcept {
-  return m_alloc.allocate(n);
-}
-
-void Reactor::deallocate(void *p) noexcept {
-  return m_alloc.deallocate(p);
+Allocator &Reactor::allocator() noexcept {
+  return m_alloc;
 }
 
 void Reactor::yield(CoroListNode &node) noexcept {

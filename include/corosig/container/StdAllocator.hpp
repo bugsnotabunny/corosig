@@ -1,24 +1,27 @@
-#ifndef COROSIG_STD_ALLOC_HPP
-#define COROSIG_STD_ALLOC_HPP
+#ifndef COROSIG_CONTAINER_STD_ALLOC_HPP
+#define COROSIG_CONTAINER_STD_ALLOC_HPP
+
+#include "corosig/meta/AnAllocator.hpp"
 
 #include <cassert>
-#include <concepts>
 #include <cstddef>
 #include <utility>
 
 namespace corosig {
 
-/// STL-compatible allocator adapter to be used with typeless allocators. Supports both stateless
-/// and statefull allocators. Statefull allocator may be owned by this adapter or not, as demanded
+/// STL-compatible allocator adapter to be used with typeless allocators. Supports both
+/// stateless and statefull allocators. Statefull allocator may be owned by this adapter or not, as
+/// demanded
+///
+/// Warning: Use with caution. Since most STL classes throw exceptions on failure and this is not
+/// only isn't signal safe, but will also most likely provoke a call to std::abort, since Fut does
+/// not allow exceptions
+///
 /// Example:
 /// StdAllocator<int, GlobalAllocator> alloc;
 /// StdAllocator<int, LocalAllocator> owning_alloc{std::move(local_alloc)};
 /// StdAllocator<int, LocalAllocator&> non_owning_alloc{local_alloc}
-template <typename T, typename ALLOCATOR>
-  requires requires(ALLOCATOR alloc, size_t n, void *p) {
-    { alloc.allocate(n) } -> std::same_as<void *>;
-    { alloc.deallocate(p) } -> std::same_as<void>;
-  }
+template <typename T, AnAllocator ALLOCATOR>
 struct StdAllocator {
 public:
   using value_type = T;

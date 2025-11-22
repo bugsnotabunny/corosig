@@ -42,12 +42,12 @@ struct CoroutinePromiseType : CoroListNode {
   ~CoroutinePromiseType() override = default;
 
   static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
-    return reactor.allocate(n);
+    return reactor.allocator().allocate(n);
   }
 
   static void *operator new(size_t n, NotReactor auto const &, Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocate(n);
+    return reactor.allocator().allocate(n);
   }
 
   static void operator delete(void *) noexcept {
@@ -142,7 +142,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     if (m_handle.value != nullptr) {
       Reactor &reactor = promise().m_reactor;
       m_handle.value.destroy();
-      reactor.deallocate(m_handle.value.address());
+      reactor.allocator().deallocate(m_handle.value.address());
     }
   }
 

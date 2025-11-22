@@ -13,13 +13,15 @@ struct DummyAlloc {
   size_t deallocate_call_count = 0;
   size_t alloc_n = 0;
 
-  void *allocate(size_t n) {
+  void *allocate(size_t n, size_t align) noexcept;
+
+  void *allocate(size_t n) noexcept {
     allocate_call_count++;
     alloc_n += n;
     return ::operator new(n * sizeof(std::max_align_t));
   }
 
-  void deallocate(void *p) {
+  void deallocate(void *p) noexcept {
     deallocate_call_count++;
     ::operator delete(p);
   }

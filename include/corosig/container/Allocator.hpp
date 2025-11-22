@@ -54,13 +54,8 @@ public:
   Allocator &operator=(Allocator &&) noexcept;
   ~Allocator();
 
-  [[nodiscard]] size_t peak_memory() const noexcept {
-    return m_peak;
-  }
-
-  [[nodiscard]] size_t current_memory() const noexcept {
-    return m_peak;
-  }
+  [[nodiscard]] size_t peak_memory() const noexcept;
+  [[nodiscard]] size_t current_memory() const noexcept;
 
   [[nodiscard]] void *allocate(size_t size, size_t alignment = MIN_ALIGNMENT) noexcept;
   void deallocate(void *ptr) noexcept;
