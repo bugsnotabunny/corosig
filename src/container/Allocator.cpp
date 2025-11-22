@@ -2,7 +2,6 @@
 
 #include "corosig/meta/AnAllocator.hpp"
 
-#include <iostream>
 #include <utility>
 
 namespace {
