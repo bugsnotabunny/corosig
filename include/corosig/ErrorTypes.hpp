@@ -67,14 +67,13 @@ namespace detail {
 
 template <typename T>
 struct IsNotNoError {
-  constexpr static bool value // NOLINT
-      = !std::same_as<T, NoError>;
+  constexpr static bool value = !std::same_as<T, NoError>;
 };
 
 template <typename... ES>
-using combined_errors =
-    std::conditional_t<sizeof...(ES) == 1, boost::mp11::mp_front<boost::mp11::mp_list<ES...>>,
-                       Error<ES...>>;
+using combined_errors = std::conditional_t<sizeof...(ES) == 1,
+                                           boost::mp11::mp_front<boost::mp11::mp_list<ES...>>,
+                                           Error<ES...>>;
 
 template <typename... TS>
 using filtered_unique_list =
