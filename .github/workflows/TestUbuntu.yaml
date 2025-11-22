@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         config: [debug, asan, tsan, release]
-        toolchain: [clang++, gcc]
+        toolchain: [clang, gcc]
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v26
