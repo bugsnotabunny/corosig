@@ -1,6 +1,7 @@
 #ifndef COROSIG_SIGHANDLER_HPP
 #define COROSIG_SIGHANDLER_HPP
 
+#include "corosig/io/Stdio.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
 #include <csignal>
@@ -16,7 +17,10 @@ void sighandler(int sig) noexcept {
   std::signal(sig, SIG_DFL); // to avoid recursive call if something inside sighandler goes wrong
   Allocator::Memory<MEMORY> mem;
   Reactor reactor{mem};
-  (void)F(reactor, sig).block_on();
+  Result result = F(reactor, sig).block_on();
+  if (!result.is_ok()) {
+    (void)STDERR.write(reactor, "Unhandled error was returned from sighandler\n").block_on();
+  }
 }
 
 } // namespace detail
