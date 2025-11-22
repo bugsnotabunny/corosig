@@ -10,6 +10,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -44,15 +45,18 @@ private:
       Result<R, extend_error<E, error_type<COROSIG_LAMBDIZE(corosig::clone), value_type const &>>>;
 
 public:
-  Vector(ALLOCATOR &&alloc) noexcept : m_alloc{std::forward<ALLOCATOR>(alloc)} {
+  Vector(ALLOCATOR &&alloc) noexcept
+      : m_alloc{std::forward<ALLOCATOR>(alloc)} {
   }
 
   Vector(const Vector &) noexcept = delete;
   Vector &operator=(const Vector &) = delete;
 
   Vector(Vector &&rhs) noexcept
-      : m_data{std::exchange(rhs.m_data, nullptr)}, m_size{std::exchange(rhs.m_size, 0)},
-        m_capacity{std::exchange(rhs.m_capacity, 0)}, m_alloc{rhs.m_alloc} {
+      : m_data{std::exchange(rhs.m_data, nullptr)},
+        m_size{std::exchange(rhs.m_size, 0)},
+        m_capacity{std::exchange(rhs.m_capacity, 0)},
+        m_alloc{rhs.m_alloc} {
   }
 
   Vector &operator=(Vector &&rhs) noexcept {
@@ -94,7 +98,7 @@ public:
     Vector new_vec{m_alloc};
     COROSIG_TRYV(new_vec.resize_uninitialized(size()));
     for (auto i : std::views::iota(size_type(0), size())) {
-      new (new_vec.data() + i) value_type{std::move((m_data)[i])};
+      new (std::addressof(new_vec[i])) value_type{std::move((m_data)[i])};
     }
     *this = std::move(new_vec);
     return Ok{};
@@ -107,7 +111,7 @@ public:
 
     COROSIG_TRY(pointer new_mem, allocate(count));
     for (auto i : std::views::iota(size_type(0), size())) {
-      new (new_mem + i) value_type{std::move((m_data)[i])};
+      new (new_mem + i) value_type{std::move(m_data[i])};
     }
 
     m_alloc.deallocate(m_data);
@@ -134,10 +138,9 @@ public:
 
     if constexpr (std::is_nothrow_copy_constructible_v<value_type>) {
       COROSIG_TRYTV(Result, reserve(size() + count));
-      for (auto i : std::views::iota(size(), count)) {
-        new (m_data + i) T{value};
+      for ([[maybe_unused]] auto _ : std::views::iota(size(), count)) {
+        COROSIG_TRYTV(Result, push_back(T{value}));
       }
-      m_size = count;
     } else {
       Vector copies{m_alloc};
       COROSIG_TRYTV(Result, copies.reserve(count));
@@ -180,10 +183,10 @@ public:
 
   constexpr Result<void, AllocationError> push_back(value_type &&value) noexcept {
     if (size() == capacity()) {
-      COROSIG_TRYV(reserve(std::max<size_type>(size(), 8) * 2));
+      COROSIG_TRYV(reserve(std::max<size_type>(16, size() * 2)));
     }
     ++m_size;
-    new (std::addressof(back())) T{std::move(value)};
+    new (std::addressof((*this)[m_size - 1])) T{std::move(value)};
     return Ok{};
   }
 
@@ -270,7 +273,7 @@ public:
 private:
   Result<pointer, AllocationError> allocate(size_type count) noexcept {
     auto new_mem =
-        static_cast<pointer>(m_alloc.allocate(count * sizeof(size_type), alignof(size_type)));
+        static_cast<pointer>(m_alloc.allocate(count * sizeof(value_type), alignof(size_type)));
     if (new_mem == nullptr) {
       return Failure{AllocationError{}};
     }

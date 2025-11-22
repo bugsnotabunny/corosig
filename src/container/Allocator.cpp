@@ -2,6 +2,7 @@
 
 #include "corosig/meta/AnAllocator.hpp"
 
+#include <iostream>
 #include <utility>
 
 namespace {
@@ -118,7 +119,6 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
 
   size_t alignment_padding = padding - sizeof(AllocationHeader);
   size_t required_size = size + padding;
-
   size_t rest = affected_node->data.block_size - required_size;
 
   if (rest > 0) {
@@ -144,14 +144,14 @@ void Allocator::deallocate(void *ptr) noexcept {
     return;
   }
 
-  // Insert it in a sorted position by the address number
-  auto current_address = (size_t)ptr;
-  size_t header_address = current_address - sizeof(Allocator::AllocationHeader);
+  auto current_address = size_t(ptr);
+  size_t header_address = current_address - sizeof(AllocationHeader);
   auto *allocation_header = std::bit_cast<AllocationHeader *>(header_address);
 
   Node *freenode = std::bit_cast<Node *>(header_address);
   freenode->data.block_size = allocation_header->block_size + allocation_header->padding;
   freenode->next = nullptr;
+  assert(freenode);
 
   Node *it = m_free_list.head;
   Node *it_prev = nullptr;

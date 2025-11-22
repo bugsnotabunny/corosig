@@ -26,10 +26,12 @@ concept NotReactor = !std::same_as<Reactor, T>;
 template <typename T, typename E>
 struct CoroutinePromiseType : CoroListNode {
 
-  CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept : m_reactor{reactor} {
+  CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
+      : m_reactor{reactor} {
   }
 
-  CoroutinePromiseType(NotReactor auto const &, Reactor &reactor,
+  CoroutinePromiseType(NotReactor auto const &,
+                       Reactor &reactor,
                        NotReactor auto const &...) noexcept
       : CoroutinePromiseType{reactor} {
   }
@@ -45,7 +47,9 @@ struct CoroutinePromiseType : CoroListNode {
     return reactor.allocator().allocate(n);
   }
 
-  static void *operator new(size_t n, NotReactor auto const &, Reactor &reactor,
+  static void *operator new(size_t n,
+                            NotReactor auto const &,
+                            Reactor &reactor,
                             NotReactor auto const &...) noexcept {
     return reactor.allocator().allocate(n);
   }
@@ -185,7 +189,8 @@ struct [[nodiscard("forgot to await?")]] Fut {
 
   private:
     friend Fut;
-    Awaiter(Fut &future) noexcept : m_future{future} {
+    Awaiter(Fut &future) noexcept
+        : m_future{future} {
     }
 
     Fut &m_future;
@@ -196,7 +201,8 @@ struct [[nodiscard("forgot to await?")]] Fut {
   }
 
 private:
-  Fut(std::coroutine_handle<promise_type> handle) noexcept : m_handle{handle} {
+  Fut(std::coroutine_handle<promise_type> handle) noexcept
+      : m_handle{handle} {
   }
 
   promise_type &promise() noexcept {
