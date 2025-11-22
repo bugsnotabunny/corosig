@@ -55,9 +55,8 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
   return size_t(result);
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>>
-UdpSocket::send_to(Reactor &, std::span<char const> message,
-                   sockaddr_storage const &dest) noexcept {
+Fut<size_t, Error<AllocationError, SyscallError>> UdpSocket::send_to(
+    Reactor &, std::span<char const> message, sockaddr_storage const &dest) noexcept {
   co_await PollEvent{m_fd.value, poll_event_e::CAN_WRITE};
   co_return try_send_to(message, dest);
 }

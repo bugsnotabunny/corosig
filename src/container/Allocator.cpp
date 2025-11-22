@@ -36,9 +36,11 @@ size_t padding_with_header(size_t base_address, size_t alignment, size_t header_
 namespace corosig {
 
 Allocator::Allocator(Allocator &&rhs) noexcept
-    : m_used{std::exchange(rhs.m_used, 0)}, m_peak{std::exchange(rhs.m_peak, 0)},
+    : m_used{std::exchange(rhs.m_used, 0)},
+      m_peak{std::exchange(rhs.m_peak, 0)},
       m_free_list{std::exchange(rhs.m_free_list, FreeList{})},
-      m_mem{std::exchange(rhs.m_mem, nullptr)}, m_mem_size{std::exchange(rhs.m_mem_size, 0)} {
+      m_mem{std::exchange(rhs.m_mem, nullptr)},
+      m_mem_size{std::exchange(rhs.m_mem_size, 0)} {
 }
 
 Allocator &Allocator::operator=(Allocator &&rhs) noexcept {
@@ -182,7 +184,10 @@ void Allocator::coalescence(Node *prevNode, Node *freeNode) noexcept {
   }
 }
 
-void Allocator::find(size_t size, size_t alignment, size_t &padding, Node *&previousNode,
+void Allocator::find(size_t size,
+                     size_t alignment,
+                     size_t &padding,
+                     Node *&previousNode,
                      Node *&foundNode) const noexcept {
   Node *it = m_free_list.head;
   Node *it_prev = nullptr;

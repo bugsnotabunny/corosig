@@ -4,3 +4,6 @@ BreakTemplateDeclarations: Yes
 AllowShortFunctionsOnASingleLine: None
 IncludeBlocks: Regroup
 BinPackArguments: No
+BinPackLongBracedList: No
+BinPackParameters: OnePerLine
+PackConstructorInitializers: Never

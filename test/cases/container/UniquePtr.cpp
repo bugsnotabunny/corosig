@@ -36,7 +36,8 @@ struct Tracked {
 
   int x;
 
-  Tracked(int v) : x(v) {
+  Tracked(int v)
+      : x(v) {
     constructions++;
   }
   ~Tracked() {

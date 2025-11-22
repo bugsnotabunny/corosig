@@ -16,11 +16,14 @@ struct LifetimeCounter {
   int value;
   SetDefaultOnMove<bool, false> owned = true;
 
-  LifetimeCounter(int v = 1234) noexcept : value(v) {
+  LifetimeCounter(int v = 1234) noexcept
+      : value(v) {
     constructed++;
   }
 
-  LifetimeCounter(LifetimeCounter const &rhs) noexcept : value{rhs.value}, owned{*rhs.owned} {
+  LifetimeCounter(LifetimeCounter const &rhs) noexcept
+      : value{rhs.value},
+        owned{*rhs.owned} {
     if (*owned) {
       constructed++;
     }
@@ -56,7 +59,8 @@ CATCH_REGISTER_LISTENER(LifetimeCounterResetListener);
 
 struct MoveOnly {
   int v;
-  MoveOnly(int x) noexcept : v(x) {
+  MoveOnly(int x) noexcept
+      : v(x) {
   }
   MoveOnly(const MoveOnly &) = delete;
   MoveOnly(MoveOnly &&) noexcept = default;
@@ -71,7 +75,9 @@ struct NonCopyableCloneable {
 
   NonCopyableCloneable() noexcept = default;
 
-  NonCopyableCloneable(int v, bool fail_clone = false) noexcept : value{v}, fail_clone{fail_clone} {
+  NonCopyableCloneable(int v, bool fail_clone = false) noexcept
+      : value{v},
+        fail_clone{fail_clone} {
   }
 
   NonCopyableCloneable(const NonCopyableCloneable &) = delete;
