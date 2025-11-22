@@ -287,6 +287,7 @@ private:
 
 } // namespace corosig
 
+// TODO:
 // constexpr iterator erase(const_iterator pos) noexcept;
 // constexpr iterator erase(const_iterator first, const_iterator last) noexcept;
 
