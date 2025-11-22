@@ -6,6 +6,7 @@
 #include "corosig/reactor/Reactor.hpp"
 
 #include <csignal>
+#include <exception>
 
 namespace {
 
@@ -17,7 +18,11 @@ corosig::Fut<void> sighandler(corosig::Reactor &r, int) noexcept {
 } // namespace
 
 int main(int, char **) {
-  corosig::set_sighandler<1024, sighandler>(SIGFPE);
-  ::raise(SIGFPE);
-  return 0;
+  try {
+    corosig::set_sighandler<1024, sighandler>(SIGFPE);
+    ::raise(SIGFPE);
+    return 0;
+  } catch (std::exception const &) {
+    return 1;
+  }
 }

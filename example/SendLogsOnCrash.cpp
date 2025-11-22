@@ -158,7 +158,7 @@ Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noex
 
   if (!res.is_ok()) {
     auto stderr = PipeWrite::stderr();
-    COROSIG_CO_TRYV(co_await stderr.write(r, "Some of transmissions has produced an error:"));
+    COROSIG_CO_TRYV(co_await stderr.write(r, "One of transmissions has produced an error:"));
     COROSIG_CO_TRYV(co_await stderr.write(r, res.error().description()));
     COROSIG_CO_TRYV(co_await stderr.write(r, "\n"));
   }
