@@ -272,7 +272,7 @@ public:
 private:
   Result<pointer, AllocationError> allocate(size_type count) noexcept {
     auto new_mem =
-        static_cast<pointer>(m_alloc.allocate(count * sizeof(value_type), alignof(size_type)));
+        static_cast<pointer>(m_alloc.allocate(count * sizeof(value_type), alignof(value_type)));
     if (new_mem == nullptr) {
       return Failure{AllocationError{}};
     }
