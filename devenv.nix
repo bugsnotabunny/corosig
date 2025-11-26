@@ -1,7 +1,10 @@
 # https://devenv.sh/
 { pkgs, ... }: {
-  packages = with pkgs; [ llvmPackages_21.clang-tools xmake gdb ];
+  packages = with pkgs; [
+    llvmPackages_21.clang-tools
+    llvmPackages_19.libstdcxxClang
 
-  languages.nix.enable = true;
-  languages.cplusplus.enable = true;
+    xmake
+    gdb
+  ];
 }
