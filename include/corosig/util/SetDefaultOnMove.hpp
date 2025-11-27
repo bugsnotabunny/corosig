@@ -2,6 +2,7 @@
 #define COROSIG_UTILS_SET_DEFAULT_ON_MOVE_HPP
 
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace corosig {
@@ -11,7 +12,9 @@ struct SetDefaultOnMove {
   constexpr SetDefaultOnMove() noexcept = default;
 
   template <typename... ARGS>
-  constexpr SetDefaultOnMove(ARGS &&...args) noexcept : value{std::forward<ARGS>(args)...} {
+    requires(!std::same_as<std::tuple<SetDefaultOnMove>, std::tuple<std::remove_cvref_t<ARGS>...>>)
+  constexpr SetDefaultOnMove(ARGS &&...args) noexcept
+      : value{std::forward<ARGS>(args)...} {
   }
 
   constexpr SetDefaultOnMove(SetDefaultOnMove &&rhs) noexcept
@@ -21,8 +24,7 @@ struct SetDefaultOnMove {
   constexpr SetDefaultOnMove(const SetDefaultOnMove &) = delete;
 
   constexpr SetDefaultOnMove &operator=(SetDefaultOnMove &&rhs) noexcept {
-    this->~SetDefaultOnMove();
-    new (this) SetDefaultOnMove(std::move(rhs));
+    value = std::exchange(rhs.value, DEFAULT);
     return *this;
   }
 
