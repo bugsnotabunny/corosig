@@ -103,22 +103,6 @@ struct CoroutinePromiseType : CoroListNode {
     m_value = Result<T, E>{std::forward<U>(value)};
   }
 
-  template <std::convertible_to<T> T2, std::convertible_to<E> E2>
-  void return_value(Result<T2, E2> &&result) noexcept {
-    assert(m_value.is_nothing());
-    if (result.is_ok()) {
-      if constexpr (std::same_as<void, T>) {
-        m_value = Ok{};
-      } else {
-        m_value = Ok{std::move(result.value())};
-      }
-    } else {
-      m_value = Failure{std::move(result.error())};
-    }
-
-    assert(!m_waiting_coro.done() && "Waiting coro was destroyed before child has finished");
-  }
-
 private:
   std::coroutine_handle<> coro_from_this() noexcept override {
     return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
