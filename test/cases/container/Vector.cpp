@@ -1,10 +1,13 @@
 #include "corosig/container/Vector.hpp"
 
 #include "catch2/reporters/catch_reporter_registrars.hpp"
+#include "corosig/container/Allocator.hpp"
+#include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <catch2/catch_all.hpp>
+#include <list>
 
 namespace {
 
@@ -58,9 +61,9 @@ struct LifetimeCounterResetListener : Catch::EventListenerBase {
 CATCH_REGISTER_LISTENER(LifetimeCounterResetListener);
 
 struct MoveOnly {
-  int v;
+  int value;
   MoveOnly(int x) noexcept
-      : v(x) {
+      : value(x) {
   }
   MoveOnly(const MoveOnly &) = delete;
   MoveOnly(MoveOnly &&) noexcept = default;
@@ -180,8 +183,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector supports move-only types", "[vector]") {
   COROSIG_REQUIRE(v.push_back(MoveOnly{2}));
 
   COROSIG_REQUIRE(v.size() == 2);
-  COROSIG_REQUIRE(v[0].v == 1);
-  COROSIG_REQUIRE(v[1].v == 2);
+  COROSIG_REQUIRE(v[0].value == 1);
+  COROSIG_REQUIRE(v[1].value == 2);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("reserve increases capacity", "[vector]") {
@@ -322,4 +325,65 @@ COROSIG_SIGHANDLER_TEST_CASE(
 
   REQUIRE(result.is_ok());
   REQUIRE(v.size() == 2);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("assign from sized range", "[vector][assign]") {
+  Vector<int> v{reactor.allocator()};
+  std::array src{1, 2, 3};
+
+  auto result = v.assign(src);
+  REQUIRE(result.is_ok());
+
+  COROSIG_REQUIRE(v.size() == 3);
+  COROSIG_REQUIRE(v[0] == 1);
+  COROSIG_REQUIRE(v[1] == 2);
+  COROSIG_REQUIRE(v[2] == 3);
+}
+
+TEST_CASE("assign from unsized range", "[vector][assign]") {
+
+  Allocator::Memory<1234> mem;
+  Allocator alloc{mem};
+  Vector<int> v{alloc};
+
+  std::list<int> src{10, 20, 30, 40};
+
+  auto result = v.assign(src);
+  REQUIRE(result.is_ok());
+
+  REQUIRE(v.size() == 4);
+  REQUIRE(v[0] == 10);
+  REQUIRE(v[1] == 20);
+  REQUIRE(v[2] == 30);
+  REQUIRE(v[3] == 40);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("assign replaces old contents", "[vector][assign]") {
+  Vector<int> v{reactor.allocator()};
+
+  COROSIG_REQUIRE(v.push_back(99));
+
+  std::array src{5, 6};
+
+  COROSIG_REQUIRE(v.assign(src));
+  COROSIG_REQUIRE(v.size() == 2);
+  COROSIG_REQUIRE(v[0] == 5);
+  COROSIG_REQUIRE(v[1] == 6);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::erase(pos) removes a single element and shifts others") {
+  Vector<LifetimeCounter> v{reactor.allocator()};
+  COROSIG_REQUIRE(v.push_back(LifetimeCounter{1}));
+  COROSIG_REQUIRE(v.push_back(LifetimeCounter{2}));
+  COROSIG_REQUIRE(v.push_back(LifetimeCounter{3}));
+
+  auto it = v.erase(v.begin() + 1);
+  COROSIG_REQUIRE(it == v.begin() + 1);
+  COROSIG_REQUIRE(v.size() == 2);
+
+  COROSIG_REQUIRE(v[0].value == 1);
+  COROSIG_REQUIRE(v[1].value == 3);
+
+  COROSIG_REQUIRE(LifetimeCounter::constructed == 3);
+  COROSIG_REQUIRE(LifetimeCounter::destructed == 1);
 }

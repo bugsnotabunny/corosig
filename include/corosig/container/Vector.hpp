@@ -8,7 +8,9 @@
 #include "corosig/meta/Copyable.hpp"
 #include "corosig/meta/Lambdize.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <concepts>
 #include <cstddef>
 #include <iterator>
 #include <limits>
@@ -81,6 +83,26 @@ public:
       COROSIG_TRYTV(Result, copies.push_back(value));
     }
     return Result{std::move(copies)};
+  }
+
+  template <typename RANGE>
+    requires(std::ranges::range<RANGE> &&
+             std::same_as<value_type, std::ranges::range_value_t<RANGE>>)
+  constexpr Result<void, AllocationError> assign(RANGE &&values) noexcept {
+    using Result = result_extended_with_clone_errors<void, AllocationError>;
+
+    Vector new_this{m_alloc};
+    if constexpr (std::ranges::sized_range<RANGE>) {
+      COROSIG_TRYTV(Result, new_this.reserve(std::ranges::size(values)));
+    }
+
+    for (auto &&value : values) {
+      COROSIG_TRYT(Result, value_type cloned, corosig::clone(std::forward<value_type>(value)));
+      COROSIG_TRYTV(Result, new_this.push_back(std::move(cloned)));
+    }
+
+    *this = std::move(new_this);
+    return Result{Ok{}};
   }
 
   constexpr void clear() noexcept {
@@ -189,6 +211,40 @@ public:
     return Ok{};
   }
 
+  constexpr iterator erase(const_iterator pos) noexcept {
+    return erase(pos, pos + 1);
+  }
+
+  constexpr iterator erase(const_iterator first, const_iterator last) noexcept {
+    assert(last >= first);
+
+    size_type first_idx = first - begin();
+    size_type last_idx = last - begin();
+
+    for (auto i : std::views::iota(first_idx, last_idx)) {
+      (*this)[i].~value_type();
+    }
+
+    for (auto i : std::views::iota(size_type(0), size() - last_idx)) {
+      new (std::addressof((*this)[first_idx + i])) value_type{std::move((*this)[last_idx + i])};
+    }
+
+    m_size -= last_idx - first_idx;
+    return begin() + first_idx;
+  }
+
+  // !TODO
+  //
+  // template <typename U>
+  // constexpr Result<iterator, AllocationError> insert(const_iterator pos, U &&value) noexcept {
+  //   return insert(pos, std::views::single(std::forward<U>(value)));
+  // }
+  //
+  // template <std::ranges::sized_range RANGE>
+  // constexpr Result<iterator, AllocationError> insert(const_iterator pos, RANGE &&values) noexcept
+  // {
+  // }
+
   constexpr void pop_back() noexcept {
     value_type &last = back();
     last.~value_type();
@@ -286,21 +342,5 @@ private:
 };
 
 } // namespace corosig
-
-// TODO:
-// constexpr iterator erase(const_iterator pos) noexcept;
-// constexpr iterator erase(const_iterator first, const_iterator last) noexcept;
-
-// constexpr Result<iterator, AllocationError> insert(const_iterator pos, T &&value) noexcept {
-//   return insert(pos, std::views::single(std::forward<T>(value)));
-// }
-
-// template <std::ranges::range RANGE>
-// constexpr Result<iterator, AllocationError> insert(const_iterator pos, RANGE &&values) noexcept {
-// }
-
-// template <std::ranges::range RANGE>
-// constexpr Result<void, AllocationError> assign(RANGE &&values) noexcept {
-// }
 
 #endif
