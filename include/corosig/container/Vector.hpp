@@ -21,12 +21,12 @@
 
 namespace corosig {
 
-/// Mostly STL-compatible vector class.
+/// @brief Mostly STL-compatible vector class. Propagates all errors as values
+/// @note Check std::vector docs. This struct is designed to repeat it's behaviour whenever this is
+///       reasonable
 template <typename T, AnAllocator ALLOCATOR = Allocator &>
   requires std::is_nothrow_move_constructible_v<T>
 struct Vector {
-
-public:
   using value_type = T;
   using allocator_type = ALLOCATOR;
   using size_type = size_t;
@@ -46,6 +46,7 @@ private:
       Result<R, extend_error<E, error_type<COROSIG_LAMBDIZE(corosig::clone), value_type const &>>>;
 
 public:
+  /// @brief Make a vector which uses alloc
   Vector(ALLOCATOR &&alloc) noexcept
       : m_alloc{std::forward<ALLOCATOR>(alloc)} {
   }
@@ -80,7 +81,8 @@ public:
     Vector copies{m_alloc};
     COROSIG_TRYTV(Result, copies.reserve(size()));
     for (value_type const &value : *this) {
-      COROSIG_TRYTV(Result, copies.push_back(value));
+      COROSIG_TRYT(Result, value_type cloned, corosig::clone(value));
+      COROSIG_TRYTV(Result, copies.push_back(std::move(cloned)));
     }
     return Result{std::move(copies)};
   }
@@ -125,6 +127,7 @@ public:
     return Ok{};
   }
 
+  /// @brief Deallocate any memory which is not used for object storage
   constexpr Result<void, AllocationError> reserve(size_type count) noexcept {
     if (count <= m_capacity) {
       return Ok{};

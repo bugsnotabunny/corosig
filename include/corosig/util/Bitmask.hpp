@@ -14,6 +14,8 @@ constexpr auto to_underlying(E x) noexcept {
 
 } // namespace detail
 
+/// @brief Define an overload to this struct as std::true_type to enable bitwise operations for
+///         your enum type
 template <typename E>
   requires(std::is_enum_v<E>)
 struct IsBitmask : std::false_type {};

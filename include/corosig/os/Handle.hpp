@@ -5,9 +5,10 @@
 
 namespace corosig::os {
 
+/// @brief An OS-specific handle for IO descriptors
 using Handle = int;
 
-}
+} // namespace corosig::os
 
 #endif
 

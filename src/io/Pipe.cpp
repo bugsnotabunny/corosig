@@ -9,24 +9,6 @@
 
 namespace corosig {
 
-PipeRead PipeRead::stdin() noexcept {
-  PipeRead result;
-  result.m_fd = STDIN_FILENO;
-  return result;
-}
-
-PipeWrite PipeWrite::stdout() noexcept {
-  PipeWrite result;
-  result.m_fd = STDOUT_FILENO;
-  return result;
-}
-
-PipeWrite PipeWrite::stderr() noexcept {
-  PipeWrite result;
-  result.m_fd = STDERR_FILENO;
-  return result;
-}
-
 PipeRead::~PipeRead() {
   close();
 }

@@ -15,7 +15,8 @@ struct AnInstanceOfImpl<TEMPLATE<ARGS...>, TEMPLATE> : std::true_type {};
 
 } // namespace detail
 
-/// Warning: works poorly with alias templates as TEMPLATE argument
+/// @brief Tell if T is an instance of TEMPLATE
+/// @warning works poorly with alias templates as TEMPLATE argument
 template <typename T, template <typename...> typename TEMPLATE>
 concept AnInstanceOf = detail::AnInstanceOfImpl<T, TEMPLATE>::value;
 
