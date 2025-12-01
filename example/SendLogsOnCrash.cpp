@@ -12,7 +12,6 @@
 #include "corosig/Result.hpp"
 #include "corosig/Sighandler.hpp"
 #include "corosig/io/File.hpp"
-#include "corosig/io/Pipe.hpp"
 #include "corosig/io/Stdio.hpp"
 #include "corosig/io/TcpSocket.hpp"
 #include "corosig/io/UdpSocket.hpp"
@@ -157,10 +156,9 @@ Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noex
                                          write_to_stdout(r));
 
   if (!res.is_ok()) {
-    auto stderr = PipeWrite::stderr();
-    COROSIG_CO_TRYV(co_await stderr.write(r, "One of transmissions has produced an error:"));
-    COROSIG_CO_TRYV(co_await stderr.write(r, res.error().description()));
-    COROSIG_CO_TRYV(co_await stderr.write(r, "\n"));
+    COROSIG_CO_TRYV(co_await STDERR.write(r, "One of transmissions has produced an error:"));
+    COROSIG_CO_TRYV(co_await STDERR.write(r, res.error().description()));
+    COROSIG_CO_TRYV(co_await STDERR.write(r, "\n"));
   }
 
   std::array<char, 512> message;
