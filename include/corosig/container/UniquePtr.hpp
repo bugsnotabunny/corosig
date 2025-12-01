@@ -9,6 +9,7 @@
 
 namespace corosig {
 
+/// @brief An allocator-aware deleter for unique pointers
 template <typename T, AnAllocator ALLOCATOR = Allocator &>
 struct AllocatorBoundDeleter {
   void operator()(T *p) noexcept {
@@ -19,15 +20,13 @@ struct AllocatorBoundDeleter {
   [[no_unique_address]] ALLOCATOR alloc;
 };
 
-/// Usage with pointers to arrays is not allowed
+/// @brief Unique pointer wrapper to make it easier to use with AllocatorBoundDeleter
 template <typename T, AnAllocator ALLOCATOR = Allocator &>
 struct UniquePtr : std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>> {
   using std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>>::unique_ptr;
 };
 
-template <typename T, AnAllocator ALLOCATOR>
-struct UniquePtr<T[], ALLOCATOR>; // NOLINT
-
+/// @brief Make a unique pointer via given allocator
 template <typename T, AnAllocator ALLOCATOR = Allocator &, typename... ARGS>
 UniquePtr<T, ALLOCATOR> make_unique(ALLOCATOR &&alloc, ARGS &&...args) noexcept {
   void *p = alloc.allocate(sizeof(T));

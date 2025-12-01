@@ -72,12 +72,20 @@ Allocator &Reactor::allocator() noexcept {
   return m_alloc;
 }
 
-void Reactor::yield(CoroListNode &node) noexcept {
+void Reactor::schedule(CoroListNode &node) noexcept {
   m_ready.push_back(node);
 }
 
-void Reactor::poll(PollListNode &node) noexcept {
+void Reactor::schedule_when_ready(PollListNode &node) noexcept {
   m_polled.push_back(node);
+}
+
+size_t Reactor::peak_memory() const noexcept {
+  return m_alloc.peak_memory();
+}
+
+size_t Reactor::current_memory() const noexcept {
+  return m_alloc.current_memory();
 }
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {

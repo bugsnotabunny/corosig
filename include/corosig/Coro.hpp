@@ -25,11 +25,17 @@ concept NotReactor = !std::same_as<Reactor, T>;
 
 template <typename T, typename E>
 struct CoroutinePromiseType : CoroListNode {
-
+  /// @brief Construct new coroutine promise bound to reactor
+  /// @note For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
       : m_reactor{reactor} {
   }
 
+  /// @brief Construct new coroutine promise bound to reactor. This overload is used when some
+  ///         object's method is declared as coroutine
+  /// @note For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   CoroutinePromiseType(NotReactor auto const &,
                        Reactor &reactor,
                        NotReactor auto const &...) noexcept
@@ -43,10 +49,17 @@ struct CoroutinePromiseType : CoroListNode {
 
   ~CoroutinePromiseType() override = default;
 
+  /// @brief Allocate new coroutine frame using allocator from reactor
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
     return reactor.allocator().allocate(n);
   }
 
+  /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
+  ///         some object's method is declared as coroutine
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n,
                             NotReactor auto const &,
                             Reactor &reactor,
@@ -54,30 +67,45 @@ struct CoroutinePromiseType : CoroListNode {
     return reactor.allocator().allocate(n);
   }
 
+  /// @brief Noop
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void operator delete(void *) noexcept {
     // nothing to do in here since reactor is not accessible. instead, a coro frame is released when
     // future is destroyed
   }
 
+  /// @brief Add this as a CoroListNode into reactor to be executed later
   void yield_to_reactor() noexcept {
-    m_reactor.yield(*this);
+    m_reactor.schedule(*this);
   }
 
+  /// @brief Add this PollListNode into reactor to be executed later, when event becomes awailable
   void poll_to_reactor(PollListNode &node) noexcept {
-    m_reactor.poll(node);
+    m_reactor.schedule_when_ready(node);
   }
 
+  /// @brief Call an abort. Corosig expects no exceptions to be thrown around since they are not
+  ///         safe to throw in sighandlers.
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   [[noreturn]] static void unhandled_exception() noexcept {
     std::abort();
   }
 
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   Fut<T, E> get_return_object() noexcept;
   static Fut<T, E> get_return_object_on_allocation_failure() noexcept;
 
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   auto initial_suspend() noexcept {
     return std::suspend_never{};
   }
 
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   auto final_suspend() noexcept {
     struct ReturnControlToCaller {
       static bool await_ready() noexcept {
@@ -96,27 +124,14 @@ struct CoroutinePromiseType : CoroListNode {
     return ReturnControlToCaller{};
   }
 
+  /// @brief Return a value form coroutine
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   template <std::convertible_to<Result<T, E>> U>
   void return_value(U &&value) noexcept {
     assert(m_value.is_nothing());
     assert(!m_waiting_coro.done());
     m_value = Result<T, E>{std::forward<U>(value)};
-  }
-
-  template <std::convertible_to<T> T2, std::convertible_to<E> E2>
-  void return_value(Result<T2, E2> &&result) noexcept {
-    assert(m_value.is_nothing());
-    if (result.is_ok()) {
-      if constexpr (std::same_as<void, T>) {
-        m_value = Ok{};
-      } else {
-        m_value = Ok{std::move(result.value())};
-      }
-    } else {
-      m_value = Failure{std::move(result.error())};
-    }
-
-    assert(!m_waiting_coro.done() && "Waiting coro was destroyed before child has finished");
   }
 
 private:
@@ -133,8 +148,11 @@ private:
 
 } // namespace detail
 
+/// @brief A result, which will become available in the future
 template <typename T = void, typename E = AllocationError>
 struct [[nodiscard("forgot to await?")]] Fut {
+  /// @note C++20 coroutine's required typedef. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   using promise_type = detail::CoroutinePromiseType<T, E>;
 
   Fut(const Fut &) = delete;
@@ -150,10 +168,13 @@ struct [[nodiscard("forgot to await?")]] Fut {
     }
   }
 
+  /// @brief Tell if future is already available. General-purpose code shall not use this method
+  ///         and just simply co_await a future
   [[nodiscard]] bool completed() const noexcept {
     return m_handle.value == nullptr || !promise().m_value.is_nothing();
   }
 
+  /// @brief Run reactor's event loop until this future is ready
   Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
     while (!completed()) {
       COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
@@ -164,39 +185,40 @@ struct [[nodiscard("forgot to await?")]] Fut {
     return std::move(promise().m_value);
   }
 
-  struct Awaiter {
-    Awaiter(const Awaiter &) = delete;
-    Awaiter(Awaiter &&) = delete;
-    Awaiter &operator=(const Awaiter &) = delete;
-    Awaiter &operator=(Awaiter &&) = delete;
+  /// @brief Await for result inside this future to become available
+  auto operator co_await() && noexcept {
+    struct Awaiter {
+      Awaiter(const Awaiter &) = delete;
+      Awaiter(Awaiter &&) = delete;
+      Awaiter &operator=(const Awaiter &) = delete;
+      Awaiter &operator=(Awaiter &&) = delete;
 
-    [[nodiscard]] bool await_ready() const noexcept {
-      return m_future.completed();
-    }
-
-    void await_suspend(std::coroutine_handle<> h) const noexcept {
-      m_future.promise().m_waiting_coro = h;
-    }
-
-    Result<T, E> await_resume() const noexcept {
-      if (m_future.m_handle.value == nullptr) {
-        return Failure{AllocationError{}};
+      [[nodiscard]] bool await_ready() const noexcept {
+        return m_future.completed();
       }
 
-      assert(!m_future.promise().m_value.is_nothing());
-      return std::move(m_future.promise().m_value);
-    }
+      void await_suspend(std::coroutine_handle<> h) const noexcept {
+        m_future.promise().m_waiting_coro = h;
+      }
 
-  private:
-    friend Fut;
-    Awaiter(Fut &future) noexcept
-        : m_future{future} {
-    }
+      Result<T, E> await_resume() const noexcept {
+        if (m_future.m_handle.value == nullptr) {
+          return Failure{AllocationError{}};
+        }
 
-    Fut &m_future;
-  };
+        assert(!m_future.promise().m_value.is_nothing());
+        return std::move(m_future.promise().m_value);
+      }
 
-  Awaiter operator co_await() && noexcept {
+    private:
+      friend Fut;
+      Awaiter(Fut &future) noexcept
+          : m_future{future} {
+      }
+
+      Fut &m_future;
+    };
+
     return Awaiter{*this};
   }
 

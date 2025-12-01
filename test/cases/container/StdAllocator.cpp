@@ -13,7 +13,9 @@ struct DummyAlloc {
   size_t deallocate_call_count = 0;
   size_t alloc_n = 0;
 
-  void *allocate(size_t n, size_t align) noexcept;
+  void *allocate(size_t n, size_t) noexcept {
+    return allocate(n);
+  }
 
   void *allocate(size_t n) noexcept {
     allocate_call_count++;
@@ -46,7 +48,7 @@ TEST_CASE("StdAllocator works with non-POD/complex types", "[StdAllocator]") {
 
   std::string *p = alloc.allocate(3);
   REQUIRE(p != nullptr);
-  REQUIRE(tracker.alloc_n == 3);
+  REQUIRE(tracker.alloc_n == 3 * sizeof(std::string));
 
   alloc.deallocate(p, 3);
 }

@@ -1,11 +1,13 @@
-build
-.cache
+build/
+.cache/
 .xmake/
-.devenv*
-devenv.local.nix
-.direnv
 .clangd
 compile_commands.json
 
 .zed
 .vscode
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml

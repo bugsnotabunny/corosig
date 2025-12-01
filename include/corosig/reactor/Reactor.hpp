@@ -11,36 +11,37 @@
 
 namespace corosig {
 
+/// @brief A thing which does scheduling for stopped coroutines
 struct Reactor {
-  Reactor() noexcept = default;
-
   Reactor(const Reactor &) = delete;
   Reactor(Reactor &&) = delete;
   Reactor &operator=(const Reactor &) = delete;
   Reactor &operator=(Reactor &&) = delete;
 
+  /// @brief Construct a reactor which allocates memory for it's coroutines from provided static
+  /// buffer
   template <size_t SIZE>
-  Reactor(Allocator::Memory<SIZE> &mem) : m_alloc{mem} {
+  Reactor(Allocator::Memory<SIZE> &mem)
+      : m_alloc{mem} {
   }
 
+  /// @brief Access underlying allocator. Usefull to allocate memory from it for containers
   Allocator &allocator() noexcept;
 
-  void yield(CoroListNode &) noexcept;
-  void poll(PollListNode &) noexcept;
+  /// @brief Schedule a coroutine to be executed
+  void schedule(CoroListNode &) noexcept;
 
+  /// @brief Schedule a coroutine to be executed when handle recieves specified event
+  void schedule_when_ready(PollListNode &) noexcept;
+
+  /// @note It is better to use Fut<...>.block_on() method instead of calling this method directly
   Result<void, SyscallError> do_event_loop_iteration() noexcept;
 
-  bool has_active_tasks() noexcept {
-    return !m_ready.empty() && !m_polled.empty();
-  }
+  /// @brief A shorthand for calling .allocator().peak_memory()
+  size_t peak_memory() const noexcept;
 
-  size_t peak_memory() noexcept {
-    return m_alloc.peak_memory();
-  }
-
-  size_t current_memory() noexcept {
-    return m_alloc.current_memory();
-  }
+  /// @brief A shorthand for calling .allocator().current_memory()
+  size_t current_memory() const noexcept;
 
 private:
   PollList m_polled;

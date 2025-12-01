@@ -15,6 +15,7 @@
 
 namespace corosig {
 
+/// @brief Wait when all futures are ready. Return all of their results
 template <typename... R, typename... E>
 Fut<std::tuple<Result<R, E>...>> when_all(Reactor &, Fut<R, E> &&...futs) noexcept {
   co_return std::tuple{co_await std::move(futs)...};
@@ -44,6 +45,8 @@ using WrapVoid = std::conditional_t<std::same_as<void, T>, std::monostate, T>;
 
 } // namespace detail
 
+/// @brief Wait when all futures are ready. Return all of values from their results or the first
+///         error that occurred among them
 template <typename... R, typename... E>
 Fut<std::tuple<detail::WrapVoid<R>...>, extend_error<E...>>
 when_all_succeed(Reactor &, Fut<R, E> &&...futs) noexcept {
