@@ -185,6 +185,16 @@ struct [[nodiscard("forgot to await?")]] Fut {
     return std::move(promise().m_value);
   }
 
+  /// @brief Run reactor's event loop until this future is ready and there is no more tasks in
+  ///        reactor
+  Result<T, extend_error<E, SyscallError>> block_on_with_reactor_drain() && noexcept {
+    Result result = std::move(*this).block_on();
+    while (promise().m_reactor.has_active_tasks()) {
+      COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
+    }
+    return result;
+  }
+
   /// @brief Await for result inside this future to become available
   auto operator co_await() && noexcept {
     struct Awaiter {

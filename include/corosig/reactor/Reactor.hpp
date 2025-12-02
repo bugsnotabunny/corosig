@@ -34,6 +34,9 @@ struct Reactor {
   /// @brief Schedule a coroutine to be executed when handle recieves specified event
   void schedule_when_ready(PollListNode &) noexcept;
 
+  /// @brief Tell if there are any tasks scheduled
+  bool has_active_tasks() const noexcept;
+
   /// @note It is better to use Fut<...>.block_on() method instead of calling this method directly
   Result<void, SyscallError> do_event_loop_iteration() noexcept;
 

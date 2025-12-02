@@ -80,6 +80,10 @@ void Reactor::schedule_when_ready(PollListNode &node) noexcept {
   m_polled.push_back(node);
 }
 
+bool Reactor::has_active_tasks() const noexcept {
+  return !m_polled.empty() && !m_ready.empty();
+}
+
 size_t Reactor::peak_memory() const noexcept {
   return m_alloc.peak_memory();
 }
