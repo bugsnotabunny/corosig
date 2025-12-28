@@ -377,7 +377,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector::erase(pos) removes a single element and sh
   COROSIG_REQUIRE(v.push_back(LifetimeCounter{2}));
   COROSIG_REQUIRE(v.push_back(LifetimeCounter{3}));
 
-  auto it = v.erase(v.begin() + 1);
+  auto *it = v.erase(v.begin() + 1);
   COROSIG_REQUIRE(it == v.begin() + 1);
   COROSIG_REQUIRE(v.size() == 2);
 
