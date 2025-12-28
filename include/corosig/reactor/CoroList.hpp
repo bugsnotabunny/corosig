@@ -8,10 +8,10 @@
 
 namespace corosig {
 
-namespace bi = boost::intrusive;
-
 /// @brief A node type for CoroList
-struct CoroListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe_link>> {
+struct CoroListNode
+    : boost::intrusive::slist_base_hook<
+          boost::intrusive::link_mode<boost::intrusive::link_mode_type::safe_link>> {
   /// @brief Cast this object to a resumable coroutine handle
   virtual std::coroutine_handle<> coro_from_this() noexcept = 0;
 
@@ -19,7 +19,9 @@ struct CoroListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe
 };
 
 /// @brief A list of objects which are castable to coroutines via coro_from_this virtual method
-using CoroList = bi::slist<CoroListNode, bi::constant_time_size<false>, bi::cache_last<true>>;
+using CoroList = boost::intrusive::slist<CoroListNode,
+                                         boost::intrusive::constant_time_size<false>,
+                                         boost::intrusive::cache_last<true>>;
 
 } // namespace corosig
 
