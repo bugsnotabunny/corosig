@@ -51,7 +51,7 @@ target_end()
 
 
 for _, file in ipairs(os.files("test/cases/**.cpp")) do
-    local name = "test_" .. path.basename(file)
+    local name = "Test" .. path.basename(file)
     target(name)
         set_kind("binary")
         add_deps("corosig-testing")
@@ -61,7 +61,7 @@ end
 
 
 for _, file in ipairs(os.files("example/**.cpp")) do
-    local name = "example_" .. path.basename(file)
+    local name = "Example" .. path.basename(file)
     target(name)
         set_kind("binary")
         add_deps("corosig")
