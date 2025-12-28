@@ -1,11 +1,11 @@
 #ifndef COROSIG_SEMAPHORE_HPP
 #define COROSIG_SEMAPHORE_HPP
 
-#include "boost/intrusive/intrusive_fwd.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
+#include <boost/intrusive/intrusive_fwd.hpp>
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/options.hpp>
 #include <boost/intrusive/slist.hpp>

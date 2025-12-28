@@ -209,12 +209,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero max parallelism") {
 COROSIG_SIGHANDLER_TEST_CASE("Move semantics") {
   Semaphore sem{reactor, 5};
 
-  auto holder1 = *sem.try_hold(3);
+  auto holder1 = *sem.try_hold(3); // NOLINT
   auto holder2 = std::move(holder1);
 
   COROSIG_REQUIRE(sem.current_parallelism() == 3);
 
-  holder1.reset();
+  holder1.reset(); // NOLINT
   COROSIG_REQUIRE(sem.current_parallelism() == 3);
 
   holder2.reset();

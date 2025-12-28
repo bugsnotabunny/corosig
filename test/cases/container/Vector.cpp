@@ -1,12 +1,12 @@
 #include "corosig/container/Vector.hpp"
 
-#include "catch2/reporters/catch_reporter_registrars.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <catch2/catch_all.hpp>
+#include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <list>
 
 namespace {

@@ -26,7 +26,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Sleep is ok") {
   COROSIG_REQUIRE(Clock::now() - start >= 10ms);
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("Parallel sleep is ok") {
+COROSIG_SIGHANDLER_TEST_CASE("Parallel sleep is ok") { // NOLINT
   constexpr static auto FOO = [](Reactor &) -> Fut<void> {
     co_await Sleep{10ms};
     co_return Ok{};
