@@ -5,7 +5,6 @@
 #include <chrono>
 #include <concepts>
 #include <ranges>
-#include <thread>
 
 namespace {
 
