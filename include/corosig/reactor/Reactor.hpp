@@ -6,6 +6,7 @@
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
+#include "corosig/reactor/SleepList.hpp"
 
 #include <cstddef>
 
@@ -34,6 +35,10 @@ struct Reactor {
   /// @brief Schedule a coroutine to be executed when handle recieves specified event
   void schedule_when_ready(PollListNode &) noexcept;
 
+  /// @brief Schedule a coroutine to be executed when specified amount of time passes
+  /// @warning UB if given node is ready
+  void schedule_when_time_passes(SleepListNode &) noexcept;
+
   /// @brief Tell if there are any tasks scheduled
   [[nodiscard]] bool has_active_tasks() const noexcept;
 
@@ -49,6 +54,7 @@ struct Reactor {
 private:
   PollList m_polled;
   CoroList m_ready;
+  SleepList m_sleeping;
   Allocator m_alloc;
 };
 

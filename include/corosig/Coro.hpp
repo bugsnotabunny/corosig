@@ -5,6 +5,7 @@
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Reactor.hpp"
+#include "corosig/reactor/SleepList.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cassert>
@@ -78,6 +79,11 @@ struct CoroutinePromiseType : CoroListNode {
   /// @brief Add this as a CoroListNode into reactor to be executed later
   void yield_to_reactor() noexcept {
     m_reactor.schedule(*this);
+  }
+
+  /// @brief Add this SleepListNode into reactor to be executed later, when time comes
+  void queue_to_reactor(SleepListNode &node) noexcept {
+    m_reactor.schedule_when_time_passes(node);
   }
 
   /// @brief Add this PollListNode into reactor to be executed later, when event becomes awailable
