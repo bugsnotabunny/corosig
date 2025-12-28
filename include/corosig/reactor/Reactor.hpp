@@ -35,16 +35,16 @@ struct Reactor {
   void schedule_when_ready(PollListNode &) noexcept;
 
   /// @brief Tell if there are any tasks scheduled
-  bool has_active_tasks() const noexcept;
+  [[nodiscard]] bool has_active_tasks() const noexcept;
 
   /// @note It is better to use Fut<...>.block_on() method instead of calling this method directly
   Result<void, SyscallError> do_event_loop_iteration() noexcept;
 
   /// @brief A shorthand for calling .allocator().peak_memory()
-  size_t peak_memory() const noexcept;
+  [[nodiscard]] size_t peak_memory() const noexcept;
 
   /// @brief A shorthand for calling .allocator().current_memory()
-  size_t current_memory() const noexcept;
+  [[nodiscard]] size_t current_memory() const noexcept;
 
 private:
   PollList m_polled;
