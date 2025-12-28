@@ -17,6 +17,7 @@ Checks: >
     -readability-avoid-return-with-void-value,
     -readability-named-parameter,
     -readability-magic-numbers,
+    -readability-math-missing-parentheses,
 
 
 # Turn all the warnings from the checks above into errors.
