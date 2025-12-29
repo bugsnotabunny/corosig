@@ -5,6 +5,7 @@
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Reactor.hpp"
+#include "corosig/reactor/SleepList.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cassert>
@@ -78,6 +79,11 @@ struct CoroutinePromiseType : CoroListNode {
   /// @brief Add this as a CoroListNode into reactor to be executed later
   void yield_to_reactor() noexcept {
     m_reactor.schedule(*this);
+  }
+
+  /// @brief Add this SleepListNode into reactor to be executed later, when time comes
+  void queue_to_reactor(SleepListNode &node) noexcept {
+    m_reactor.schedule_when_time_passes(node);
   }
 
   /// @brief Add this PollListNode into reactor to be executed later, when event becomes awailable
@@ -183,6 +189,16 @@ struct [[nodiscard("forgot to await?")]] Fut {
       return Failure{AllocationError{}};
     }
     return std::move(promise().m_value);
+  }
+
+  /// @brief Run reactor's event loop until this future is ready and there is no more tasks in
+  ///        reactor
+  Result<T, extend_error<E, SyscallError>> block_on_with_reactor_drain() && noexcept {
+    Result result = std::move(*this).block_on();
+    while (promise().m_reactor.has_active_tasks()) {
+      COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
+    }
+    return result;
   }
 
   /// @brief Await for result inside this future to become available

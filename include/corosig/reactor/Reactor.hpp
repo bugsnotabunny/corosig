@@ -6,6 +6,7 @@
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
+#include "corosig/reactor/SleepList.hpp"
 
 #include <cstddef>
 
@@ -34,18 +35,26 @@ struct Reactor {
   /// @brief Schedule a coroutine to be executed when handle recieves specified event
   void schedule_when_ready(PollListNode &) noexcept;
 
+  /// @brief Schedule a coroutine to be executed when specified amount of time passes
+  /// @warning UB if given node is ready
+  void schedule_when_time_passes(SleepListNode &) noexcept;
+
+  /// @brief Tell if there are any tasks scheduled
+  [[nodiscard]] bool has_active_tasks() const noexcept;
+
   /// @note It is better to use Fut<...>.block_on() method instead of calling this method directly
   Result<void, SyscallError> do_event_loop_iteration() noexcept;
 
   /// @brief A shorthand for calling .allocator().peak_memory()
-  size_t peak_memory() const noexcept;
+  [[nodiscard]] size_t peak_memory() const noexcept;
 
   /// @brief A shorthand for calling .allocator().current_memory()
-  size_t current_memory() const noexcept;
+  [[nodiscard]] size_t current_memory() const noexcept;
 
 private:
   PollList m_polled;
   CoroList m_ready;
+  SleepList m_sleeping;
   Allocator m_alloc;
 };
 

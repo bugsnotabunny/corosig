@@ -2,11 +2,9 @@
 #define COROSIG_POLL_EVENT_HPP
 
 #include "corosig/os/Handle.hpp"
-#include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
 
 #include <cassert>
-#include <concepts>
 #include <coroutine>
 
 namespace corosig {
@@ -23,7 +21,7 @@ struct PollEvent : PollListNode {
     return false;
   }
 
-  template <std::derived_from<CoroListNode> PROMISE>
+  template <typename PROMISE>
   void await_suspend(std::coroutine_handle<PROMISE> h) noexcept {
     waiting_coro = h;
     h.promise().poll_to_reactor(*this);

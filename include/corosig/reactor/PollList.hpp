@@ -11,8 +11,6 @@
 
 namespace corosig {
 
-namespace bi = boost::intrusive;
-
 /// @brief Strictly-typed wrapper for poll events bitmask. Meant to abstract some OS-specific stuff
 /// @warning Exact values and underlying type are OS-specific
 enum class poll_event_e : short {
@@ -21,7 +19,9 @@ enum class poll_event_e : short {
 };
 
 /// @brief Node type for PollList
-struct PollListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe_link>> {
+struct PollListNode
+    : boost::intrusive::slist_base_hook<
+          boost::intrusive::link_mode<boost::intrusive::link_mode_type::safe_link>> {
   /// @brief A coroutine stopped due to await. Will be resumed after event is present in handle
   std::coroutine_handle<> waiting_coro = std::noop_coroutine();
 
@@ -33,8 +33,10 @@ struct PollListNode : bi::slist_base_hook<bi::link_mode<bi::link_mode_type::safe
 };
 
 /// @brief A list of coroutines stopped due to await of some IO-related events
-using PollList =
-    bi::slist<PollListNode, bi::constant_time_size<false>, bi::linear<true>, bi::cache_last<true>>;
+using PollList = boost::intrusive::slist<PollListNode,
+                                         boost::intrusive::constant_time_size<false>,
+                                         boost::intrusive::linear<true>,
+                                         boost::intrusive::cache_last<true>>;
 
 } // namespace corosig
 

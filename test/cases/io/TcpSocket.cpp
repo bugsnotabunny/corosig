@@ -94,9 +94,9 @@ TEST_CASE("TcpSocket write/read roundtrip") {
       COROSIG_CO_TRY(auto written, co_await sock.write_some(r, MSG));
       COROSIG_REQUIRE(written == MSG.size());
 
-      // std::array<char, MSG.size()> buf;
-      // valueCO_TRY(auto read, co_await sock.read(r, buf));
-      // COROSIG_REQUIRE(std::string_view{buf.begin(), read} == MSG);
+      std::array<char, MSG.size()> buf;
+      COROSIG_CO_TRY(auto read, co_await sock.read(r, buf));
+      COROSIG_REQUIRE(std::string_view{buf.begin(), read} == MSG);
 
       co_return Ok();
     };
