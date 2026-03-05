@@ -2,7 +2,7 @@
 #define COROSIG_ERROR_TYPES_HPP
 
 #include "corosig/meta/AnInstanceOf.hpp"
-#include "corosig/util/Overloaded.hpp"
+#include "corosig/util/Variant.hpp"
 
 #include <boost/mp11.hpp>
 #include <boost/mp11/algorithm.hpp>
@@ -12,7 +12,6 @@
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
-#include <variant>
 
 namespace corosig {
 
@@ -27,43 +26,22 @@ concept WithDescription = requires(E const &e) {
 
 /// @brief An error which contains one of specified errors inside
 template <typename... TYPES>
-struct Error : std::variant<TYPES...> {
+struct Error : Variant<TYPES...> {
 private:
   static_assert(
       boost::mp11::mp_size<boost::mp11::mp_unique<boost::mp11::mp_list<TYPES...>>>::value ==
           sizeof...(TYPES),
       "Error must contain unique types");
 
-  using Base = std::variant<TYPES...>;
-
 public:
-  using Base::Base;
+  using Variant<TYPES...>::Variant;
 
   /// @brief Return an error description. If an underlying error has method .description, it's
   ///        result is returned. Otherwise, it's typename is returned
   [[nodiscard]] std::string_view description() const noexcept {
-    return visit(Overloaded{
+    return Variant<TYPES...>::match(
         [](detail::WithDescription auto const &e) { return e.description(); },
-        [](auto const &e) { return std::string_view{typeid(std::decay_t<decltype(e)>).name()}; },
-    });
-  }
-
-  /// @brief Tell if an error holds a type T inside
-  template <typename T>
-  [[nodiscard]] bool holds() const noexcept {
-    return std::holds_alternative<T>(*this);
-  }
-
-  /// @brief Visit all possible errors inside using f as visitor
-  template <typename F>
-  [[nodiscard]] decltype(auto) visit(F &&f) noexcept {
-    return std::visit(std::forward<F>(f), *this);
-  }
-
-  /// @brief Visit all possible errors inside using f as visitor
-  template <typename F>
-  [[nodiscard]] decltype(auto) visit(F &&f) const noexcept {
-    return std::visit(std::forward<F>(f), *this);
+        [](auto const &e) { return std::string_view{typeid(std::decay_t<decltype(e)>).name()}; });
   }
 };
 
