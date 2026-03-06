@@ -11,7 +11,7 @@ namespace corosig {
 
 /// @brief Tell if an object has .clone() method
 template <typename T>
-concept WithClone = requires(T const object) {
+concept WithClone = requires(T const &object) {
   { object.clone() } -> AnInstanceOf<Result>;
 };
 
@@ -20,14 +20,18 @@ template <typename T>
 concept Copyable = WithClone<T> != std::is_nothrow_copy_constructible_v<T>;
 
 /// @brief Clone value with it's copy ctor, if it is noexcept, or, via .clone() method
-template <Copyable T>
-auto clone(T const &value) noexcept {
-  if constexpr (std::is_nothrow_copy_constructible_v<T>) {
-    return AlwaysOkResult<T>{T{value}};
-  } else {
-    return value.clone();
+struct CloneFn {
+  template <Copyable T>
+  auto operator()(T const &value) const noexcept {
+    if constexpr (std::is_nothrow_copy_constructible_v<T>) {
+      return AlwaysOkResult<T>{T{value}};
+    } else {
+      return value.clone();
+    }
   }
-}
+};
+
+inline constexpr CloneFn clone; // NOLINT
 
 } // namespace corosig
 

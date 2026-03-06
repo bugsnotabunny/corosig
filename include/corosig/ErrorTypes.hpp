@@ -7,7 +7,6 @@
 #include <boost/mp11.hpp>
 #include <boost/mp11/algorithm.hpp>
 #include <concepts>
-#include <cstring>
 #include <string_view>
 #include <type_traits>
 #include <typeinfo>

@@ -6,7 +6,6 @@
 #include "corosig/container/Allocator.hpp"
 #include "corosig/meta/AnAllocator.hpp"
 #include "corosig/meta/Copyable.hpp"
-#include "corosig/meta/Lambdize.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -20,6 +19,14 @@
 #include <utility>
 
 namespace corosig {
+
+namespace detail {
+
+template <typename VAL, typename R, typename E>
+using result_extended_with_clone_errors =
+    Result<R, extend_error<E, error_type<corosig::clone, VAL const &>>>;
+
+}
 
 /// @brief Mostly STL-compatible vector class. Propagates all errors as values
 /// @note Check std::vector docs. This struct is designed to repeat it's behaviour whenever this is
@@ -39,11 +46,6 @@ struct Vector {
   using const_iterator = const_pointer;
   using reverse_iterator = std::reverse_iterator<iterator>;
   using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-
-private:
-  template <typename R, typename E>
-  using result_extended_with_clone_errors =
-      Result<R, extend_error<E, error_type<COROSIG_LAMBDIZE(corosig::clone), value_type const &>>>;
 
 public:
   /// @brief Make a vector which uses alloc
@@ -76,7 +78,7 @@ public:
   constexpr auto clone() const noexcept
     requires(Copyable<value_type>)
   {
-    using Result = result_extended_with_clone_errors<Vector, AllocationError>;
+    using Result = detail::result_extended_with_clone_errors<value_type, Vector, AllocationError>;
 
     Vector copies{m_alloc};
     COROSIG_TRYTV(Result, copies.reserve(size()));
@@ -91,7 +93,7 @@ public:
     requires(std::ranges::range<RANGE> &&
              std::same_as<value_type, std::ranges::range_value_t<RANGE>>)
   constexpr Result<void, AllocationError> assign(RANGE &&values) noexcept {
-    using Result = result_extended_with_clone_errors<void, AllocationError>;
+    using Result = detail::result_extended_with_clone_errors<value_type, void, AllocationError>;
 
     Vector new_this{m_alloc};
     if constexpr (std::ranges::sized_range<RANGE>) {
@@ -147,7 +149,7 @@ public:
   constexpr auto resize(size_type count, const value_type &value = value_type{}) noexcept
     requires(Copyable<value_type>)
   {
-    using Result = result_extended_with_clone_errors<void, AllocationError>;
+    using Result = detail::result_extended_with_clone_errors<value_type, void, AllocationError>;
 
     if (count == size()) {
       return Result{Ok{}};
@@ -200,7 +202,7 @@ public:
   constexpr auto push_back(value_type const &value) noexcept
     requires(Copyable<value_type>)
   {
-    using Result = result_extended_with_clone_errors<void, AllocationError>;
+    using Result = detail::result_extended_with_clone_errors<value_type, void, AllocationError>;
     COROSIG_TRYT(Result, value_type cloned, corosig::clone(value));
     return Result{push_back(std::move(cloned))};
   }
