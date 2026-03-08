@@ -70,11 +70,12 @@ void run_in_sighandler(F &&f) {
 }
 
 #define INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_TEST_NAME, ...)                             \
-  static void INTERNAL_TEST_NAME(Reactor &reactor);                                                \
+  static void INTERNAL_TEST_NAME(::corosig::Reactor &reactor);                                     \
   TEST_CASE(__VA_ARGS__) {                                                                         \
-    run_in_sighandler([](Reactor &reactor) { return INTERNAL_TEST_NAME(reactor); });               \
+    ::corosig::run_in_sighandler(                                                                  \
+        [](::corosig::Reactor &reactor) { return INTERNAL_TEST_NAME(reactor); });                  \
   }                                                                                                \
-  void INTERNAL_TEST_NAME([[maybe_unused]] Reactor &reactor)
+  void INTERNAL_TEST_NAME([[maybe_unused]] ::corosig::Reactor &reactor)
 
 #define COROSIG_SIGHANDLER_TEST_CASE(...)                                                          \
   INTERNAL_COROSIG_SIGHANDLER_TEST_CASE(INTERNAL_CATCH_UNIQUE_NAME(COROSIG_SIGHANDLER_TEST_),      \
