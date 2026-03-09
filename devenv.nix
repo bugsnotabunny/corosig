@@ -2,6 +2,7 @@
 { pkgs, ... }: {
   packages = with pkgs; [
     llvmPackages_21.clang-tools
+    llvmPackages_21.bintools
     llvmPackages_19.libstdcxxClang
     doxygen
     xmake
