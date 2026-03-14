@@ -129,7 +129,6 @@ public:
     return Ok{};
   }
 
-  /// @brief Deallocate any memory which is not used for object storage
   constexpr Result<void, AllocationError> reserve(size_type count) noexcept {
     if (count <= m_capacity) {
       return Ok{};
@@ -238,17 +237,35 @@ public:
     return begin() + first_idx;
   }
 
-  // !TODO
-  //
-  // template <typename U>
-  // constexpr Result<iterator, AllocationError> insert(const_iterator pos, U &&value) noexcept {
-  //   return insert(pos, std::views::single(std::forward<U>(value)));
-  // }
-  //
-  // template <std::ranges::sized_range RANGE>
-  // constexpr Result<iterator, AllocationError> insert(const_iterator pos, RANGE &&values) noexcept
-  // {
-  // }
+  constexpr Result<iterator, AllocationError> insert(const_iterator pos,
+                                                     value_type &&value) noexcept {
+    return insert(pos, std::span<value_type, 1>{std::addressof(value), 1});
+  }
+
+  template <typename RANGE>
+    requires(std::ranges::sized_range<RANGE> && !std::same_as<value_type, RANGE>)
+  constexpr Result<iterator, AllocationError> insert(const_iterator pos, RANGE &&values) noexcept {
+    size_type posi = pos - begin();
+    size_type result_posi = posi;
+
+    if (size() + values.size() < capacity()) {
+      COROSIG_TRYV(reserve(std::max<size_type>(16, size() * 2)));
+    }
+
+    COROSIG_TRYV(resize_uninitialized(size() + values.size()));
+
+    for (size_type i = size() - 1; i >= posi + values.size(); --i) {
+      new (std::addressof((*this)[i])) value_type{std::move((*this)[i - values.size()])};
+      (*this)[i - values.size()].~value_type();
+    }
+
+    for (auto &&value : values) {
+      new (std::addressof((*this)[posi])) value_type{std::move(value)};
+      ++posi;
+    }
+
+    return begin() + result_posi;
+  }
 
   constexpr void pop_back() noexcept {
     value_type &last = back();
