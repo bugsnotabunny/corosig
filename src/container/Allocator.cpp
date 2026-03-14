@@ -10,6 +10,10 @@ using namespace corosig;
 
 static_assert(AnAllocator<Allocator>);
 
+char *align_right(char *p, size_t align) noexcept {
+  return p + align - (size_t(p) % align);
+}
+
 size_t padding_with_header(size_t base_address, size_t alignment, size_t header_size) noexcept {
   size_t multiplier = (base_address / alignment) + 1;
   size_t aligned_address = multiplier * alignment;
@@ -17,10 +21,8 @@ size_t padding_with_header(size_t base_address, size_t alignment, size_t header_
   size_t needed_space = header_size;
 
   if (padding < needed_space) {
-    // Header does not fit - Calculate next aligned address that header fits
     needed_space -= padding;
 
-    // How many alignments I need to fit the header
     if (needed_space % alignment > 0) {
       padding += alignment * (1 + (needed_space / alignment));
     } else {
@@ -63,9 +65,7 @@ size_t Allocator::current_memory() const noexcept {
 
 void Allocator::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
   if (previousNode == nullptr) {
-    // Is the first node
     if (head != nullptr) {
-      // The list has more elements
       newNode->next = head;
     } else {
       newNode->next = nullptr;
@@ -73,11 +73,9 @@ void Allocator::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
     head = newNode;
   } else {
     if (previousNode->next == nullptr) {
-      // Is the last node
       previousNode->next = newNode;
       newNode->next = nullptr;
     } else {
-      // Is a middle node
       newNode->next = previousNode->next;
       previousNode->next = newNode;
     }
@@ -86,28 +84,25 @@ void Allocator::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
 
 void Allocator::FreeList::remove(Node *previousNode, Node *deleteNode) noexcept {
   if (previousNode == nullptr) {
-    // Is the first node
-    if (deleteNode->next == nullptr) { // List only has one element
+    if (deleteNode->next == nullptr) {
       head = nullptr;
     } else {
-      // List has more elements
       head = deleteNode->next;
     }
-  } // namespace corosig
-  else {
+  } else {
     previousNode->next = deleteNode->next;
   }
 }
 
 void *Allocator::allocate(size_t size, size_t alignment) noexcept {
+  assert("Alignment must be a power of 2" && std::has_single_bit(alignment));
+
   size = std::max(size, sizeof(Node));
   alignment = std::max(alignment, MIN_ALIGNMENT);
 
   assert("Allocation size must be bigger" && size >= sizeof(Node));
   assert("Alignment must be 8 at least" && alignment >= 8);
-  assert("Alignment must be a power of 2" && std::has_single_bit(alignment));
 
-  // Search through the free list for a free block that has enough space to allocate our data
   size_t padding;
   Node *affected_node;
   Node *previous_node;
@@ -121,14 +116,15 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
   size_t rest = affected_node->data.block_size - required_size;
 
   if (rest > 0) {
-    // We have to split the block into the data block and a free block of size 'rest'
-    Node *new_free_node = (Node *)((char *)affected_node + required_size);
-    new_free_node->data.block_size = rest;
-    m_free_list.insert(affected_node, new_free_node);
+    char *new_free_node_addr = align_right((char *)affected_node + required_size, alignof(Node));
+    if (new_free_node_addr + sizeof(Node) < m_mem + m_mem_size) {
+      Node *new_free_node = (Node *)new_free_node_addr;
+      new_free_node->data.block_size = rest;
+      m_free_list.insert(affected_node, new_free_node);
+    }
   }
   m_free_list.remove(previous_node, affected_node);
 
-  // Setup data block
   auto *header_ptr = (AllocationHeader *)((char *)affected_node + alignment_padding);
   header_ptr->block_size = required_size;
   header_ptr->padding = alignment_padding;

@@ -1,7 +1,7 @@
 #include "corosig/ErrorTypes.hpp"
 
 #include <cerrno>
-#include <cstring>
+#include <cstring> // IWYU pragma: keep
 
 namespace corosig {
 
