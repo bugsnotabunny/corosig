@@ -10,7 +10,7 @@ SyscallError SyscallError::current() noexcept {
 }
 
 std::string_view SyscallError::description() const noexcept {
-  return ::strerror(value);
+  return ::strerrordesc_np(value);
 }
 
 } // namespace corosig
