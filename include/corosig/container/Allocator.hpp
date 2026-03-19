@@ -1,64 +1,39 @@
 #ifndef COROSIG_ALLOC_HPP
 #define COROSIG_ALLOC_HPP
 
+#include "corosig/util/SetDefaultOnMove.hpp"
+
 #include <array>
+#include <boost/intrusive/avl_set.hpp>
+#include <boost/intrusive/avl_set_hook.hpp>
+#include <boost/intrusive/link_mode.hpp>
+#include <boost/intrusive/options.hpp>
 #include <cassert>
 #include <cstddef>
+#include <span>
 
 namespace corosig {
 
 /// @brief An allocator which allocates memory from some non-resizeable buffer. If buffer runs out
 ///        of space, allocations fail. No new memory is allocated
 struct Allocator {
-private:
-  struct FreeHeader {
-    size_t block_size = 0;
-  };
-
-  struct FreeList {
-    struct Node {
-      FreeHeader data;
-      Node *next = nullptr;
-    };
-
-    Node *head = nullptr;
-
-    void insert(Node *previousNode, Node *newNode) noexcept;
-    void remove(Node *previousNode, Node *deleteNode) noexcept;
-  };
-
-  struct AllocationHeader {
-    size_t block_size = 0;
-    size_t padding = 0;
-  };
-
-  using Node = typename FreeList::Node;
-
 public:
-  /// @brief Properly-aligned memory buffer type
+  /// @brief Memory buffer type
   template <size_t SIZE>
-  struct alignas(Node) Memory : public std::array<char, SIZE> {};
+  using Memory = std::array<char, SIZE>;
 
-  constexpr static size_t MIN_ALIGNMENT = 8;
+  constexpr static size_t MIN_ALIGNMENT = 1;
 
   /// @brief Construct an Allocator for which allocations always fail
   Allocator() noexcept = default;
 
   /// @brief Construct an Allocator over specified memory buffer
-  template <size_t SIZE>
-  Allocator(Memory<SIZE> &mem) noexcept
-      : m_mem{mem.begin()},
-        m_mem_size{mem.size()} {
-    Node *first_node = new (m_mem) Node{};
-    first_node->data.block_size = SIZE - sizeof(Node);
-    first_node->next = nullptr;
-    m_free_list.insert(nullptr, first_node);
-  }
+  Allocator(std::span<char> mem) noexcept;
 
   Allocator(const Allocator &) = delete;
-  Allocator(Allocator &&) noexcept;
+  Allocator(Allocator &&) noexcept = default;
   Allocator &operator=(const Allocator &) = delete;
-  Allocator &operator=(Allocator &&) noexcept;
+  Allocator &operator=(Allocator &&) noexcept = default;
 
   ~Allocator();
 
@@ -78,18 +53,49 @@ public:
   void deallocate(void *ptr) noexcept;
 
 private:
-  void coalescence(Node *prevNode, Node *freeNode) noexcept;
-  void find(size_t size,
-            size_t alignment,
-            size_t &padding,
-            Node *&previousNode,
-            Node *&foundNode) const noexcept;
+  struct FreeNode {
+    struct CompareBlockSize {
+      bool operator()(FreeNode const &lhs, FreeNode const &rhs) const noexcept {
+        return lhs.block_size < rhs.block_size;
+      }
+    };
 
-  size_t m_used = 0;
-  size_t m_peak = 0;
-  FreeList m_free_list = {};
-  char *m_mem = nullptr;
-  size_t m_mem_size = 0;
+    struct CompareAddress {
+      bool operator()(FreeNode const &lhs, FreeNode const &rhs) const noexcept {
+        return &lhs < &rhs;
+      }
+    };
+
+    using hook_type = boost::intrusive::avl_set_member_hook<
+        boost::intrusive::optimize_size<true>,
+        boost::intrusive::link_mode<boost::intrusive::link_mode_type::auto_unlink>>;
+
+    hook_type nodes_by_addr_hook = {};
+    hook_type nodes_by_size_hook = {};
+    size_t block_size;
+  };
+
+  void link(FreeNode &) noexcept;
+  static void unlink_and_destroy(FreeNode &) noexcept;
+  void maybe_merge_with_next(FreeNode &) noexcept;
+
+  using nodes_by_size_type = boost::intrusive::avl_multiset<
+      FreeNode,
+      boost::intrusive::compare<FreeNode::CompareBlockSize>,
+      boost::intrusive::constant_time_size<false>,
+      boost::intrusive::member_hook<FreeNode, FreeNode::hook_type, &FreeNode::nodes_by_size_hook>>;
+
+  using nodes_by_addr_type = boost::intrusive::avl_multiset<
+      FreeNode,
+      boost::intrusive::compare<FreeNode::CompareAddress>,
+      boost::intrusive::constant_time_size<false>,
+      boost::intrusive::member_hook<FreeNode, FreeNode::hook_type, &FreeNode::nodes_by_addr_hook>>;
+
+  nodes_by_size_type m_nodes_by_size;
+  nodes_by_addr_type m_nodes_by_addr;
+  SetDefaultOnMove<size_t> m_used;
+  SetDefaultOnMove<size_t> m_peak;
+  SetDefaultOnMove<char *> m_mem;
 };
 
 } // namespace corosig

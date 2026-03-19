@@ -71,8 +71,6 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or nul
   Allocator alloc{mem};
 
   void *p = alloc.allocate(0);
-  // Depending on implementation: could return nullptr or a valid pointer.
-  // Just ensure it doesn't crash.
   alloc.deallocate(p);
 }
 
