@@ -30,7 +30,7 @@ add_requires("boost 1.86.0", { configs = { filesystem = false } })
 
 
 target("corosig")
-    set_kind("shared")
+    set_kind("static")
     add_includedirs("include", { public = true })
     add_files("src/**.cpp")
     set_default(true)
