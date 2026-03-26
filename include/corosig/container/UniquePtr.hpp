@@ -1,6 +1,8 @@
 #ifndef COROSIG_CONTAINER_UNIQUE_PTR_HPP
 #define COROSIG_CONTAINER_UNIQUE_PTR_HPP
 
+#include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/meta/AnAllocator.hpp"
 
@@ -28,8 +30,12 @@ struct UniquePtr : std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>> {
 
 /// @brief Make a unique pointer via given allocator
 template <typename T, AnAllocator ALLOCATOR = Allocator &, typename... ARGS>
-UniquePtr<T, ALLOCATOR> make_unique(ALLOCATOR &&alloc, ARGS &&...args) noexcept {
-  void *p = alloc.allocate(sizeof(T));
+Result<UniquePtr<T, ALLOCATOR>, AllocationError> make_unique(ALLOCATOR &&alloc,
+                                                             ARGS &&...args) noexcept {
+  void *p = alloc.allocate(sizeof(T), alignof(T));
+  if (p == nullptr) {
+    return Failure{AllocationError{}};
+  }
   new (p) T{std::forward<ARGS>(args)...};
   return UniquePtr<T, ALLOCATOR>{
       static_cast<T *>(p),

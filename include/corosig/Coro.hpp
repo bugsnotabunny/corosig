@@ -54,7 +54,7 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n);
+    return reactor.allocator().allocate(n, alignof(std::max_align_t));
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
@@ -65,7 +65,7 @@ struct CoroutinePromiseType : CoroListNode {
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n);
+    return reactor.allocator().allocate(n, alignof(std::max_align_t));
   }
 
   /// @brief Noop

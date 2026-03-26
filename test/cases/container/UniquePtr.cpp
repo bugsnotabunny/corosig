@@ -2,6 +2,7 @@
 
 #include <catch2/catch_all.hpp>
 #include <cstddef>
+#include <type_traits>
 
 namespace {
 
@@ -14,7 +15,9 @@ struct MockAllocator {
   size_t last_alloc_size = 0;
   void *last_dealloc_ptr = nullptr;
 
-  void *allocate(size_t size, size_t align) noexcept;
+  void *allocate(size_t size, size_t) noexcept {
+    return allocate(size);
+  }
 
   void *allocate(size_t size) noexcept {
     ++allocations;
@@ -59,7 +62,7 @@ TEST_CASE("make_unique constructs object and allocates memory") {
   Tracked::reset();
 
   {
-    UniquePtr ptr = make_unique<Tracked>(alloc, 42);
+    UniquePtr ptr = std::move(make_unique<Tracked>(alloc, 42).value());
 
     REQUIRE(ptr.get() != nullptr);
     REQUIRE(ptr->x == 42);
@@ -78,7 +81,7 @@ TEST_CASE("UniquePtr move semantics work") {
   MockAllocator alloc;
   Tracked::reset();
 
-  auto p1 = make_unique<Tracked>(alloc, 7);
+  auto p1 = std::move(make_unique<Tracked>(alloc, 7).value());
   REQUIRE(p1.get() != nullptr);
 
   void *raw = p1.get();
@@ -99,7 +102,7 @@ TEST_CASE("Deleter uses correct allocator reference") {
   MockAllocator alloc2;
 
   {
-    auto ptr = make_unique<Tracked>(alloc1, 1);
+    auto ptr = std::move(make_unique<Tracked>(alloc1, 1).value());
     REQUIRE(&ptr.get_deleter().alloc == &alloc1);
     REQUIRE(&ptr.get_deleter().alloc != &alloc2);
   }
@@ -111,16 +114,18 @@ TEST_CASE("Deleter uses correct allocator reference") {
 TEST_CASE("make_unique returns correct UniquePtr type") {
   MockAllocator alloc;
   auto ptr = make_unique<Tracked>(alloc, 123);
-  static_assert(std::same_as<decltype(ptr), UniquePtr<Tracked, MockAllocator &>>);
-  static_assert(std::same_as<decltype(make_unique<Tracked>(MockAllocator{}, 123)),
-                             UniquePtr<Tracked, MockAllocator>>);
+  static_assert(
+      std::same_as<std::decay_t<decltype(ptr.value())>, UniquePtr<Tracked, MockAllocator &>>);
+  auto ptr2 = make_unique<Tracked>(MockAllocator{}, 123);
+  static_assert(
+      std::same_as<std::decay_t<decltype(ptr.value())>, UniquePtr<Tracked, MockAllocator &>>);
 }
 
 TEST_CASE("reset() destroys object and deallocates") {
   MockAllocator alloc;
   Tracked::reset();
 
-  auto ptr = make_unique<Tracked>(alloc, 99);
+  auto ptr = std::move(make_unique<Tracked>(alloc, 99).value());
 
   REQUIRE(Tracked::constructions == 1);
   REQUIRE(Tracked::destructions == 0);
