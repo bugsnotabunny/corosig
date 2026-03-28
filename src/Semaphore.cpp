@@ -3,7 +3,6 @@
 #include "corosig/reactor/Reactor.hpp"
 
 #include <cassert>
-#include <cerrno>
 #include <cstring>
 #include <memory>
 
