@@ -23,7 +23,7 @@ std::string const LONG_NAME(256, 'a');
 
 } // namespace
 
-COROSIG_SIGHANDLER_TEST_CASE("write_compression_ptr: encodes pointer correctly",
+COROSIG_SIGHANDLER_TEST_CASE("encode_compression_ptr: encodes pointer correctly",
                              "[compression_ptr]") {
 
   // example offset within 14-bit range
@@ -31,7 +31,8 @@ COROSIG_SIGHANDLER_TEST_CASE("write_compression_ptr: encodes pointer correctly",
 
   std::array<char, 2> buffer;
 
-  char *end = dns::detail::write_compression_ptr(buffer.begin(), offset);
+  char *end = dns::detail::encode_compression_ptr(
+      buffer.begin(), dns::detail::CompressionPointer{.offset = offset});
   COROSIG_REQUIRE(end == buffer.end());
   uint16_t encoded = (uint8_t(buffer[0]) << 8) | uint8_t(buffer[1]);
   COROSIG_REQUIRE((encoded & 0xC000) == 0xC000);
@@ -115,7 +116,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_label: does not insert if offset exceeds com
   dns::detail::CompressionMap map{reactor.allocator()};
 
   // artificially simulate large offset
-  for (size_t i = 0; i < dns::detail::COMPRESSION_PTR_MAX_VALUE + 10; ++i) {
+  for (size_t i = 0; i < dns::detail::CompressionPointer::MAX_VALUE + 10; ++i) {
     *out++ = 'x';
   }
 
@@ -129,7 +130,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: fails if name exceeds 255 bytes", "[wr
   dns::detail::CountingOutputIterator out{buffer.begin(), written_count};
   dns::detail::CompressionMap map{reactor.allocator()};
 
-  auto res = dns::detail::write_name(out, LONG_NAME, map);
+  auto res = dns::detail::encode_domain_name(out, LONG_NAME, map);
   COROSIG_REQUIRE(res.error() == dns::QuestionEncodeError::TOO_LONG_DOMAIN_NAME);
 }
 
@@ -139,7 +140,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: encodes single label with terminator",
   dns::detail::CountingOutputIterator out{buffer.begin(), written_count};
   dns::detail::CompressionMap map{reactor.allocator()};
 
-  COROSIG_REQUIRE(write_name(out, "com", map));
+  COROSIG_REQUIRE(encode_domain_name(out, "com", map));
 
   COROSIG_REQUIRE(out.written() == 5); // length + "com" + 0
   COROSIG_REQUIRE(uint8_t(buffer[0]) == 3);
@@ -155,7 +156,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: encodes multi-label domain", "[write_n
   dns::detail::CountingOutputIterator out{buffer.begin(), written_count};
   dns::detail::CompressionMap map{reactor.allocator()};
 
-  COROSIG_REQUIRE(write_name(out, "www.example.com", map));
+  COROSIG_REQUIRE(encode_domain_name(out, "www.example.com", map));
 
   // Expected: 3www 7example 3com 0
   COROSIG_REQUIRE(uint8_t(buffer[0]) == 3);
@@ -171,7 +172,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: propagates label error (empty label)",
   dns::detail::CompressionMap map{reactor.allocator()};
 
   // invalid: consecutive dots → empty label
-  auto res = write_name(out, "www..com", map);
+  auto res = dns::detail::encode_domain_name(out, "www..com", map);
   COROSIG_REQUIRE(res.error() == dns::QuestionEncodeError::EMPTY_LABEL);
 }
 
@@ -183,11 +184,11 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: compression short-circuits remaining l
   dns::detail::CompressionMap map{reactor.allocator()};
 
   // invalid: consecutive dots → empty label
-  auto res = write_name(out, "www..com", map);
+  auto res = encode_domain_name(out, "www..com", map);
   COROSIG_REQUIRE(res.error() == dns::QuestionEncodeError::EMPTY_LABEL);
 
   // First write: fills map
-  out = write_name(out, "example.com", map).value();
+  out = encode_domain_name(out, "example.com", map).value();
 
   size_t written_count2 = 0;
   dns::detail::CountingOutputIterator out2{
@@ -196,7 +197,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: compression short-circuits remaining l
   };
 
   // Second write: should reuse compression
-  COROSIG_REQUIRE(write_name(out2, "example.com", map));
+  COROSIG_REQUIRE(encode_domain_name(out2, "example.com", map));
   COROSIG_REQUIRE(out2.written() == 2);
 
   size_t written_total = out.written() + out2.written();
@@ -236,7 +237,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_question: encodes single question correctly
                                   },
                                   reactor.allocator()));
 
-  COROSIG_REQUIRE(buffer.size() > sizeof(dns::detail::Header));
+  COROSIG_REQUIRE(buffer.size() > sizeof(dns::Header));
 
   // ID (network order)
   COROSIG_REQUIRE(uint8_t(buffer[0]) == 0x12);
@@ -248,7 +249,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_question: encodes single question correctly
 
   // Check name encoding: "example.com"
   // 7example 3com 0
-  size_t pos = sizeof(dns::detail::Header);
+  size_t pos = sizeof(dns::Header);
   COROSIG_REQUIRE(uint8_t(buffer[pos]) == 7);
   pos += 8;
   COROSIG_REQUIRE(uint8_t(buffer[pos]) == 3);
@@ -284,7 +285,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_question: encodes multiple questions", "[en
   COROSIG_REQUIRE(uint8_t(buffer[5]) == 0x02);
 
   // 1a 3com 0
-  size_t pos = sizeof(dns::detail::Header);
+  size_t pos = sizeof(dns::Header);
   COROSIG_REQUIRE(uint8_t(buffer[pos]) == 1);
   pos += 2;
   size_t com_pos = pos;
@@ -319,7 +320,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_question: writes qtype and qclass", "[encod
                                   reactor.allocator()));
 
   // find end of name (walk it)
-  size_t pos = sizeof(dns::detail::Header);
+  size_t pos = sizeof(dns::Header);
   while (buffer[pos] != 0) {
     pos += uint8_t(buffer[pos]) + 1;
   }
