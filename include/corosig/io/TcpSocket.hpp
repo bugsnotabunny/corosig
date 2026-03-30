@@ -26,7 +26,13 @@ public:
   TcpSocket(const TcpSocket &) = delete;
   TcpSocket(TcpSocket &&) noexcept = default;
   TcpSocket &operator=(const TcpSocket &) = delete;
-  TcpSocket &operator=(TcpSocket &&) noexcept = default;
+  TcpSocket &operator=(TcpSocket &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~TcpSocket();
+      new (this) TcpSocket{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~TcpSocket();
 

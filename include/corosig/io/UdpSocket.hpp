@@ -18,31 +18,40 @@ public:
   /// @brief Construct a UDP socket which refers to invalid os::Handle
   UdpSocket() noexcept = default;
 
-  /// @brief Make a UDP socket capable of sending packages. Or get a syscall error
+  /// @brief Make a UDP socket which is not bound to a specific addr. Or get a syscall error
   static Result<UdpSocket, SyscallError> writer() noexcept;
 
-  /// @brief Make a UDP socket capable of sending packages and receiving then on address local. Or
-  ///        get a syscall error
+  /// @brief Make a UDP socket which is bound to a specific addr. Or get a syscall error
   static Result<UdpSocket, SyscallError> readwriter(sockaddr_storage const &local) noexcept;
 
   UdpSocket(const UdpSocket &) = delete;
   UdpSocket(UdpSocket &&) noexcept = default;
   UdpSocket &operator=(const UdpSocket &) = delete;
-  UdpSocket &operator=(UdpSocket &&) noexcept = default;
+  UdpSocket &operator=(UdpSocket &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~UdpSocket();
+      new (this) UdpSocket{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~UdpSocket();
 
   /// @brief Receive a package into buffer
-  /// @returns Number of bytes read or a syscall error
+  /// @returns Size of received datagram or a syscall error
   /// @returns 0 bytes read if EOF was reached
   /// @param source If source is not nullptr, it is set to tell where did the package come from
+  /// @note If datagram size is greater than given buffer, it is truncated to fit the buffer.
+  ///       Returned size is never truncated
   Fut<size_t, Error<AllocationError, SyscallError>>
   recv_from(Reactor &, std::span<char>, sockaddr_storage *source = nullptr) noexcept;
 
   /// @brief Receive a package into buffer if socket is read-ready
-  /// @returns Number of bytes read or a syscall error
+  /// @returns Size of received datagram or a syscall error
   /// @returns 0 bytes read if EOF was reached
   /// @param source If source is not nullptr, it is set to tell where did the package come from
+  /// @note If datagram size is greater than given buffer, it is truncated to fit the buffer.
+  ///       Returned size is never truncated
   Result<size_t, SyscallError> try_recv_from(std::span<char>,
                                              sockaddr_storage *source = nullptr) noexcept;
 

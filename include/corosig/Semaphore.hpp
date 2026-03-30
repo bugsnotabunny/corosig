@@ -26,7 +26,13 @@ struct Semaphore {
     Holder(const Holder &) = delete;
     Holder(Holder &&) = default;
     Holder &operator=(const Holder &) = delete;
-    Holder &operator=(Holder &&) = default;
+    Holder &operator=(Holder &&rhs) noexcept {
+      if (this != &rhs) {
+        this->~Holder();
+        new (this) Holder{std::move(rhs)};
+      }
+      return *this;
+    }
 
     ~Holder();
 

@@ -12,6 +12,8 @@
 #include <concepts>
 #include <coroutine>
 #include <cstddef>
+#include <functional>
+#include <iostream>
 #include <utility>
 
 namespace corosig {
@@ -164,7 +166,13 @@ struct [[nodiscard("forgot to await?")]] Fut {
   Fut(const Fut &) = delete;
   Fut(Fut &&rhs) noexcept = default;
   Fut &operator=(const Fut &) = delete;
-  Fut &operator=(Fut &&rhs) noexcept = default;
+  Fut &operator=(Fut &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~Fut();
+      new (this) Fut{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~Fut() {
     if (m_handle.value != nullptr) {

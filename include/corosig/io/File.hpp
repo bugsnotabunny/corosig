@@ -49,7 +49,13 @@ public:
   File(const File &) = delete;
   File(File &&) noexcept = default;
   File &operator=(const File &) = delete;
-  File &operator=(File &&) noexcept = default;
+  File &operator=(File &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~File();
+      new (this) File{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~File();
 
