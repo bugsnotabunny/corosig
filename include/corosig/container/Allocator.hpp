@@ -75,8 +75,8 @@ private:
     size_t block_size;
   };
 
-  void link(FreeNode &) noexcept;
   static void unlink_and_destroy(FreeNode &) noexcept;
+  void link(FreeNode &) noexcept;
   void maybe_merge_with_next(FreeNode &) noexcept;
 
   using nodes_by_size_type = boost::intrusive::avl_multiset<
@@ -95,7 +95,6 @@ private:
   nodes_by_addr_type m_nodes_by_addr;
   SetDefaultOnMove<size_t> m_used;
   SetDefaultOnMove<size_t> m_peak;
-  SetDefaultOnMove<char *> m_mem;
 };
 
 } // namespace corosig

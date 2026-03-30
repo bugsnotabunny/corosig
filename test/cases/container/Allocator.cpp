@@ -5,8 +5,13 @@
 #include <catch2/catch_all.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <random>
+
+namespace {
 
 using namespace corosig;
+
+} // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
   Allocator::Memory<1024> mem;
@@ -87,20 +92,45 @@ COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
   alloc.deallocate(p2);
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("Stress test with varied sizes and alignments") {
-  Allocator::Memory<512> mem;
-  Allocator alloc{mem};
+TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][stress]") {
+  constexpr auto BUFFER_SIZE = size_t(20) * 1024 * 1024;
+  std::vector<char> mem;
+  mem.resize(BUFFER_SIZE);
+  Allocator allocator{mem};
 
-  void *a = alloc.allocate(32, alignof(int));
-  COROSIG_REQUIRE(a != nullptr);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<size_t> size_dist(1, size_t(1024) * 1024);
+  std::uniform_int_distribution<size_t> alignments_dist(0, 12);
 
-  void *b = alloc.allocate(64, alignof(double));
-  COROSIG_REQUIRE(b != nullptr);
+  std::vector<void *> allocations;
 
-  void *c = alloc.allocate(128, alignof(std::max_align_t));
-  COROSIG_REQUIRE(c != nullptr);
+  for (size_t i = 0; i != 1000000; ++i) {
+    if (!allocations.empty() && gen() % 4 == 0) {
+      std::uniform_int_distribution<size_t> idx_dist(0, allocations.size() - 1);
+      size_t idx = idx_dist(gen);
+      allocator.deallocate(allocations[idx]);
+      allocations.erase(allocations.begin() + long(idx));
+      continue;
+    }
 
-  alloc.deallocate(a);
-  alloc.deallocate(b);
-  alloc.deallocate(c);
+    size_t size = size_dist(gen);
+    size_t alignment = 1 << alignments_dist(gen);
+
+    void *ptr = allocator.allocate(size, alignment);
+    if (ptr != nullptr) {
+      REQUIRE(reinterpret_cast<uintptr_t>(ptr) % alignment == 0);
+      allocations.push_back(ptr);
+    }
+
+    // Verify no double frees or memory corruption
+    size_t current = allocator.current_memory();
+    REQUIRE(current <= BUFFER_SIZE);
+  }
+
+  for (void *ptr : allocations) {
+    allocator.deallocate(ptr);
+  }
+
+  REQUIRE(allocator.current_memory() == 0);
 }
