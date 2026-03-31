@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <catch2/catch_all.hpp>
 #include <cstdint>
+#include <iterator>
+#include <ranges>
 #include <string_view>
 
 namespace {
@@ -78,6 +80,10 @@ TEST_CASE("Decode valid DNS header") {
 
   auto const &header = result.value();
   REQUIRE(header.id == 0x1234);
+  REQUIRE(header.flags.value == 0x8180);
+  REQUIRE(header.flags.recursion_available());
+  REQUIRE(header.flags.recursion_desired());
+  REQUIRE(header.flags.opcode() == QueryOpcode::STANDARD);
   REQUIRE(header.qdcount == 1);
   REQUIRE(header.ancount == 2);
   REQUIRE(header.nscount == 0);
@@ -1095,4 +1101,108 @@ TEST_CASE("Decode MINFO record", "[dns][rdata][minfo]") {
   REQUIRE(rr);
 
   REQUIRE(rr.value().rdata.holds<RDataMailInfo>());
+}
+
+constexpr uint8_t hex_to_int(char c) noexcept {
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'A' && c <= 'F') {
+    return c - 'A' + 10;
+  }
+  return c - 'a' + 10;
+}
+
+TEST_CASE("E2E decode with real-life data") {
+  constexpr std::string_view RESPONSE_HEX =
+      "687d8180000100060000000006676f6f676c6503636f6d0000010001c00c00010001000001"
+      "2900048efb018bc00c000100010000012900048efb0165c00c"
+      "000100010000012900048efb018ac00c000100010000012900048efb"
+      "0166c00c000100010000012900048efb0171c00c000100010000012900048e"
+      "fb0164";
+
+  static_assert(RESPONSE_HEX.size() % 2 == 0);
+  std::array<uint8_t, RESPONSE_HEX.size() / 2> response;
+  for (size_t i = 0; i != RESPONSE_HEX.size(); i += 2) {
+    response[i / 2] = hex_to_int(RESPONSE_HEX[i]) * 16 + hex_to_int(RESPONSE_HEX[i + 1]);
+  }
+
+  ResponseDecoder decoder{response};
+
+  Header header = decoder.consume_header().value();
+
+  REQUIRE(header.id == 26749);
+  REQUIRE(header.flags.is_response());
+  REQUIRE(header.flags.opcode() == QueryOpcode::STANDARD);
+  REQUIRE_FALSE(header.flags.authoritative_answer());
+  REQUIRE_FALSE(header.flags.truncated());
+  REQUIRE(header.flags.recursion_desired());
+  REQUIRE(header.flags.recursion_available());
+  REQUIRE(header.flags.truncated() == false);
+  REQUIRE(header.flags.get_rcode() == 0);
+  REQUIRE(header.qdcount == 1);
+  REQUIRE(header.ancount == 6);
+  REQUIRE(header.nscount == 0);
+  REQUIRE(header.arcount == 0);
+
+  auto is_google_com = [](DomainName dn) {
+    return std::ranges::equal(dn.labels_svs(), split_into_labels("google.com"));
+  };
+
+  {
+    auto question = decoder.consume_question_entry().value();
+
+    REQUIRE(is_google_com(question.name));
+    REQUIRE(question.qtype == QueryType::A);
+    REQUIRE(question.qclass == QueryClass::IN);
+  }
+
+  using namespace std::chrono_literals;
+  {
+    auto record = decoder.consume_resource_record().value();
+
+    REQUIRE(is_google_com(record.name));
+    REQUIRE(record.ttl == 297s);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb018b);
+  }
+
+  {
+    auto record = decoder.consume_resource_record().value();
+
+    REQUIRE(is_google_com(record.name));
+    REQUIRE(record.ttl == 297s);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0165);
+  }
+
+  {
+    auto record = decoder.consume_resource_record().value();
+
+    REQUIRE(is_google_com(record.name));
+    REQUIRE(record.ttl == 297s);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb018a);
+  }
+
+  {
+    auto record = decoder.consume_resource_record().value();
+
+    REQUIRE(is_google_com(record.name));
+    REQUIRE(record.ttl == 297s);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0166);
+  }
+
+  {
+    auto record = decoder.consume_resource_record().value();
+
+    REQUIRE(is_google_com(record.name));
+    REQUIRE(record.ttl == 297s);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0171);
+  }
+
+  {
+    auto record = decoder.consume_resource_record().value();
+
+    REQUIRE(is_google_com(record.name));
+    REQUIRE(record.ttl == 297s);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0164);
+  }
 }

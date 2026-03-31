@@ -174,7 +174,6 @@ enum class QueryOpcode : uint8_t {
 
 struct Header {
   struct Flags {
-
     [[nodiscard]] bool is_response() const noexcept;
     Flags &set_response(bool) noexcept;
 
@@ -198,7 +197,7 @@ struct Header {
 
     constexpr auto operator<=>(Flags const &rhs) const noexcept = default;
 
-    uint16_t value = {};
+    uint16_t value = 0;
   };
 
   constexpr auto operator<=>(Header const &rhs) const noexcept = default;

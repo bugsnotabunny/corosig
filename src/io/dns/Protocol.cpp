@@ -3,6 +3,8 @@
 #include "corosig/Result.hpp"
 
 #include <bit>
+#include <climits>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -22,15 +24,21 @@ static_assert(std::ranges::range<DomainName>);
 constexpr std::string_view LABEL_LEN_TOO_BIG_MSG = "Label exeeds 63 octets size limit";
 constexpr std::string_view NAME_LEN_TOO_BIG_MSG = "Domain name exeeds 255 octets size limit";
 
-template <std::input_iterator IN, std::integral INT>
+template <std::input_iterator IN, std::unsigned_integral INT>
 constexpr IN read_ntoh(IN in, INT &value) noexcept {
   value = 0;
   for (size_t i = 0; i < sizeof(value); ++i) {
-    value <<= 8;
+    value <<= CHAR_BIT;
     value |= INT(*in++);
   }
   return in;
 }
+
+static_assert([]() -> bool {
+  uint16_t n;
+  read_ntoh(std::array<uint8_t, 2>{0xC8, 0x67}.begin(), n);
+  return n == 0xC867;
+}());
 
 constexpr std::optional<CompressionPointer>
 decode_compression_ptr(std::span<uint8_t const> input) noexcept {
@@ -77,6 +85,7 @@ constexpr uint16_t RA = 0b0000000010000000;
 constexpr uint16_t RCODE = 0b0000000000001111;
 
 template <uint16_t FIELD>
+  requires(FIELD != 0)
 constexpr uint16_t set_bitfield(uint16_t mask, uint8_t value) noexcept {
   constexpr auto W = std::popcount(FIELD);
   assert(value < (1 << W) && "Value should be representible within FIELD width");
@@ -84,6 +93,7 @@ constexpr uint16_t set_bitfield(uint16_t mask, uint8_t value) noexcept {
 }
 
 template <uint16_t FIELD>
+  requires(FIELD != 0)
 constexpr uint8_t get_bitfield(uint16_t mask) noexcept {
   return (mask & FIELD) >> std::countr_zero(FIELD);
 }
