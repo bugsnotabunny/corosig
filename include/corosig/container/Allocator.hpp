@@ -95,6 +95,7 @@ private:
   nodes_by_addr_type m_nodes_by_addr;
   SetDefaultOnMove<size_t> m_used;
   SetDefaultOnMove<size_t> m_peak;
+  std::span<char> m_mem;
 };
 
 } // namespace corosig

@@ -2,10 +2,16 @@
 
 #include "corosig/meta/AnAllocator.hpp"
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <limits>
+
+#if COROSIG_ASAN_ENABLED
+#include <sanitizer/asan_interface.h>
+#endif
 
 namespace {
 
@@ -40,11 +46,24 @@ T sub_sat(T a, T b) noexcept {
 
 namespace corosig {
 
-Allocator::Allocator(std::span<char> mem) noexcept {
+Allocator::Allocator(std::span<char> mem) noexcept
+    : m_mem{mem} {
+#if COROSIG_ASAN_ENABLED
+  ASAN_POISON_MEMORY_REGION(mem.data(), mem.size());
+
+  constexpr size_t ASAN_POISON_GUARDS = 8;
+  mem = mem.subspan(std::min(mem.size(), ASAN_POISON_GUARDS));
+  mem = mem.subspan(0, std::min(mem.size(), mem.size() - ASAN_POISON_GUARDS));
+#endif
+
   char *aligned_mem_start = align_right(mem.data(), alignof(FreeNode));
 
   size_t mem_size = mem.size() - size_t(aligned_mem_start - mem.data());
+
   if (mem_size >= sizeof(FreeNode)) {
+#if COROSIG_ASAN_ENABLED
+    ASAN_UNPOISON_MEMORY_REGION(aligned_mem_start, sizeof(FreeNode));
+#endif
     new (aligned_mem_start) FreeNode{
         .block_size = mem_size - sizeof(AllocationHeader),
     };
@@ -54,6 +73,9 @@ Allocator::Allocator(std::span<char> mem) noexcept {
 
 Allocator::~Allocator() {
   assert(*m_used == 0 && "Memory leak detected");
+#if COROSIG_ASAN_ENABLED
+  ASAN_UNPOISON_MEMORY_REGION(m_mem.data(), m_mem.size());
+#endif
 }
 
 size_t Allocator::peak_memory() const noexcept {
@@ -77,12 +99,12 @@ void Allocator::unlink_and_destroy(FreeNode &node) noexcept {
 
 void *Allocator::allocate(size_t size, size_t alignment) noexcept {
   static_assert(alignof(AllocationHeader) <= alignof(FreeNode));
-
+  size_t const original_size = size;
   assert(std::has_single_bit(alignment) && "Alignment must be a power of 2");
 
   // we should always be able to construct FreeNode in allocation place
   // to make deallocate implementation more trivial
-  size = std::max(size, sizeof(FreeNode) - sizeof(AllocationHeader));
+  size = std::max(original_size, sizeof(FreeNode) - sizeof(AllocationHeader));
 
   char *allocated_block = nullptr;
 
@@ -118,6 +140,9 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
       // take whole block. don't divide it
       actually_allocated_size = aligned_allocated_block_size;
     } else {
+#if COROSIG_ASAN_ENABLED
+      ASAN_UNPOISON_MEMORY_REGION(new_free_node_addr, sizeof(FreeNode));
+#endif
       new (new_free_node_addr) FreeNode{
           .block_size = extra_free_space - sizeof(AllocationHeader),
       };
@@ -125,15 +150,24 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
     }
 
     unlink_and_destroy(*reinterpret_cast<FreeNode *>(node_addr));
+#if COROSIG_ASAN_ENABLED
+    ASAN_POISON_MEMORY_REGION(node_addr, sizeof(FreeNode));
+#endif
 
     assert(padding <= std::numeric_limits<uint32_t>::max());
     assert(actually_allocated_size <= std::numeric_limits<uint32_t>::max());
 
     assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
+#if COROSIG_ASAN_ENABLED
+    ASAN_UNPOISON_MEMORY_REGION(allocation_header_addr, sizeof(AllocationHeader) + original_size);
+#endif
     new (allocation_header_addr) AllocationHeader{
         .block_size = uint32_t(actually_allocated_size),
         .padding = uint32_t(padding),
     };
+#if COROSIG_ASAN_ENABLED
+    ASAN_POISON_MEMORY_REGION(allocation_header_addr - padding, padding + sizeof(AllocationHeader));
+#endif
 
     allocated_block = aligned_allocated_block_addr;
     *m_used += actually_allocated_size + padding + sizeof(AllocationHeader);
@@ -152,12 +186,22 @@ void Allocator::deallocate(void *ptr) noexcept {
 
   char *const current_addr = reinterpret_cast<char *>(ptr);
   char *const header_addr = current_addr - sizeof(AllocationHeader);
+
   assert(size_t(header_addr) % alignof(AllocationHeader) == 0);
 
-  size_t const padding = reinterpret_cast<AllocationHeader *>(header_addr)->padding;
-  size_t const block_size = reinterpret_cast<AllocationHeader *>(header_addr)->block_size;
+#if COROSIG_ASAN_ENABLED
+  ASAN_UNPOISON_MEMORY_REGION(header_addr, sizeof(AllocationHeader));
+#endif
+
+  auto const padding = reinterpret_cast<AllocationHeader *>(header_addr)->padding;
+  auto const block_size = reinterpret_cast<AllocationHeader *>(header_addr)->block_size;
+
   char *const node_addr = header_addr - padding;
 
+#if COROSIG_ASAN_ENABLED
+  ASAN_POISON_MEMORY_REGION(header_addr + sizeof(AllocationHeader), block_size);
+  ASAN_UNPOISON_MEMORY_REGION(node_addr, sizeof(FreeNode));
+#endif
   new (node_addr) FreeNode{
       .block_size = block_size + padding,
   };

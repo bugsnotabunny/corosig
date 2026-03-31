@@ -28,13 +28,19 @@ end
 
 add_requires("boost 1.86.0", { configs = { filesystem = false } })
 
-
 target("corosig")
     set_kind("static")
     add_includedirs("include", { public = true })
     add_files("src/**.cpp")
     set_default(true)
     add_packages("boost", { public = true })
+
+    before_build(function (target)
+        local policies = import("core.project.policy").policies()
+        if policies["build.sanitizer.address"] then
+            target:add("defines", "COROSIG_ASAN_ENABLED=1")
+        end
+    end)
 target_end()
 
 
