@@ -13,7 +13,6 @@
 #include <coroutine>
 #include <cstddef>
 #include <functional>
-#include <iostream>
 #include <utility>
 
 namespace corosig {
@@ -177,8 +176,9 @@ struct [[nodiscard("forgot to await?")]] Fut {
   ~Fut() {
     if (m_handle.value != nullptr) {
       Reactor &reactor = promise().m_reactor;
+      void *addr = m_handle.value.address();
       m_handle.value.destroy();
-      reactor.allocator().deallocate(m_handle.value.address());
+      reactor.allocator().deallocate(addr);
     }
   }
 
