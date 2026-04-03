@@ -90,6 +90,10 @@ std::chrono::milliseconds ceil_to_millis(std::chrono::nanoseconds nanos) noexcep
 
 namespace corosig {
 
+Reactor::Reactor(std::span<char> mem) noexcept
+    : m_alloc{mem} {
+}
+
 Allocator &Reactor::allocator() noexcept {
   return m_alloc;
 }
@@ -107,7 +111,7 @@ void Reactor::schedule_when_time_passes(SleepListNode &node) noexcept {
 }
 
 bool Reactor::has_active_tasks() const noexcept {
-  return !m_polled.empty() && !m_ready.empty();
+  return !m_polled.empty() || !m_ready.empty() || !m_sleeping.empty();
 }
 
 size_t Reactor::peak_memory() const noexcept {

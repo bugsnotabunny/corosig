@@ -13,7 +13,7 @@ namespace corosig {
 ///         unavoidable thing when you want to construct result holding void
 template <typename T>
 struct Ok {
-  Ok(T &&value) noexcept
+  constexpr Ok(T &&value) noexcept
       : value{std::forward<T>(value)} {
   }
 
@@ -32,7 +32,7 @@ Ok() -> Ok<void>;
 ///         erroneous Results because it makes it clearly visible in code
 template <typename T>
 struct Failure {
-  Failure(T &&value) noexcept
+  constexpr Failure(T &&value) noexcept
       : value{std::forward<T>(value)} {
   }
   T &&value;
@@ -50,26 +50,26 @@ struct [[nodiscard]] Result {
   using WrapVoidR = std::conditional_t<std::same_as<R, void>, Void, R>;
 
 public:
-  Result() noexcept = default;
+  constexpr Result() noexcept = default;
 
   /// @brief Construct a result holding a value
   template <typename T>
     requires(!std::same_as<T, void> && std::convertible_to<T, R>)
-  Result(Ok<T> &&success) noexcept
+  constexpr Result(Ok<T> &&success) noexcept
       : m_value{std::in_place_type<WrapVoidR>, std::forward<T>(success.value)} {
   }
 
   /// @brief Construct a result holding void value
   template <typename T>
     requires(std::same_as<T, void>)
-  Result(Ok<T> &&) noexcept
+  constexpr Result(Ok<T> &&) noexcept
       : m_value{std::in_place_type<WrapVoidR>} {
   }
 
   /// @brief Construct a result holding an error
   template <typename T>
     requires(std::convertible_to<T, E>)
-  Result(Failure<T> &&failure) noexcept
+  constexpr Result(Failure<T> &&failure) noexcept
       : m_value{std::in_place_type<E>, std::forward<T>(failure.value)} {
   }
 
@@ -78,14 +78,14 @@ public:
   ///         this's error
   template <typename R1, typename E1>
     requires(!std::same_as<R, R1> || !std::same_as<E, E1>)
-  Result(Result<R1, E1> &&other) noexcept
+  constexpr Result(Result<R1, E1> &&other) noexcept
       : Result{converting_ctor_impl(std::forward<Result<R1, E1>>(other))} {
   }
 
   /// @brief Construct a result holding a value
   template <typename T>
     requires(!std::same_as<Result, T> && std::convertible_to<T, R>)
-  Result(T &&value) noexcept
+  constexpr Result(T &&value) noexcept
       : Result{Ok{std::forward<T>(value)}} {
   }
 
@@ -152,7 +152,7 @@ private:
   }
 
   template <typename R1, typename E1>
-  static Result<R, E> converting_ctor_impl(Result<R1, E1> &&other) noexcept {
+  constexpr static Result<R, E> converting_ctor_impl(Result<R1, E1> &&other) noexcept {
     if (!other.is_ok()) {
       return Failure{std::move(other.error())};
     }

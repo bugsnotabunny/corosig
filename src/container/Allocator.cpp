@@ -6,7 +6,6 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <limits>
 
 #if COROSIG_ASAN_ENABLED

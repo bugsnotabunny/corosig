@@ -67,7 +67,7 @@ Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> messag
                             message.data(),
                             message.size(),
                             0,
-                            (sockaddr const *)&dest,
+                            reinterpret_cast<sockaddr const *>(&dest),
                             os::posix::addr_length(dest));
   if (result == -1) {
     return Failure{SyscallError::current()};
