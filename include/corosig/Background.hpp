@@ -69,6 +69,21 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
     return reactor.allocator().allocate(n, alignof(std::max_align_t));
   }
 
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return reactor.allocator().allocate(n, size_t(align));
+  }
+
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            NotReactor auto const &,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return reactor.allocator().allocate(n, size_t(align));
+  }
+
   static void operator delete(void *) noexcept {
     // Should forward to the reactor's allocator, but we don't have reactor context here
     // This is problematic - consider alternative design

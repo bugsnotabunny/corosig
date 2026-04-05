@@ -13,6 +13,7 @@
 #include <coroutine>
 #include <cstddef>
 #include <functional>
+#include <new>
 #include <utility>
 
 namespace corosig {
@@ -67,6 +68,28 @@ struct CoroutinePromiseType : CoroListNode {
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
     return reactor.allocator().allocate(n, alignof(std::max_align_t));
+  }
+
+  /// @brief Allocate new coroutine frame using allocator from reactor
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return reactor.allocator().allocate(n, size_t(align));
+  }
+
+  /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
+  ///         some object's method is declared as coroutine
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            NotReactor auto const &,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return reactor.allocator().allocate(n, size_t(align));
   }
 
   /// @brief Noop
