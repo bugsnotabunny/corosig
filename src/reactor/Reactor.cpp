@@ -17,10 +17,15 @@ namespace {
 
 using namespace corosig;
 
-void resume_ready_sleepers(SleepList &sleeping) noexcept {
-  auto now = Clock::now();
+constexpr auto ITERATIONS_LIMIT = 1024;
 
-  while (!sleeping.empty()) {
+void resume_ready_sleepers(SleepList &sleeping) noexcept {
+  if (sleeping.empty()) {
+    return;
+  }
+
+  auto now = Clock::now();
+  for (size_t i = 0; !sleeping.empty() && i < ITERATIONS_LIMIT; ++i) {
     SleepListNode &node = *sleeping.begin();
     if (node.awake_time > now) {
       break;
@@ -42,15 +47,13 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
   std::array<::pollfd, BUF_SIZE> poll_fds;
 
   size_t fds_count = 0;
-  for (PollListNode &node : polled) {
+  for (auto it = polled.begin(); it != polled.end() && fds_count < BUF_SIZE; ++fds_count, ++it) {
+    PollListNode &node = *it;
     assert(node.handle != -1);
 
     ::pollfd &poll_fd = poll_fds[fds_count];
-
     poll_fd.fd = node.handle;
     poll_fd.events = short(node.event);
-
-    ++fds_count;
   }
 
   int ret = ::poll(poll_fds.data(), fds_count, timeout.count());
@@ -58,8 +61,15 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
     return Failure{SyscallError::current()};
   }
 
-  for (size_t i = 0; i < size_t(ret); ++i) {
-    auto &node = polled.front();
+  // polled list may become empty if some coroutine cancels execution which may trigger deletion of
+  // some of list nodes
+  for (size_t i = 0; !polled.empty() && i < size_t(ret); ++i) {
+    PollListNode &node = polled.front();
+    // list node was deleted due to coroutine cancelling
+    if (poll_fds[i].fd != node.handle) {
+      continue;
+    }
+
     polled.pop_front();
 
     assert(node.waiting_coro != nullptr);
@@ -70,8 +80,6 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
 }
 
 void resume(CoroList &ready) noexcept {
-  constexpr auto ITERATIONS_LIMIT = 1024;
-
   for (size_t i = 0; !ready.empty() && i < ITERATIONS_LIMIT; ++i) {
     auto &node = ready.front();
     ready.pop_front();

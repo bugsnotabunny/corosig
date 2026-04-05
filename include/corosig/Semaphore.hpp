@@ -104,10 +104,8 @@ private:
   void take_units(size_t units) noexcept;
   void free_units(size_t units) noexcept;
 
-  using waiters_queue_type = boost::intrusive::slist<HolderAwaiter,
-                                                     boost::intrusive::constant_time_size<false>,
-                                                     boost::intrusive::linear<true>,
-                                                     boost::intrusive::cache_last<true>>;
+  using waiters_queue_type =
+      boost::intrusive::list<HolderAwaiter, boost::intrusive::constant_time_size<false>>;
 
   size_t m_max_parallelism;
   size_t m_current_parallelism = 0;

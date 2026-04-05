@@ -47,8 +47,12 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
                                                       sockaddr_storage *source_addr) noexcept {
   socklen_t addrlen;
   socklen_t *addrlen_ptr = source_addr == nullptr ? nullptr : &addrlen;
-  ssize_t result =
-      ::recvfrom(m_fd.value, out.data(), out.size(), 0, (sockaddr *)source_addr, addrlen_ptr);
+  ssize_t result = ::recvfrom(m_fd.value,
+                              out.data(),
+                              out.size(),
+                              MSG_OOB,
+                              reinterpret_cast<sockaddr *>(source_addr),
+                              addrlen_ptr);
   if (result == -1) {
     return Failure{SyscallError::current()};
   }
