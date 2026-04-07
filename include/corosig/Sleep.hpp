@@ -10,7 +10,7 @@
 namespace corosig {
 
 /// @brief  Break the execution of a coroutine until specified amount of time passes
-struct Sleep : SleepListNode {
+struct [[nodiscard("forgot to await?")]] Sleep : SleepListNode {
   Sleep(Clock::time_point until) {
     this->awake_time = until;
   }

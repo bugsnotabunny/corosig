@@ -50,7 +50,7 @@ struct Semaphore {
   /// @brief   Awaits for specified units count to become available in semaphore
   /// @warning Methods within this type are not really intended to be called directly in user code.
   ///          Prefer sticking to just operator co_await
-  struct HolderAwaiter : CoroListNode {
+  struct [[nodiscard("forgot to await?")]] HolderAwaiter : CoroListNode {
     HolderAwaiter(const HolderAwaiter &) = delete;
     HolderAwaiter(HolderAwaiter &&) = delete;
     HolderAwaiter &operator=(const HolderAwaiter &) = delete;
