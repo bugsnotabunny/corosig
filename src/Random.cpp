@@ -12,6 +12,8 @@
 
 namespace {
 
+static_assert(corosig::ARandomGenerator<corosig::ChaCha20RandomGenerator>);
+
 void chacha20_quarter_round(uint32_t *s, size_t a, size_t b, size_t c, size_t d) noexcept {
   s[a] += s[b];
   s[d] ^= s[a];
@@ -38,7 +40,7 @@ Fut<size_t, Error<AllocationError, SyscallError>> read_dev_urandom(Reactor &r,
   co_return bytes_read;
 }
 
-ChaCha20RandGen::ChaCha20RandGen(std::array<uint8_t, 32> seed) noexcept {
+ChaCha20RandomGenerator::ChaCha20RandomGenerator(std::array<uint8_t, 32> seed) noexcept {
   constexpr std::array<uint32_t, 4> CONSTANT = {0x61707865, 0x3320646e, 0x79622d32, 0x6b206574};
 
   auto *out = std::ranges::copy(CONSTANT, m_state.data()).out;
@@ -51,7 +53,7 @@ ChaCha20RandGen::ChaCha20RandGen(std::array<uint8_t, 32> seed) noexcept {
   m_state[15] = 0; // nonce high
 }
 
-void ChaCha20RandGen::generate_bytes(std::span<std::byte> out) noexcept {
+void ChaCha20RandomGenerator::generate_bytes(std::span<std::byte> out) noexcept {
   auto *dst = out.data();
   auto len = out.size();
   while (len > 0) {
@@ -66,7 +68,7 @@ void ChaCha20RandGen::generate_bytes(std::span<std::byte> out) noexcept {
   }
 }
 
-void ChaCha20RandGen::refill() noexcept {
+void ChaCha20RandomGenerator::refill() noexcept {
   auto working_state = m_state;
 
   for (size_t i = 0; i < 10; ++i) {
