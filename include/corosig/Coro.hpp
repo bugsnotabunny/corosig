@@ -185,6 +185,10 @@ struct [[nodiscard("forgot to await?")]] Fut {
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   using promise_type = detail::CoroutinePromiseType<T, E>;
 
+  static Fut make_failed_to_allocate() noexcept {
+    return Fut<T, E>{nullptr};
+  }
+
   Fut(const Fut &) = delete;
   Fut(Fut &&rhs) noexcept = default;
   Fut &operator=(const Fut &) = delete;
@@ -294,7 +298,7 @@ Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object() noexcept {
 
 template <typename T, typename E>
 Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object_on_allocation_failure() noexcept {
-  return Fut<T, E>{nullptr};
+  return Fut<T, E>::make_failed_to_allocate();
 }
 
 } // namespace corosig
