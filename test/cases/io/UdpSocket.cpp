@@ -10,7 +10,7 @@
 using namespace corosig;
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket writer() creates a valid socket", "[udp]") {
-  auto r = UdpSocket::writer();
+  auto r = UdpSocket::unbound();
   COROSIG_REQUIRE(r.is_ok());
   UdpSocket sock = std::move(r.value());
   COROSIG_REQUIRE(sock.underlying_handle() != -1);
@@ -23,7 +23,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket readwriter() binds to local port", "[udp
   in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   in->sin_port = 0;
 
-  auto r = UdpSocket::readwriter(addr);
+  auto r = UdpSocket::bound(addr);
   REQUIRE(r.is_ok());
   UdpSocket sock = std::move(r.value());
   REQUIRE(sock.underlying_handle() != -1);
@@ -37,8 +37,8 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket send_to/recv_from async loopback", "[udp
     in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     in->sin_port = htons(9912);
 
-    COROSIG_CO_TRY(auto receiver, UdpSocket::readwriter(local));
-    COROSIG_CO_TRY(auto sender, UdpSocket::writer());
+    COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(auto sender, UdpSocket::unbound());
 
     constexpr std::string_view MSG = "hello udp";
     std::array<char, MSG.size()> buffer;

@@ -139,7 +139,7 @@ Fut<void, Error<AllocationError, SyscallError>> send_via_tcp(Reactor &r) {
 };
 
 Fut<void, Error<AllocationError, SyscallError>> send_via_udp(Reactor &r) {
-  COROSIG_CO_TRY(auto socket, UdpSocket::writer());
+  COROSIG_CO_TRY(auto socket, UdpSocket::unbound());
   for (auto &log : logs_buffer) {
     COROSIG_CO_TRYV(co_await socket.send_to(r, log, UDP_SERVER_ADDR));
   }

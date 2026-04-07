@@ -18,11 +18,14 @@ public:
   /// @brief Construct a UDP socket which refers to invalid os::Handle
   UdpSocket() noexcept = default;
 
-  /// @brief Make a UDP socket which is not bound to a specific addr. Or get a syscall error
-  static Result<UdpSocket, SyscallError> writer() noexcept;
+  /// @brief Make a UDP socket which is not bound to any addr. Or get a syscall error
+  static Result<UdpSocket, SyscallError> unbound() noexcept;
 
   /// @brief Make a UDP socket which is bound to a specific addr. Or get a syscall error
-  static Result<UdpSocket, SyscallError> readwriter(sockaddr_storage const &local) noexcept;
+  static Result<UdpSocket, SyscallError> bound(sockaddr_storage const &local) noexcept;
+
+  /// @brief Make a UDP socket which is bound to a random addr. Or get a syscall error
+  static Result<UdpSocket, SyscallError> bound_randomly(sa_family_t family = AF_INET) noexcept;
 
   UdpSocket(const UdpSocket &) = delete;
   UdpSocket(UdpSocket &&) noexcept = default;

@@ -13,7 +13,7 @@
 
 namespace corosig {
 
-Result<UdpSocket, SyscallError> UdpSocket::writer() noexcept {
+Result<UdpSocket, SyscallError> UdpSocket::unbound() noexcept {
   int fd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
@@ -24,13 +24,20 @@ Result<UdpSocket, SyscallError> UdpSocket::writer() noexcept {
   return self;
 }
 
-Result<UdpSocket, SyscallError> UdpSocket::readwriter(sockaddr_storage const &local) noexcept {
-  COROSIG_TRY(auto self, writer());
+Result<UdpSocket, SyscallError> UdpSocket::bound(sockaddr_storage const &local) noexcept {
+  COROSIG_TRY(auto self, unbound());
   auto len = os::posix::addr_length(local);
   if (bind(self.m_fd.value, (struct sockaddr *)&local, len) == -1) {
     return Failure{SyscallError::current()};
   }
   return self;
+}
+
+Result<UdpSocket, SyscallError> UdpSocket::bound_randomly(sa_family_t family) noexcept {
+  sockaddr_storage addr_storage;
+  std::memset(&addr_storage, 0, sizeof(addr_storage));
+  addr_storage.ss_family = family;
+  return bound(addr_storage);
 }
 
 UdpSocket::~UdpSocket() {
@@ -50,7 +57,7 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
   ssize_t result = ::recvfrom(m_fd.value,
                               out.data(),
                               out.size(),
-                              MSG_OOB,
+                              0,
                               reinterpret_cast<sockaddr *>(source_addr),
                               addrlen_ptr);
   if (result == -1) {
