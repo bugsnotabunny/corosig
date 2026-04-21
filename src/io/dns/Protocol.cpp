@@ -1,7 +1,9 @@
 #include "corosig/io/dns/Protocol.hpp"
 
 #include "corosig/Result.hpp"
+#include "corosig/io/Sockaddr.hpp"
 
+#include <array>
 #include <bit>
 #include <climits>
 #include <concepts>
@@ -216,9 +218,10 @@ parse_rdata_ipv4(std::span<uint8_t const> rdata_raw) noexcept {
   if (rdata_raw.size() != 4) {
     return Failure{ResponseDecodeError::RESOURCE_RECORD_DATA_BAD_A};
   }
-  RDataIpv4 addr;
-  read_ntoh(rdata_raw.begin(), addr.addr);
-  return addr;
+
+  std::array<uint8_t, 4> bytes;
+  std::ranges::copy(rdata_raw, bytes.begin());
+  return RDataIpv4{.addr = Ipv4Addr::from_bytes(bytes)};
 }
 
 constexpr Result<RDataIpv6, ResponseDecodeError>
@@ -226,14 +229,10 @@ parse_rdata_ipv6(std::span<uint8_t const> rdata_raw) noexcept {
   if (rdata_raw.size() != 16) {
     return Failure{ResponseDecodeError::RESOURCE_RECORD_DATA_BAD_AAAA};
   }
-  RDataIpv6 addr;
 
-  auto it = rdata_raw.begin();
-  for (uint32_t &chunk : addr.addr) {
-    it = read_ntoh(it, chunk);
-  }
-
-  return addr;
+  std::array<uint8_t, 16> bytes;
+  std::ranges::copy(rdata_raw, bytes.begin());
+  return RDataIpv6{.addr = Ipv6Addr::from_bytes(bytes)};
 }
 
 template <typename RDATA, ResponseDecodeError ERROR>

@@ -12,7 +12,6 @@
 #include <concepts>
 #include <coroutine>
 #include <cstddef>
-#include <functional>
 #include <new>
 #include <utility>
 

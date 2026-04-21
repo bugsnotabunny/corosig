@@ -4,11 +4,11 @@
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/os/Handle.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <span>
-#include <sys/socket.h>
 
 namespace corosig {
 
@@ -22,7 +22,7 @@ public:
   static Result<UdpSocket, SyscallError> unbound() noexcept;
 
   /// @brief Make a UDP socket which is bound to a specific addr. Or get a syscall error
-  static Result<UdpSocket, SyscallError> bound(sockaddr_storage const &local) noexcept;
+  static Result<UdpSocket, SyscallError> bound(SockaddrStorage const &local) noexcept;
 
   /// @brief Make a UDP socket which is bound to a random addr. Or get a syscall error
   static Result<UdpSocket, SyscallError> bound_randomly(sa_family_t family = AF_INET) noexcept;
@@ -47,7 +47,7 @@ public:
   /// @note If datagram size is greater than given buffer, it is truncated to fit the buffer.
   ///       Returned size is never truncated
   Fut<size_t, Error<AllocationError, SyscallError>>
-  recv_from(Reactor &, std::span<char>, sockaddr_storage *source = nullptr) noexcept;
+  recv_from(Reactor &, std::span<char>, SockaddrStorage *source = nullptr) noexcept;
 
   /// @brief Receive a package into buffer if socket is read-ready
   /// @returns Size of received datagram or a syscall error
@@ -56,17 +56,17 @@ public:
   /// @note If datagram size is greater than given buffer, it is truncated to fit the buffer.
   ///       Returned size is never truncated
   Result<size_t, SyscallError> try_recv_from(std::span<char>,
-                                             sockaddr_storage *source = nullptr) noexcept;
+                                             SockaddrStorage *source = nullptr) noexcept;
 
   /// @brief Send a package from buffer to specified dest
   /// @returns Number of bytes written or a syscall error
   Fut<size_t, Error<AllocationError, SyscallError>>
-  send_to(Reactor &, std::span<char const>, sockaddr_storage const &dest) noexcept;
+  send_to(Reactor &, std::span<char const>, SockaddrStorage const &dest) noexcept;
 
   /// @brief Send a package from buffer to specified dest if socket is write-ready
   /// @returns Number of bytes written or a syscall error
   Result<size_t, SyscallError> try_send_to(std::span<char const>,
-                                           sockaddr_storage const &dest) noexcept;
+                                           SockaddrStorage const &dest) noexcept;
 
   /// @brief Free allocated resources and invalidate underlying handle
   void close() noexcept;

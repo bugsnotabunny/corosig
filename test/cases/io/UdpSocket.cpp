@@ -17,7 +17,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket writer() creates a valid socket", "[udp]
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket readwriter() binds to local port", "[udp]") {
-  sockaddr_storage addr{};
+  SockaddrStorage addr{};
   auto *in = reinterpret_cast<sockaddr_in *>(&addr);
   in->sin_family = AF_INET;
   in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -31,7 +31,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket readwriter() binds to local port", "[udp
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket send_to/recv_from async loopback", "[udp]") {
   auto foo = [](Reactor &r) -> Fut<int, Error<AllocationError, SyscallError>> {
-    sockaddr_storage local{};
+    SockaddrStorage local{};
     auto *in = reinterpret_cast<sockaddr_in *>(&local);
     in->sin_family = AF_INET;
     in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);

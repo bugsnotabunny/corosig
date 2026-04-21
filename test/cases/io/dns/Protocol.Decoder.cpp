@@ -3,6 +3,7 @@
 #include "catch2/catch_test_macros.hpp"
 #include "catch2/generators/catch_generators.hpp"
 #include "corosig/container/Allocator.hpp"
+#include "corosig/io/Sockaddr.hpp"
 
 #include <algorithm>
 #include <catch2/catch_all.hpp>
@@ -19,6 +20,7 @@ namespace {
     REQUIRE((res).error() == (expected));                                                          \
   } while (false)
 
+using namespace corosig;
 using namespace corosig::dns;
 
 std::vector<uint8_t>
@@ -185,7 +187,7 @@ TEST_CASE("Decode A record", "[dns][rr][A]") {
   REQUIRE(std::holds_alternative<RDataIpv4>(record.rdata));
   auto const &ipv4 = std::get<RDataIpv4>(record.rdata);
 
-  REQUIRE(ipv4.addr == 0x7F000001);
+  REQUIRE(ipv4.addr == corosig::Ipv4Addr::from_bytes({0x7F, 0x00, 0x00, 0x01}));
 }
 
 TEST_CASE("Fail on truncated resource record", "[dns][rr][error]") {
@@ -1163,7 +1165,7 @@ TEST_CASE("E2E decode with real-life data") {
 
     REQUIRE(is_google_com(record.name));
     REQUIRE(record.ttl == 297s);
-    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb018b);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == Ipv4Addr::from_bytes({0x8e, 0xfb, 0x01, 0x8b}));
   }
 
   {
@@ -1171,7 +1173,7 @@ TEST_CASE("E2E decode with real-life data") {
 
     REQUIRE(is_google_com(record.name));
     REQUIRE(record.ttl == 297s);
-    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0165);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == Ipv4Addr::from_bytes({0x8e, 0xfb, 0x01, 0x65}));
   }
 
   {
@@ -1179,7 +1181,7 @@ TEST_CASE("E2E decode with real-life data") {
 
     REQUIRE(is_google_com(record.name));
     REQUIRE(record.ttl == 297s);
-    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb018a);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == Ipv4Addr::from_bytes({0x8e, 0xfb, 0x01, 0x8a}));
   }
 
   {
@@ -1187,7 +1189,7 @@ TEST_CASE("E2E decode with real-life data") {
 
     REQUIRE(is_google_com(record.name));
     REQUIRE(record.ttl == 297s);
-    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0166);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == Ipv4Addr::from_bytes({0x8e, 0xfb, 0x01, 0x66}));
   }
 
   {
@@ -1195,7 +1197,7 @@ TEST_CASE("E2E decode with real-life data") {
 
     REQUIRE(is_google_com(record.name));
     REQUIRE(record.ttl == 297s);
-    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0171);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == Ipv4Addr::from_bytes({0x8e, 0xfb, 0x01, 0x71}));
   }
 
   {
@@ -1203,6 +1205,6 @@ TEST_CASE("E2E decode with real-life data") {
 
     REQUIRE(is_google_com(record.name));
     REQUIRE(record.ttl == 297s);
-    REQUIRE(record.rdata.as<RDataIpv4>().addr == 0x8efb0164);
+    REQUIRE(record.rdata.as<RDataIpv4>().addr == Ipv4Addr::from_bytes({0x8e, 0xfb, 0x01, 0x64}));
   }
 }

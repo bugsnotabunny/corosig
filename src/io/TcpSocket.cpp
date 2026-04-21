@@ -2,6 +2,7 @@
 
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "posix/FdOps.hpp"
 
@@ -56,8 +57,8 @@ void TcpSocket::close() noexcept {
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
-TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
-  int sock = ::socket(addr.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
+TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
+  int sock = ::socket(addr.native_storage.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
   if (sock == -1) {
     co_return Failure{SyscallError::current()};
   }
@@ -69,7 +70,7 @@ TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
   // Not a hard failure. Just a little bit of performance loss
   (void)::setsockopt(sock, SOL_SOCKET, O_NDELAY, &on, sizeof(on));
 
-  auto len = os::posix::addr_length(addr);
+  auto len = os::posix::addr_length(addr.native_storage);
   if (::connect(sock, (sockaddr const *)&addr, len) == -1) {
     auto current_error = SyscallError::current();
     if (current_error.value != EINPROGRESS) {

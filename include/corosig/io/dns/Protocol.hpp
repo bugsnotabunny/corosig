@@ -3,6 +3,7 @@
 
 #include "corosig/Result.hpp"
 #include "corosig/container/Vector.hpp"
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/meta/AnAllocator.hpp"
 #include "corosig/util/Variant.hpp"
 
@@ -335,11 +336,11 @@ struct RDataStartOfAuthority {
 };
 
 struct RDataIpv4 {
-  uint32_t addr;
+  Ipv4Addr addr;
 };
 
 struct RDataIpv6 {
-  std::array<uint32_t, 4> addr;
+  Ipv6Addr addr;
 };
 
 struct RDataObsolete {

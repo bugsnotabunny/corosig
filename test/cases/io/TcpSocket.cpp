@@ -61,7 +61,7 @@ TEST_CASE("TcpSocket connect to server succeeds") {
       addr.sin_family = AF_INET;
       addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
 
-      sockaddr_storage ss{};
+      SockaddrStorage ss{};
       std::memcpy(&ss, &addr, sizeof(addr));
 
       COROSIG_CO_TRY(auto socket, co_await TcpSocket::connect(r, ss));
@@ -84,7 +84,7 @@ TEST_CASE("TcpSocket write/read roundtrip") {
       addr.sin_port = htons(PORT);
       addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-      sockaddr_storage ss{};
+      SockaddrStorage ss{};
 
       std::memcpy(&ss, &addr, sizeof(addr));
 

@@ -24,9 +24,9 @@ Result<UdpSocket, SyscallError> UdpSocket::unbound() noexcept {
   return self;
 }
 
-Result<UdpSocket, SyscallError> UdpSocket::bound(sockaddr_storage const &local) noexcept {
+Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) noexcept {
   COROSIG_TRY(auto self, unbound());
-  auto len = os::posix::addr_length(local);
+  auto len = os::posix::addr_length(local.native_storage);
   if (bind(self.m_fd.value, (struct sockaddr *)&local, len) == -1) {
     return Failure{SyscallError::current()};
   }
@@ -34,9 +34,9 @@ Result<UdpSocket, SyscallError> UdpSocket::bound(sockaddr_storage const &local) 
 }
 
 Result<UdpSocket, SyscallError> UdpSocket::bound_randomly(sa_family_t family) noexcept {
-  sockaddr_storage addr_storage;
+  SockaddrStorage addr_storage;
   std::memset(&addr_storage, 0, sizeof(addr_storage));
-  addr_storage.ss_family = family;
+  addr_storage.native_storage.ss_family = family;
   return bound(addr_storage);
 }
 
@@ -45,13 +45,13 @@ UdpSocket::~UdpSocket() {
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-UdpSocket::recv_from(Reactor &, std::span<char> out, sockaddr_storage *source_addr) noexcept {
+UdpSocket::recv_from(Reactor &, std::span<char> out, SockaddrStorage *source_addr) noexcept {
   co_await PollEvent{m_fd.value, poll_event_e::CAN_READ};
   co_return try_recv_from(out, source_addr);
 }
 
 Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
-                                                      sockaddr_storage *source_addr) noexcept {
+                                                      SockaddrStorage *source_addr) noexcept {
   socklen_t addrlen;
   socklen_t *addrlen_ptr = source_addr == nullptr ? nullptr : &addrlen;
   ssize_t result = ::recvfrom(m_fd.value,
@@ -66,20 +66,20 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
   return size_t(result);
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> UdpSocket::send_to(
-    Reactor &, std::span<char const> message, sockaddr_storage const &dest) noexcept {
+Fut<size_t, Error<AllocationError, SyscallError>>
+UdpSocket::send_to(Reactor &, std::span<char const> message, SockaddrStorage const &dest) noexcept {
   co_await PollEvent{m_fd.value, poll_event_e::CAN_WRITE};
   co_return try_send_to(message, dest);
 }
 
 Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> message,
-                                                    sockaddr_storage const &dest) noexcept {
+                                                    SockaddrStorage const &dest) noexcept {
   ssize_t result = ::sendto(m_fd.value,
                             message.data(),
                             message.size(),
                             0,
                             reinterpret_cast<sockaddr const *>(&dest),
-                            os::posix::addr_length(dest));
+                            os::posix::addr_length(dest.native_storage));
   if (result == -1) {
     return Failure{SyscallError::current()};
   }

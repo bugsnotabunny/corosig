@@ -4,11 +4,11 @@
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/os/Handle.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <span>
-#include <sys/socket.h>
 
 namespace corosig {
 
@@ -21,7 +21,7 @@ public:
   /// @brief Make a TCP connection to specified addr
   /// @returns Ready-for-write socket or syscall error
   static Fut<TcpSocket, Error<AllocationError, SyscallError>>
-  connect(Reactor &, sockaddr_storage const &addr) noexcept;
+  connect(Reactor &, SockaddrStorage const &addr) noexcept;
 
   TcpSocket(const TcpSocket &) = delete;
   TcpSocket(TcpSocket &&) noexcept = default;
