@@ -10,7 +10,6 @@
 
 #include <boost/mp11/algorithm.hpp>
 #include <coroutine>
-#include <functional>
 #include <utility>
 
 namespace corosig {

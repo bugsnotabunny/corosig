@@ -1,9 +1,8 @@
 #ifndef COROSIG_CONTAINER_AN_ALLOCATOR_HPP
 #define COROSIG_CONTAINER_AN_ALLOCATOR_HPP
 
-#include "corosig/Result.hpp"
+#include "corosig/meta/AResult.hpp"
 #include "corosig/meta/AlwaysOkResult.hpp"
-#include "corosig/meta/AnInstanceOf.hpp"
 
 #include <type_traits>
 
@@ -12,7 +11,7 @@ namespace corosig {
 /// @brief Tell if an object has .clone() method
 template <typename T>
 concept WithClone = requires(T const &object) {
-  { object.clone() } -> AnInstanceOf<Result>;
+  { object.clone() } -> AResult;
 };
 
 /// @brief Tell if an object is Copyable in some way

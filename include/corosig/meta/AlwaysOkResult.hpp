@@ -44,7 +44,7 @@ public:
   }
 
   /// @brief Tell if this result has a value inside
-  explicit constexpr operator bool() const noexcept {
+  constexpr operator bool() const noexcept {
     return is_ok();
   }
 

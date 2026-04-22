@@ -4,9 +4,6 @@
 #include "corosig/Clock.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
-#include <csignal>
-#include <cstdlib>
-
 namespace corosig {
 
 /// @brief  Break the execution of a coroutine until specified amount of time passes

@@ -1,7 +1,6 @@
 #ifndef COROSIG_ERROR_TYPES_HPP
 #define COROSIG_ERROR_TYPES_HPP
 
-#include "corosig/meta/AnInstanceOf.hpp"
 #include "corosig/util/Variant.hpp"
 
 #include <boost/mp11.hpp>
@@ -44,6 +43,16 @@ public:
   }
 };
 
+namespace detail {
+
+template <typename T>
+struct IsInstanceOfError : std::false_type {};
+
+template <typename... ARGS>
+struct IsInstanceOfError<Error<ARGS...>> : std::true_type {};
+
+} // namespace detail
+
 /// @brief An error type that represents that there is no error. Used only for metaprogramming. Any
 ///         usage in potentially evaluated context makes program ill-formed
 struct NoError;
@@ -75,8 +84,8 @@ struct extend_error_impl<Error<E1...>, Error<E2...>> {
 
 template <typename E1, typename E2>
 using extend_error =
-    extend_error_impl<std::conditional_t<AnInstanceOf<E1, Error>, E1, Error<E1>>,
-                      std::conditional_t<AnInstanceOf<E2, Error>, E2, Error<E2>>>::type;
+    extend_error_impl<std::conditional_t<IsInstanceOfError<E1>::value, E1, Error<E1>>,
+                      std::conditional_t<IsInstanceOfError<E2>::value, E2, Error<E2>>>::type;
 
 } // namespace detail
 
