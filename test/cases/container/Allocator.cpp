@@ -119,6 +119,7 @@ TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][st
 
     void *ptr = allocator.allocate(size, alignment);
     if (ptr != nullptr) {
+      std::memset(ptr, 0, size);
       REQUIRE(reinterpret_cast<uintptr_t>(ptr) % alignment == 0);
       allocations.push_back(ptr);
     }
