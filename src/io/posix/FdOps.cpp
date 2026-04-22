@@ -20,9 +20,8 @@ Fut<size_t, Error<AllocationError, SyscallError>>
 read(Reactor &, int fd, std::span<char> buf) noexcept {
   size_t read = 0;
   while (read < buf.size()) {
-
     co_await PollEvent{fd, poll_event_e::CAN_READ};
-    Result current_read = try_read_some(fd, buf);
+    Result current_read = try_read_some(fd, buf.subspan(read));
     if (current_read.is_ok()) {
       size_t value = current_read.value();
       if (value == 0) {
