@@ -49,7 +49,7 @@ std::optional<ParseIpv6GroupOk> parse_ipv6_group(std::string_view group_str) noe
     }
     group *= 16;
     group += *add_value;
-    group_str = group_str.substr(1);
+    group_str.remove_prefix(1);
   }
   return ParseIpv6GroupOk{.group = group, .addr_without_group = group_str};
 }
@@ -149,18 +149,20 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_mapped_ipv4(std::string_view addr) noexc
   if (addr.size() < IPV6_COMPRESSOR.size() + 5 || !addr.starts_with(IPV6_COMPRESSOR)) {
     return std::nullopt;
   }
-  addr = addr.substr(IPV6_COMPRESSOR.size());
+  addr.remove_prefix(IPV6_COMPRESSOR.size());
 
-  for (char c : addr.substr(0, 4)) {
+  auto substr = addr;
+  substr.remove_suffix(addr.size() - 4);
+  for (char c : substr) {
     if (c != 'f' && c != 'F') {
       return std::nullopt;
     }
   }
-  addr = addr.substr(4);
+  addr.remove_prefix(4);
   if (!addr.starts_with(':')) {
     return std::nullopt;
   }
-  addr = addr.substr(1);
+  addr.remove_prefix(1);
 
   auto ipv4 = Ipv4Addr::parse(addr);
   if (!ipv4) {
@@ -188,7 +190,7 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_regular(std::string_view addr) noexcept 
 
   if (addr.starts_with(IPV6_COMPRESSOR)) {
     has_met_compressor = true;
-    addr = addr.substr(1);
+    addr.remove_prefix(1);
   } else {
     while (!addr.empty() && front_groups < expansion_buf.size()) {
       auto res = parse_ipv6_group(addr);
@@ -202,11 +204,11 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_regular(std::string_view addr) noexcept 
 
       if (addr.starts_with(IPV6_COMPRESSOR)) {
         has_met_compressor = true;
-        addr = addr.substr(1);
+        addr.remove_prefix(1);
         break;
       }
 
-      addr = addr.substr(std::min(size_t(1), addr.size()));
+      addr.remove_prefix(std::min(size_t(1), addr.size()));
     }
   }
 
@@ -219,7 +221,7 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_regular(std::string_view addr) noexcept 
           !addr.starts_with(':') || addr.starts_with(IPV6_COMPRESSOR)) {
         return std::nullopt;
       }
-      addr = addr.substr(1);
+      addr.remove_prefix(1);
       if (addr.empty()) {
         break;
       }
