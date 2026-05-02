@@ -289,10 +289,10 @@ parse_rdata_soa(std::span<uint8_t const> original_message,
       .mname = mname_res.value().domain_name,
       .rname = rname_res.value().domain_name,
       .serial = *serial,
-      .refresh_after = std::chrono::duration<uint32_t>{*refresh},
-      .retry_after = std::chrono::duration<uint32_t>{*retry},
-      .expire_after = std::chrono::duration<uint32_t>{*expire},
-      .minimum_ttl = std::chrono::duration<uint32_t>{*minimum},
+      .refresh_after = seconds{*refresh},
+      .retry_after = seconds{*retry},
+      .expire_after = seconds{*expire},
+      .minimum_ttl = seconds{*minimum},
   };
 }
 
@@ -514,7 +514,7 @@ Result<ResourceRecord, ResponseDecodeError> ResponseDecoder::consume_resource_re
   return ResourceRecord{
       .name = domain_name.value().domain_name,
       .rdata = rdata.value(),
-      .ttl = std::chrono::duration<uint32_t>{*ttl},
+      .ttl = seconds{*ttl},
   };
 }
 

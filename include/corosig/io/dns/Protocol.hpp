@@ -282,6 +282,8 @@ struct CharacterString {
   std::span<uint8_t const> data;
 };
 
+using seconds = std::chrono::duration<uint32_t>;
+
 struct RDataCanonicalName {
   DomainName cname;
 };
@@ -329,10 +331,10 @@ struct RDataStartOfAuthority {
   DomainName mname;
   DomainName rname;
   uint32_t serial;
-  std::chrono::duration<uint32_t> refresh_after;
-  std::chrono::duration<uint32_t> retry_after;
-  std::chrono::duration<uint32_t> expire_after;
-  std::chrono::duration<uint32_t> minimum_ttl;
+  seconds refresh_after;
+  seconds retry_after;
+  seconds expire_after;
+  seconds minimum_ttl;
 };
 
 struct RDataIpv4 {
@@ -374,7 +376,7 @@ struct RData : Variant<RDataCanonicalName,
 struct ResourceRecord {
   DomainName name;
   [[no_unique_address]] RData rdata;
-  std::chrono::duration<uint32_t> ttl;
+  seconds ttl;
 };
 
 namespace detail {

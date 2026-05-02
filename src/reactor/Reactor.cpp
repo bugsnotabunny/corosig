@@ -24,7 +24,7 @@ void resume_ready_sleepers(SleepList &sleeping) noexcept {
     return;
   }
 
-  auto now = Clock::now();
+  auto now = SteadyClock::now();
   for (size_t i = 0; !sleeping.empty() && i < ITERATIONS_LIMIT; ++i) {
     SleepListNode &node = *sleeping.begin();
     if (node.awake_time > now) {
@@ -141,7 +141,7 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   if (!m_ready.empty()) {
     poll_timeout = 0ms;
   } else if (!m_sleeping.empty()) {
-    poll_timeout = std::max(0ms, ceil_to_millis(m_sleeping.begin()->awake_time - Clock::now()));
+    poll_timeout = std::max(0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
   }
 
   return poll_and_resume(m_polled, poll_timeout);

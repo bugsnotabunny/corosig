@@ -8,13 +8,13 @@ namespace corosig {
 
 /// @brief  Break the execution of a coroutine until specified amount of time passes
 struct [[nodiscard("forgot to await?")]] Sleep : SleepListNode {
-  Sleep(Clock::time_point until) {
+  Sleep(SteadyClock::time_point until) {
     this->awake_time = until;
   }
 
   template <typename REP, typename PERIOD>
   Sleep(std::chrono::duration<REP, PERIOD> sleep_for)
-      : Sleep{Clock::now() + sleep_for} {
+      : Sleep{SteadyClock::now() + sleep_for} {
   }
 
   [[nodiscard]] static bool await_ready() noexcept {

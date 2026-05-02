@@ -25,7 +25,7 @@ struct SleepListNode
   std::coroutine_handle<> waiting_coro = nullptr;
 
   /// @brief When to resume a coro
-  Clock::time_point awake_time;
+  SteadyClock::time_point awake_time;
 };
 
 /// @brief A list of objects which are castable to coroutines via coro_from_this virtual method

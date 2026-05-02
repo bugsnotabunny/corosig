@@ -15,7 +15,7 @@ using namespace std::chrono_literals;
 } // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("Sleep is ok") {
-  auto start = Clock::now();
+  auto start = SteadyClock::now();
   auto foo = [](Reactor &) -> Fut<int> {
     co_await Sleep{10ms};
     co_return 20;
@@ -23,7 +23,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Sleep is ok") {
   auto res = foo(reactor).block_on();
   COROSIG_REQUIRE(res);
   COROSIG_REQUIRE(res.value() == 20);
-  COROSIG_REQUIRE(Clock::now() - start >= 10ms);
+  COROSIG_REQUIRE(SteadyClock::now() - start >= 10ms);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Parallel sleep is ok") { // NOLINT
