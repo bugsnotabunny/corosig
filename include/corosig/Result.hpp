@@ -29,6 +29,9 @@ struct Ok<void> {};
 template <typename T>
 Ok(T const &) -> Ok<T const &>;
 
+template <typename T>
+Ok(T &&) -> Ok<T &&>;
+
 Ok() -> Ok<void>;
 
 /// @brief Type sugar for constructing a Result with error inside. This is the only way to make an
@@ -38,11 +41,15 @@ struct Failure {
   constexpr Failure(T &&value) noexcept
       : value{std::forward<T>(value)} {
   }
+
   T &&value;
 };
 
 template <typename T>
 Failure(T const &) -> Failure<T const &>;
+
+template <typename T>
+Failure(T &&) -> Failure<T &&>;
 
 /// @brief A value or an error
 template <typename R, typename E>
