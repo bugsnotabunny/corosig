@@ -104,6 +104,8 @@ using error_type = std::decay_t<
 /// @brief An allocation error. Does it really need a description?
 struct AllocationError {
   auto operator<=>(const AllocationError &) const noexcept = default;
+
+  [[nodiscard]] static std::string_view description() noexcept;
 };
 
 /// @brief An error, propagated from a syscall
