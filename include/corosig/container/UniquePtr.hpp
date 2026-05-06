@@ -15,8 +15,10 @@ namespace corosig {
 template <typename T, AnAllocator ALLOCATOR = Allocator &>
 struct AllocatorBoundDeleter {
   void operator()(T *p) noexcept {
-    p->~T();
-    return alloc.deallocate(p);
+    if (p) {
+      p->~T();
+      return alloc.deallocate(p);
+    }
   }
 
   [[no_unique_address]] ALLOCATOR alloc;
@@ -26,6 +28,11 @@ struct AllocatorBoundDeleter {
 template <typename T, AnAllocator ALLOCATOR = Allocator &>
 struct UniquePtr : std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>> {
   using std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>>::unique_ptr;
+
+  UniquePtr(T *p, ALLOCATOR &&alloc) noexcept
+      : std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>>{
+            p, AllocatorBoundDeleter<T, ALLOCATOR>{std::forward<ALLOCATOR>(alloc)}} {
+  }
 };
 
 /// @brief Make a unique pointer via given allocator
