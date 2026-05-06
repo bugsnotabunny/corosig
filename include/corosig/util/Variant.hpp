@@ -1,10 +1,8 @@
 #ifndef COROSIG_UTIL_VARIANT_HPP
 #define COROSIG_UTIL_VARIANT_HPP
 
-#include "boost/mp11/algorithm.hpp"
-#include "boost/mp11/bind.hpp"
-#include "boost/mp11/detail/mp_list.hpp"
-
+#include <boost/mp11/algorithm.hpp>
+#include <boost/mp11/bind.hpp>
 #include <concepts>
 #include <variant>
 
