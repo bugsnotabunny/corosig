@@ -68,7 +68,7 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(sock, SOL_SOCKET, O_NDELAY, &on, sizeof(on));
+  (void)::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
   auto len = os::posix::addr_length(addr.native_storage);
   if (::connect(sock, (sockaddr const *)&addr, len) == -1) {
@@ -79,6 +79,16 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
   }
 
   co_await PollEvent{sock, poll_event_e::CAN_WRITE};
+
+  int socket_error = 0;
+  socklen_t socket_error_len = sizeof(socket_error);
+  if (::getsockopt(sock, SOL_SOCKET, SO_ERROR, &socket_error, &socket_error_len) == -1) {
+    co_return Failure{SyscallError::current()};
+  }
+  if (socket_error != 0) {
+    co_return Failure{SyscallError{socket_error}};
+  }
+
   co_return self;
 }
 
