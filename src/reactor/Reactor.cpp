@@ -131,8 +131,7 @@ size_t Reactor::current_memory() const noexcept {
 }
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
-  assert((!m_sleeping.empty() || !m_ready.empty() || !m_polled.empty()) &&
-         "Nothing to process. Deadlock will happen");
+  assert(has_active_tasks() && "Nothing to process. Deadlock will happen");
   resume_ready_sleepers(m_sleeping);
   resume(m_ready);
 
@@ -141,7 +140,8 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   if (!m_ready.empty()) {
     poll_timeout = 0ms;
   } else if (!m_sleeping.empty()) {
-    poll_timeout = std::max(0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
+    poll_timeout =
+        std::max(0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
   }
 
   return poll_and_resume(m_polled, poll_timeout);
