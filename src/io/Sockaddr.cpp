@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <netinet/in.h>
 #include <optional>
 #include <ranges>
