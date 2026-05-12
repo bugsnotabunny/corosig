@@ -1,15 +1,12 @@
 #include "corosig/io/dns/HostsFileCache.hpp"
 
-#include "corosig/io/File.hpp"
 #include "corosig/io/Sockaddr.hpp"
-#include "corosig/io/dns/Protocol.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
 #include <catch2/catch_all.hpp>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <random>
 #include <string>
 
@@ -99,16 +96,18 @@ TEST_CASE("HostsFileCache: finds IPv6 address") {
   });
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("HostsFileCache: returns NameNotCached for unknown hostname") {
+TEST_CASE("HostsFileCache: returns NameNotCached for unknown hostname") {
   write_hosts_file("127.0.0.1 localhost\n");
 
-  dns::HostsFileCache cache{reactor, g_test_hosts_file};
+  run_in_sighandler([](Reactor &reactor) {
+    dns::HostsFileCache cache{reactor, g_test_hosts_file};
 
-  std::array<Ipv4Addr, 4> addrs{};
-  auto result = cache.pull("unknown.example.com", addrs).block_on();
+    std::array<Ipv4Addr, 4> addrs{};
+    auto result = cache.pull("unknown.example.com", addrs).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
-  COROSIG_REQUIRE(result.value() == 0);
+    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result.value() == 0);
+  });
 }
 
 TEST_CASE("HostsFileCache: handles multiple addresses for hostname") {
@@ -289,10 +288,13 @@ TEST_CASE("HostsFileCache: case insensitive hostname matching") {
   });
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("HostsFileCache: underlying_reactor returns reactor") {
+TEST_CASE("HostsFileCache: underlying_reactor returns reactor") {
   write_hosts_file("# empty file\n");
-  dns::HostsFileCache cache{reactor, g_test_hosts_file};
-  COROSIG_REQUIRE(&cache.underlying_reactor() == &reactor);
+
+  run_in_sighandler([](Reactor &reactor) {
+    dns::HostsFileCache cache{reactor, g_test_hosts_file};
+    COROSIG_REQUIRE(&cache.underlying_reactor() == &reactor);
+  });
 }
 
 TEST_CASE("HostsFileCache: handles empty file") {
