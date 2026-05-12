@@ -20,7 +20,7 @@ struct HostsFileCache {
   Fut<size_t, Error<AllocationError, SyscallError>> pull(std::string_view ascii_name,
                                                          std::span<Ipv4Addr> out) const noexcept;
 
-  Reactor &underlying_reactor() const noexcept;
+  [[nodiscard]] Reactor &underlying_reactor() const noexcept;
 
 private:
   std::reference_wrapper<Reactor> m_reactor;
