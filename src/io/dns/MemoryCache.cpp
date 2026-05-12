@@ -1,5 +1,6 @@
 #include "corosig/io/dns/MemoryCache.hpp"
 
+#include "corosig/Clock.hpp"
 #include "corosig/io/Sockaddr.hpp"
 
 #include <algorithm>
@@ -14,17 +15,14 @@ namespace corosig::dns {
 
 namespace detail {
 
-std::span<char> NameStorageHeader::name() noexcept {
-  return {reinterpret_cast<char *>(this + 1), name_size};
-}
-
 std::string_view NameStorageHeader::name() const noexcept {
-  return {reinterpret_cast<char const *>(this + 1), name_size};
+  return {reinterpret_cast<char const *>(this) + sizeof(NameStorageHeader), m_name_size};
 }
 
 NameStorageHeader::NameStorageHeader(std::string_view name_) noexcept
-    : name_size{name_.size()} {
-  std::ranges::copy(name_, name().begin());
+    : m_name_size{name_.size()} {
+  std::memcpy(
+      reinterpret_cast<char *>(this) + sizeof(NameStorageHeader), name_.data(), name_.size());
 }
 
 Ipv4Addr const *AddrStorageHeader::ipv4s_begin() const noexcept {
@@ -37,15 +35,18 @@ Ipv4Addr *AddrStorageHeader::ipv4s_begin() noexcept {
 }
 
 AddrStorageHeader::AddrStorageHeader(NameStorageHeader &parent,
+                                     SteadyClock::time_point expires_at,
                                      std::span<Ipv4Addr const> ipv4s_list,
                                      std::span<Ipv6Addr const> ipv6s_list) noexcept
     : m_parent{parent},
+      m_expires_at{expires_at},
       m_ipv4s_count{uint32_t(ipv4s_list.size())},
       m_ipv6s_count{uint32_t(ipv6s_list.size())} {
   assert(ipv4s_list.size() <= std::numeric_limits<uint32_t>::max());
   assert(ipv6s_list.size() <= std::numeric_limits<uint32_t>::max());
   std::ranges::copy(ipv4s_list, ipv4s().begin());
   std::ranges::copy(ipv6s_list, ipv6s().begin());
+  parent.ips.push_front(*this);
 }
 
 std::span<Ipv6Addr> AddrStorageHeader::ipv6s() noexcept {
@@ -72,21 +73,27 @@ template <typename IP>
 AlwaysOkResult<size_t>
 memory_cache_pull_impl(std::add_pointer_t<std::span<IP const>(AddrStorageHeader const &)> ip_source,
                        memory_cache_names const &names,
-                       std::string_view fqdn,
+                       std::string_view ascii_name,
                        std::span<IP> out) noexcept {
-  auto name_it = names.find(fqdn, std::less<>{});
+
+  auto name_it = names.find(ascii_name, std::less<>{});
   if (name_it == names.end()) {
-    return 0;
+    return size_t(0);
   }
 
   size_t pulled = 0;
+  auto now = SteadyClock::now();
   for (detail::AddrStorageHeader const &addr_storage_header : name_it->ips) {
     if (out.empty()) {
       break;
     }
 
+    if (addr_storage_header.expires_at() <= now) {
+      continue;
+    }
+
     std::span ips = ip_source(addr_storage_header);
-    ips = ips.subspan(0, std::min(ips.size(), ips.size()));
+    ips = ips.subspan(0, std::min(out.size(), ips.size()));
     std::ranges::copy(ips, out.begin());
     out = out.subspan(ips.size());
     pulled += ips.size();
@@ -94,22 +101,24 @@ memory_cache_pull_impl(std::add_pointer_t<std::span<IP const>(AddrStorageHeader 
   return pulled;
 }
 
-template <>
-AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv6Addr>(
-    std::add_pointer_t<std::span<Ipv6Addr const>(AddrStorageHeader const &)> ip_source,
-    memory_cache_names const &names,
-    std::string_view fqdn,
-    std::span<Ipv6Addr> out) noexcept;
+NameStorageHeader &AddrStorageHeader::parent() const noexcept {
+  return m_parent;
+}
 
-template <>
-AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv4Addr>(
-    std::add_pointer_t<std::span<Ipv4Addr const>(AddrStorageHeader const &)> ip_source,
-    memory_cache_names const &names,
-    std::string_view fqdn,
-    std::span<Ipv4Addr> out) noexcept;
+template AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv6Addr>(
+    std::add_pointer_t<std::span<Ipv6Addr const>(AddrStorageHeader const &)>,
+    memory_cache_names const &,
+    std::string_view,
+    std::span<Ipv6Addr>) noexcept;
+
+template AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv4Addr>(
+    std::add_pointer_t<std::span<Ipv4Addr const>(AddrStorageHeader const &)>,
+    memory_cache_names const &,
+    std::string_view,
+    std::span<Ipv4Addr>) noexcept;
 
 } // namespace detail
 
-template struct MemoryCache<Allocator &>;
+template struct MemoryCache<AllocatorRef<Allocator>>;
 
 } // namespace corosig::dns
