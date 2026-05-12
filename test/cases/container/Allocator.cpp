@@ -11,16 +11,18 @@ namespace {
 
 using namespace corosig;
 
+constexpr size_t DEFAULT_ALIGN = alignof(std::max_align_t);
+
 } // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
   Allocator::Memory<1024> mem;
   Allocator alloc{mem};
 
-  void *p1 = alloc.allocate(128);
+  void *p1 = alloc.allocate(128, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p1 != nullptr);
 
-  void *p2 = alloc.allocate(256);
+  void *p2 = alloc.allocate(256, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p2 != nullptr);
 
   alloc.deallocate(p1);
@@ -31,7 +33,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Allocation exceeds capacity") {
   Allocator::Memory<256> mem;
   Allocator alloc{mem};
 
-  void *p = alloc.allocate(512);
+  void *p = alloc.allocate(512, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p == nullptr);
 }
 
@@ -39,11 +41,10 @@ COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
   Allocator::Memory<1024> mem;
   Allocator alloc{mem};
 
-  constexpr size_t ALIGN = alignof(std::max_align_t);
-  void *p = alloc.allocate(64, ALIGN);
+  void *p = alloc.allocate(64, DEFAULT_ALIGN);
 
   COROSIG_REQUIRE(p != nullptr);
-  COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % ALIGN == 0);
+  COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % DEFAULT_ALIGN == 0);
   alloc.deallocate(p);
 }
 
@@ -53,7 +54,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
 
   std::array<void *, 10> blocks = {};
   size_t count = 0;
-  while (void *p = alloc.allocate(16)) {
+  while (void *p = alloc.allocate(16, DEFAULT_ALIGN)) {
     blocks[count++] = p;
   }
   COROSIG_REQUIRE(count > 0);
@@ -75,7 +76,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or nul
   Allocator::Memory<128> mem;
   Allocator alloc{mem};
 
-  void *p = alloc.allocate(0);
+  void *p = alloc.allocate(0, DEFAULT_ALIGN);
   alloc.deallocate(p);
 }
 
@@ -83,11 +84,11 @@ COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
   Allocator::Memory<128> mem;
   Allocator alloc{mem};
 
-  void *p1 = alloc.allocate(64);
+  void *p1 = alloc.allocate(64, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p1 != nullptr);
   alloc.deallocate(p1);
 
-  void *p2 = alloc.allocate(64);
+  void *p2 = alloc.allocate(64, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p2 != nullptr);
   alloc.deallocate(p2);
 }

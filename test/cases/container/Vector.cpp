@@ -468,7 +468,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element triggers reallocatio
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element with move semantics") {
-  Vector<MoveOnly, Allocator &> vec{reactor.allocator()};
+  Vector<MoveOnly, AllocatorRef<Allocator>> vec{reactor.allocator()};
 
   COROSIG_REQUIRE(vec.push_back(1));
   COROSIG_REQUIRE(vec.push_back(2));
@@ -502,7 +502,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector::insert range at beginning") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Vector::insert range in middle") {
 
-  Vector<int, Allocator &> vec{reactor.allocator()};
+  Vector<int, AllocatorRef<Allocator>> vec{reactor.allocator()};
 
   for (int i = 0; i < 5; ++i) {
     COROSIG_REQUIRE(vec.push_back(i * 10));
@@ -571,7 +571,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector::insert object lifetime") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Vector::insert returns iterator to first inserted element") {
-  Vector<int, Allocator &> vec{reactor.allocator()};
+  Vector<int, AllocatorRef<Allocator>> vec{reactor.allocator()};
 
   for (int i = 0; i < 5; ++i) {
     COROSIG_REQUIRE(vec.push_back(i));

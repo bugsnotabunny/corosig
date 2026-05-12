@@ -18,7 +18,7 @@
 
 namespace corosig::dns {
 
-template <AnAllocator ALLOC = Allocator &>
+template <AnAllocator ALLOC = AllocatorRef<Allocator>>
 struct Cache {
   Fut<size_t, Error<AllocationError, SyscallError>> pull(std::string_view ascii_name,
                                                          std::span<Ipv6Addr> out) const noexcept {
@@ -54,7 +54,7 @@ private:
   MemoryCache<ALLOC> m_mem_cache;
 };
 
-extern template struct Cache<Allocator &>;
+extern template struct Cache<AllocatorRef<Allocator>>;
 
 } // namespace corosig::dns
 

@@ -22,8 +22,6 @@ public:
   template <size_t SIZE>
   using Memory = std::array<char, SIZE>;
 
-  constexpr static size_t MIN_ALIGNMENT = 1;
-
   /// @brief Construct an Allocator for which allocations always fail
   Allocator() noexcept = default;
 
@@ -46,7 +44,7 @@ public:
   /// @brief Allocate a chunk of memory of specified size and alignment
   /// @returns A pointer to allocated buffer or nullptr if an allocation has failed
   /// @warning Is UB if alignment is not a power of 2
-  [[nodiscard]] void *allocate(size_t size, size_t alignment = MIN_ALIGNMENT) noexcept;
+  [[nodiscard]] void *allocate(size_t size, size_t alignment) noexcept;
 
   /// @brief Deallocate a chunk which begins at ptr
   /// @warning UB if ptr does not point to the chunk owned by this allocator

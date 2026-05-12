@@ -2,6 +2,6 @@
 
 namespace corosig::dns {
 
-template struct Cache<Allocator &>;
+template struct Cache<AllocatorRef<Allocator>>;
 
 } // namespace corosig::dns

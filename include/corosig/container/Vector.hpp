@@ -31,8 +31,9 @@ using result_extended_with_clone_errors =
 /// @brief Mostly STL-compatible vector class. Propagates all errors as values
 /// @note Check std::vector docs. This struct is designed to repeat it's behaviour whenever this is
 ///       reasonable
-template <typename T, AnAllocator ALLOCATOR = Allocator &>
-  requires std::is_nothrow_move_constructible_v<T>
+template <typename T, AnAllocator ALLOCATOR = AllocatorRef<Allocator>>
+  requires std::is_nothrow_move_constructible_v<T> &&
+           std::is_nothrow_move_constructible_v<ALLOCATOR>
 struct Vector {
   using value_type = T;
   using allocator_type = ALLOCATOR;
@@ -49,8 +50,14 @@ struct Vector {
 
 public:
   /// @brief Make a vector which uses alloc
-  Vector(ALLOCATOR &&alloc) noexcept
-      : m_alloc{std::forward<ALLOCATOR>(alloc)} {
+  explicit Vector(ALLOCATOR &&alloc) noexcept
+      : m_alloc{std::move(alloc)} {
+  }
+
+  /// @brief Make a vector which uses alloc
+  explicit Vector(ALLOCATOR const &alloc) noexcept
+    requires std::is_copy_constructible_v<ALLOCATOR>
+      : m_alloc{alloc} {
   }
 
   Vector(const Vector &) noexcept = delete;
