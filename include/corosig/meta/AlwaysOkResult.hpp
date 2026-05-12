@@ -5,6 +5,7 @@
 #include "corosig/Result.hpp"
 
 #include <concepts>
+#include <type_traits>
 
 namespace corosig {
 
@@ -33,7 +34,7 @@ public:
 
   /// @brief Construct a result holding a value
   template <typename T>
-    requires(!std::same_as<AlwaysOkResult, T>)
+    requires(!std::same_as<AlwaysOkResult, std::decay_t<T>>)
   AlwaysOkResult(T &&value) noexcept
       : AlwaysOkResult{Ok{std::forward<T>(value)}} {
   }

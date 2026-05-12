@@ -92,26 +92,15 @@ public:
   /// @brief Convert one result type to another. Only available if value in other result is
   ///         convertible to this's value and if an error from another result is convirtible to
   ///         this's error
-  template <typename R1, typename E1>
-    requires((!std::same_as<R, R1> && std::convertible_to<R1, R>) ||
-             (!std::same_as<E, E1> && std::convertible_to<E1, E>))
-  constexpr Result(Result<R1, E1> &&other) noexcept
-      : Result{converting_ctor_impl(std::move(other))} {
-  }
-
-  /// @brief Convert one result type to another. Only available if value in other result is
-  ///         convertible to this's value and if an error from another result is convirtible to
-  ///         this's error
-  template <typename R1, typename E1>
-    requires((!std::same_as<R, R1> && std::convertible_to<R1, R>) ||
-             (!std::same_as<E, E1> && std::convertible_to<E1, E>))
-  constexpr Result(Result<R1, E1> const &other) noexcept
-      : Result{converting_ctor_impl(other)} {
+  template <typename RESULT>
+    requires(!std::same_as<Result, std::decay_t<RESULT>> && AResult<RESULT>)
+  constexpr Result(RESULT &&other) noexcept
+      : Result{converting_ctor_impl(std::forward<RESULT>(other))} {
   }
 
   /// @brief Construct a result holding a value
   template <typename T>
-    requires(!std::same_as<Result, T> && std::convertible_to<T, R>)
+    requires(!std::same_as<Result, std::decay_t<T>> && !AResult<T> && std::convertible_to<T, R>)
   constexpr Result(T &&value) noexcept
       : Result{Ok{std::forward<T>(value)}} {
   }
@@ -205,15 +194,18 @@ private:
     }
   }
 
-  constexpr static Result<R, E> converting_ctor_impl(auto &&other_result) noexcept {
-    if (!other_result.is_ok()) {
-      return Failure{std::forward<decltype(other_result)>(other_result).error()};
+  template <AResult RESULT>
+  constexpr static Result<R, E> converting_ctor_impl(RESULT &&other_result) noexcept {
+    if constexpr (!result_is_always_ok<RESULT>()) {
+      if (!other_result.is_ok()) {
+        return Failure{std::forward<RESULT>(other_result).error()};
+      }
     }
 
     if constexpr (std::same_as<void, R>) {
       return Ok{};
     } else {
-      return Ok{std::forward<decltype(other_result)>(other_result).value()};
+      return Ok{std::forward<RESULT>(other_result).value()};
     }
   }
 
