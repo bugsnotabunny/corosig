@@ -18,8 +18,13 @@
 
 namespace corosig::dns {
 
-template <AnAllocator ALLOC = AllocatorRef<Allocator>>
+template <AnAllocator ALLOCATOR = AllocatorRef<Allocator>>
 struct Cache {
+  Cache(Reactor &reactor, char const *hosts_path, ALLOCATOR alloc) noexcept
+      : m_hosts_cache{reactor, hosts_path},
+        m_mem_cache{alloc} {
+  }
+
   Fut<size_t, Error<AllocationError, SyscallError>> pull(std::string_view ascii_name,
                                                          std::span<Ipv6Addr> out) const noexcept {
     return pull_impl(m_hosts_cache.underlying_reactor(), ascii_name, out);
@@ -43,15 +48,17 @@ private:
   Fut<size_t, Error<AllocationError, SyscallError>>
   pull_impl(Reactor &, std::string_view ascii_name, std::span<IP> out) const noexcept {
     Result res = co_await m_hosts_cache.pull(ascii_name, out);
-    if (res.is_ok()) {
+    if (res.is_ok() && res.value() != 0) {
       co_return res;
     } else {
-      co_return m_mem_cache.pull(ascii_name, out);
+      co_return Result<size_t, Error<AllocationError, SyscallError>>{
+          m_mem_cache.pull(ascii_name, out),
+      };
     }
   }
 
   HostsFileCache m_hosts_cache;
-  MemoryCache<ALLOC> m_mem_cache;
+  MemoryCache<ALLOCATOR> m_mem_cache;
 };
 
 extern template struct Cache<AllocatorRef<Allocator>>;
