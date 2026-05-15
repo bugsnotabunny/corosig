@@ -58,12 +58,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Cache: pull returns from HostsFileCache when hostn
   dns::Cache<> cache{reactor, g_test_hosts_file, reactor.allocator()};
 
   auto foo = [](dns::Cache<> &c, Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    std::array<Ipv4Addr, 4> addrs{};
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
     auto result = co_await c.pull("hosts.example.com", addrs);
 
     COROSIG_REQUIRE(result.is_ok());
     COROSIG_REQUIRE(result.value() == 1);
-    COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.100"));
+    COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.100"));
 
     co_return Ok{};
   };
@@ -78,20 +78,20 @@ COROSIG_SIGHANDLER_TEST_CASE("Cache: pull falls back to MemoryCache when not in 
   auto foo = [](dns::Cache<> &c, Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     std::array<Ipv4Addr, 1> addrs = {*Ipv4Addr::parse("10.0.0.1")};
 
-    dns::CachePushTransaction transaction{.name = "mem.example.com",
-                                          .expire_at =
-                                              SteadyClock::now() + std::chrono::seconds{3600},
-                                          .ipv4s = addrs};
+    auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
+    dns::CachePushTransaction transaction{
+        .name = "mem.example.com", .expire_at = expires_at, .ipv4s = addrs};
 
     auto push_result = c.push(transaction);
     COROSIG_REQUIRE(push_result.is_ok());
 
-    std::array<Ipv4Addr, 4> out_addrs{};
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> out_addrs{};
     auto result = co_await c.pull("mem.example.com", out_addrs);
 
     COROSIG_REQUIRE(result.is_ok());
     COROSIG_REQUIRE(result.value() == 1);
-    COROSIG_REQUIRE(out_addrs[0] == *Ipv4Addr::parse("10.0.0.1"));
+    COROSIG_REQUIRE(out_addrs[0].address == *Ipv4Addr::parse("10.0.0.1"));
+    COROSIG_REQUIRE(out_addrs[0].expires_at == expires_at);
 
     co_return Ok{};
   };
@@ -104,7 +104,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Cache: pull returns zero when hostname in neither 
   dns::Cache<> cache{reactor, g_test_hosts_file, reactor.allocator()};
 
   auto foo = [](dns::Cache<> &c, Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    std::array<Ipv4Addr, 4> addrs{};
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
     auto result = co_await c.pull("unknown.example.com", addrs);
 
     COROSIG_REQUIRE(result.is_ok());
@@ -123,20 +123,19 @@ COROSIG_SIGHANDLER_TEST_CASE("Cache: HostsFileCache takes priority over MemoryCa
   auto foo = [](dns::Cache<> &c, Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     std::array<Ipv4Addr, 1> mem_addrs = {*Ipv4Addr::parse("10.0.0.50")};
 
-    dns::CachePushTransaction transaction{.name = "priority.example.com",
-                                          .expire_at =
-                                              SteadyClock::now() + std::chrono::seconds{3600},
-                                          .ipv4s = mem_addrs};
+    auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
+    dns::CachePushTransaction transaction{
+        .name = "priority.example.com", .expire_at = expires_at, .ipv4s = mem_addrs};
 
     auto push_result = c.push(transaction);
     COROSIG_REQUIRE(push_result.is_ok());
 
-    std::array<Ipv4Addr, 4> out_addrs{};
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> out_addrs{};
     auto result = co_await c.pull("priority.example.com", out_addrs);
 
     COROSIG_REQUIRE(result.is_ok());
     COROSIG_REQUIRE(result.value() == 1);
-    COROSIG_REQUIRE(out_addrs[0] == *Ipv4Addr::parse("192.168.1.200"));
+    COROSIG_REQUIRE(out_addrs[0].address == *Ipv4Addr::parse("192.168.1.200"));
 
     co_return Ok{};
   };
@@ -149,12 +148,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Cache: IPv6 pull works correctly") {
   dns::Cache<> cache{reactor, g_test_hosts_file, reactor.allocator()};
 
   auto foo = [](dns::Cache<> &c, Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    std::array<Ipv6Addr, 4> addrs{};
+    std::array<dns::ResolvedAddress<Ipv6Addr>, 4> addrs{};
     auto result = co_await c.pull("ipv6hosts.example.com", addrs);
 
     COROSIG_REQUIRE(result.is_ok());
     COROSIG_REQUIRE(result.value() == 1);
-    COROSIG_REQUIRE(addrs[0] == *Ipv6Addr::parse("2001:db8::1"));
+    COROSIG_REQUIRE(addrs[0].address == *Ipv6Addr::parse("2001:db8::1"));
 
     co_return Ok{};
   };
@@ -170,21 +169,52 @@ COROSIG_SIGHANDLER_TEST_CASE("Cache: push delegates to MemoryCache") {
     std::array<Ipv4Addr, 2> addrs = {*Ipv4Addr::parse("192.168.2.1"),
                                      *Ipv4Addr::parse("192.168.2.2")};
 
-    dns::CachePushTransaction transaction{.name = "pushed.example.com",
-                                          .expire_at =
-                                              SteadyClock::now() + std::chrono::seconds{3600},
-                                          .ipv4s = addrs};
+    auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
+    dns::CachePushTransaction transaction{
+        .name = "pushed.example.com", .expire_at = expires_at, .ipv4s = addrs};
 
     auto push_result = c.push(transaction);
     COROSIG_REQUIRE(push_result.is_ok());
 
-    std::array<Ipv4Addr, 4> out_addrs{};
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> out_addrs{};
     auto result = co_await c.pull("pushed.example.com", out_addrs);
 
     COROSIG_REQUIRE(result.is_ok());
     COROSIG_REQUIRE(result.value() == 2);
-    COROSIG_REQUIRE(out_addrs[0] == *Ipv4Addr::parse("192.168.2.1"));
-    COROSIG_REQUIRE(out_addrs[1] == *Ipv4Addr::parse("192.168.2.2"));
+    COROSIG_REQUIRE(out_addrs[0].address == *Ipv4Addr::parse("192.168.2.1"));
+    COROSIG_REQUIRE(out_addrs[0].expires_at == expires_at);
+    COROSIG_REQUIRE(out_addrs[1].address == *Ipv4Addr::parse("192.168.2.2"));
+    COROSIG_REQUIRE(out_addrs[1].expires_at == expires_at);
+
+    co_return Ok{};
+  };
+  COROSIG_REQUIRE(foo(cache, reactor).block_on().is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Cache: prune delegates to MemoryCache") {
+  write_hosts_file("# Empty hosts file\n");
+
+  dns::Cache<> cache{reactor, g_test_hosts_file, reactor.allocator()};
+
+  auto foo = [](dns::Cache<> &c, Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
+    auto now = SteadyClock::now();
+    std::array<Ipv4Addr, 1> addrs = {*Ipv4Addr::parse("192.168.3.1")};
+
+    auto expired_at = now - std::chrono::seconds{3600};
+    dns::CachePushTransaction expired{
+        .name = "expired.example.com", .expire_at = expired_at, .ipv4s = addrs};
+
+    auto push_result = c.push(expired);
+    COROSIG_REQUIRE(push_result.is_ok());
+
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> out_addrs{};
+    auto result1 = co_await c.pull("expired.example.com", out_addrs);
+    COROSIG_REQUIRE(result1.value() == 0);
+
+    c.prune();
+
+    auto result2 = co_await c.pull("expired.example.com", out_addrs);
+    COROSIG_REQUIRE(result2.value() == 0);
 
     co_return Ok{};
   };

@@ -1,5 +1,6 @@
 #include "corosig/io/dns/HostsFileCache.hpp"
 
+#include "corosig/Clock.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/io/File.hpp"
@@ -24,8 +25,11 @@ using namespace corosig;
 
 struct HostsFileParser {
   template <typename IP>
-  static Fut<size_t, Error<AllocationError, SyscallError>> parse_and_collect(
-      Reactor &r, char const *path, std::string_view ascii_name, std::span<IP> out) noexcept {
+  static Fut<size_t, Error<AllocationError, SyscallError>>
+  parse_and_collect(Reactor &r,
+                    char const *path,
+                    std::string_view ascii_name,
+                    std::span<dns::ResolvedAddress<IP>> out) noexcept {
     assert(dns::detail::debug_is_ascii(ascii_name));
 
     std::array<char, dns::detail::FQDN_MAX_OCTET_LEN> ascii_name_lowercase_buf;
@@ -47,30 +51,30 @@ struct HostsFileParser {
       COROSIG_CO_TRYV(co_await self.read_to_free_buffer(r));
       using enum State;
       switch (self.m_state) {
-      case IP: {
+      case AT_IP: {
         addr = std::nullopt;
         self.skip_ws();
         auto *it = self.find_next_ws();
         std::span used_buf = self.get_used_buffer();
         self.adwance(it - used_buf.begin().base());
         if (it == used_buf.end().base() || *it == '#' || *it == '\n') {
-          self.m_state = SKIP_LINE;
+          self.m_state = SKIPPING_LINE;
           continue;
         }
 
         addr = IP::parse(std::string_view{used_buf.data(), it});
-        self.m_state = addr ? NAME : SKIP_LINE;
+        self.m_state = addr ? AT_NAME : SKIPPING_LINE;
         break;
       }
 
-      case NAME: {
+      case AT_NAME: {
         self.skip_ws();
         auto *it = self.find_next_ws();
         std::span used_buf = self.get_used_buffer();
         self.adwance(it - used_buf.begin().base());
 
         if (it == used_buf.end().base() || *it == '#') {
-          self.m_state = SKIP_LINE;
+          self.m_state = SKIPPING_LINE;
           continue;
         }
 
@@ -82,20 +86,23 @@ struct HostsFileParser {
 
         if (std::ranges::equal(domain_name, ascii_name_lowercase)) {
           assert(addr && "Addr shall have been set before going into NAME state");
-          out.front() = *addr;
+          dns::ResolvedAddress<IP> &result = out.front();
+          result.address = *addr;
+          // shall only be used for current transaction
+          result.expires_at = SteadyClock::time_point{SteadyClock::duration{0}};
           out = out.subspan(1);
           ++returned;
         }
 
         if (*it == '\n') {
-          self.m_state = SKIP_LINE;
+          self.m_state = SKIPPING_LINE;
           continue;
         }
 
         break;
       }
 
-      case SKIP_LINE:
+      case SKIPPING_LINE:
         self.skip_line();
         break;
       }
@@ -106,9 +113,9 @@ struct HostsFileParser {
 
 private:
   enum class State : uint8_t {
-    IP,
-    NAME,
-    SKIP_LINE,
+    AT_IP,
+    AT_NAME,
+    SKIPPING_LINE,
   };
 
   explicit HostsFileParser(File input) noexcept
@@ -143,7 +150,7 @@ private:
     std::span used_buf = get_used_buffer();
     auto it = std::ranges::find(used_buf, '\n');
     if (it != used_buf.end()) {
-      m_state = IP;
+      m_state = AT_IP;
     }
     adwance(std::min(m_buffer.size(), size_t(it.base() - m_buffer.begin() + 1)));
   }
@@ -171,7 +178,7 @@ private:
   File m_input;
   uint16_t m_unused_front_buffer = 0;
   uint16_t m_used_buffer = 0;
-  State m_state = State::IP;
+  State m_state = State::AT_IP;
   std::array<char, 511> m_buffer;
 };
 
@@ -185,12 +192,20 @@ HostsFileCache::HostsFileCache(Reactor &r, char const *path) noexcept
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-HostsFileCache::pull(std::string_view ascii_name, std::span<Ipv6Addr> out) const noexcept {
+HostsFileCache::pull(std::string_view ascii_name,
+                     std::span<ResolvedAddress<Ipv4Addr>> out) const noexcept {
   return HostsFileParser::parse_and_collect(m_reactor, m_path, ascii_name, out);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-HostsFileCache::pull(std::string_view ascii_name, std::span<Ipv4Addr> out) const noexcept {
+HostsFileCache::pull(std::string_view ascii_name,
+                     std::span<ResolvedAddress<Ipv6Addr>> out) const noexcept {
+  return HostsFileParser::parse_and_collect(m_reactor, m_path, ascii_name, out);
+}
+
+Fut<size_t, Error<AllocationError, SyscallError>>
+HostsFileCache::pull(std::string_view ascii_name,
+                     std::span<ResolvedAddress<IpvNAddr>> out) const noexcept {
   return HostsFileParser::parse_and_collect(m_reactor, m_path, ascii_name, out);
 }
 

@@ -1,6 +1,7 @@
 #include "corosig/io/dns/HostsFileCache.hpp"
 
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/dns/ACache.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
@@ -62,12 +63,12 @@ TEST_CASE("HostsFileCache: finds IPv4 address") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
 
       COROSIG_CO_TRY(auto result, co_await cache.pull("test.example.com", addrs));
 
       COROSIG_REQUIRE(result == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.1"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.1"));
 
       co_return Ok{};
     };
@@ -84,11 +85,11 @@ TEST_CASE("HostsFileCache: finds IPv6 address") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv6Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv6Addr>, 4> addrs{};
       COROSIG_CO_TRY(auto result, co_await cache.pull("ipv6.example.com", addrs));
 
       COROSIG_REQUIRE(result == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv6Addr::parse("2001:db8::1"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv6Addr::parse("2001:db8::1"));
 
       co_return Ok{};
     };
@@ -102,7 +103,7 @@ TEST_CASE("HostsFileCache: returns NameNotCached for unknown hostname") {
   run_in_sighandler([](Reactor &reactor) {
     dns::HostsFileCache cache{reactor, g_test_hosts_file};
 
-    std::array<Ipv4Addr, 4> addrs{};
+    std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
     auto result = cache.pull("unknown.example.com", addrs).block_on();
 
     COROSIG_REQUIRE(result.is_ok());
@@ -119,19 +120,19 @@ TEST_CASE("HostsFileCache: handles multiple addresses for hostname") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
       COROSIG_CO_TRY(auto result, co_await cache.pull("multi1.example.com", addrs));
 
       COROSIG_REQUIRE(result == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.10"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.10"));
 
       COROSIG_CO_TRY(size_t result2, co_await cache.pull("multi2.example.com", addrs));
       COROSIG_REQUIRE(result2 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.10"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.10"));
 
       COROSIG_CO_TRY(size_t result3, co_await cache.pull("multi3.example.com", addrs));
       COROSIG_REQUIRE(result3 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.11"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.11"));
 
       co_return Ok{};
     };
@@ -152,15 +153,15 @@ TEST_CASE("HostsFileCache: handles comments and empty lines") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
 
       COROSIG_CO_TRY(size_t result1, co_await cache.pull("host1.example.com", addrs));
       COROSIG_REQUIRE(result1 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("10.0.0.1"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("10.0.0.1"));
 
       COROSIG_CO_TRY(size_t result2, co_await cache.pull("host2.example.com", addrs));
       COROSIG_REQUIRE(result2 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("10.0.0.2"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("10.0.0.2"));
 
       co_return Ok{};
     };
@@ -177,15 +178,15 @@ TEST_CASE("HostsFileCache: handles whitespace variations") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
 
       COROSIG_CO_TRY(size_t result1, co_await cache.pull("spaced.example.com", addrs));
       COROSIG_REQUIRE(result1 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.5"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.5"));
 
       COROSIG_CO_TRY(size_t result2, co_await cache.pull("another.example.com", addrs));
       COROSIG_REQUIRE(result2 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("10.0.0.100"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("10.0.0.100"));
 
       co_return Ok{};
     };
@@ -204,13 +205,13 @@ TEST_CASE("HostsFileCache: fills available output buffer") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 3> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 3> addrs{};
       COROSIG_CO_TRY(auto result, co_await cache.pull("host1.example.com", addrs));
 
       COROSIG_REQUIRE(result == 3);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.1.100"));
-      COROSIG_REQUIRE(addrs[1] == *Ipv4Addr::parse("192.168.1.101"));
-      COROSIG_REQUIRE(addrs[2] == *Ipv4Addr::parse("192.168.1.102"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.1.100"));
+      COROSIG_REQUIRE(addrs[1].address == *Ipv4Addr::parse("192.168.1.101"));
+      COROSIG_REQUIRE(addrs[2].address == *Ipv4Addr::parse("192.168.1.102"));
 
       co_return Ok{};
     };
@@ -226,11 +227,11 @@ TEST_CASE("HostsFileCache: handles leading whitespace on lines") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
       COROSIG_CO_TRY(size_t result, co_await cache.pull("led.example.com", addrs));
 
       COROSIG_REQUIRE(result == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.2.1"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.2.1"));
 
       co_return Ok{};
     };
@@ -247,11 +248,11 @@ TEST_CASE("HostsFileCache: ignores malformed lines gracefully") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
       COROSIG_CO_TRY(size_t result, co_await cache.pull("another.example.com", addrs));
 
       COROSIG_REQUIRE(result == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("10.0.0.5"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("10.0.0.5"));
 
       co_return Ok{};
     };
@@ -268,19 +269,19 @@ TEST_CASE("HostsFileCache: case insensitive hostname matching") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
 
       COROSIG_CO_TRY(size_t result1, co_await cache.pull("localhost", addrs));
       COROSIG_REQUIRE(result1 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("127.0.0.1"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("127.0.0.1"));
 
       COROSIG_CO_TRY(size_t result2, co_await cache.pull("mixedcase.example.com", addrs));
       COROSIG_REQUIRE(result2 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.3.1"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.3.1"));
 
       COROSIG_CO_TRY(size_t result3, co_await cache.pull("LoWeRcAsE.ExaMple.cOm", addrs));
       COROSIG_REQUIRE(result3 == 1);
-      COROSIG_REQUIRE(addrs[0] == *Ipv4Addr::parse("192.168.3.2"));
+      COROSIG_REQUIRE(addrs[0].address == *Ipv4Addr::parse("192.168.3.2"));
 
       co_return Ok{};
     };
@@ -304,7 +305,7 @@ TEST_CASE("HostsFileCache: handles empty file") {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
       dns::HostsFileCache cache{r, g_test_hosts_file};
 
-      std::array<Ipv4Addr, 4> addrs{};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
       auto result = co_await cache.pull("any.example.com", addrs);
 
       COROSIG_REQUIRE(result.is_ok());

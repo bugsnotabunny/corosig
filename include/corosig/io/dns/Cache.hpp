@@ -25,13 +25,18 @@ struct Cache {
         m_mem_cache{alloc} {
   }
 
-  Fut<size_t, Error<AllocationError, SyscallError>> pull(std::string_view ascii_name,
-                                                         std::span<Ipv6Addr> out) const noexcept {
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  pull(std::string_view ascii_name, std::span<ResolvedAddress<Ipv6Addr>> out) const noexcept {
     return pull_impl(m_hosts_cache.underlying_reactor(), ascii_name, out);
   }
 
-  Fut<size_t, Error<AllocationError, SyscallError>> pull(std::string_view ascii_name,
-                                                         std::span<Ipv4Addr> out) const noexcept {
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  pull(std::string_view ascii_name, std::span<ResolvedAddress<Ipv4Addr>> out) const noexcept {
+    return pull_impl(m_hosts_cache.underlying_reactor(), ascii_name, out);
+  }
+
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  pull(std::string_view ascii_name, std::span<ResolvedAddress<IpvNAddr>> out) const noexcept {
     return pull_impl(m_hosts_cache.underlying_reactor(), ascii_name, out);
   }
 
@@ -45,8 +50,8 @@ struct Cache {
 
 private:
   template <typename IP>
-  Fut<size_t, Error<AllocationError, SyscallError>>
-  pull_impl(Reactor &, std::string_view ascii_name, std::span<IP> out) const noexcept {
+  Fut<size_t, Error<AllocationError, SyscallError>> pull_impl(
+      Reactor &, std::string_view ascii_name, std::span<ResolvedAddress<IP>> out) const noexcept {
     Result res = co_await m_hosts_cache.pull(ascii_name, out);
     if (res.is_ok() && res.value() != 0) {
       co_return res;

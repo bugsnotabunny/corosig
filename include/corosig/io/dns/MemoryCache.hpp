@@ -142,12 +142,12 @@ private:
 using memory_cache_names = boost::intrusive::avl_set<detail::NameStorageHeader,
                                                      boost::intrusive::constant_time_size<false>>;
 
-template <typename IP>
-AlwaysOkResult<size_t>
-memory_cache_pull_impl(std::add_pointer_t<std::span<IP const>(AddrStorageHeader const &)> ip_source,
-                       memory_cache_names const &names,
-                       std::string_view fqdn,
-                       std::span<IP> out) noexcept;
+template <typename IP, typename IP2>
+AlwaysOkResult<size_t> memory_cache_pull_impl(
+    std::add_pointer_t<std::span<IP2 const>(AddrStorageHeader const &)> ip_source,
+    memory_cache_names const &names,
+    std::string_view ascii_name,
+    std::span<ResolvedAddress<IP>> out) noexcept;
 
 } // namespace detail
 
@@ -168,20 +168,38 @@ struct MemoryCache {
     m_names.clear_and_dispose(deleter);
   }
 
-  AlwaysOkResult<size_t> pull(std::string_view ascii_name, std::span<Ipv6Addr> out) const noexcept {
-    return detail::memory_cache_pull_impl(
+  AlwaysOkResult<size_t> pull(std::string_view ascii_name,
+                              std::span<ResolvedAddress<Ipv6Addr>> out) const noexcept {
+    return detail::memory_cache_pull_impl<Ipv6Addr, Ipv6Addr>(
         [](detail::AddrStorageHeader const &addr_storage) { return addr_storage.ipv6s(); },
         m_names,
         ascii_name,
         out);
   }
 
-  AlwaysOkResult<size_t> pull(std::string_view ascii_name, std::span<Ipv4Addr> out) const noexcept {
-    return detail::memory_cache_pull_impl(
+  AlwaysOkResult<size_t> pull(std::string_view ascii_name,
+                              std::span<ResolvedAddress<Ipv4Addr>> out) const noexcept {
+    return detail::memory_cache_pull_impl<Ipv4Addr, Ipv4Addr>(
         [](detail::AddrStorageHeader const &addr_storage) { return addr_storage.ipv4s(); },
         m_names,
         ascii_name,
         out);
+  }
+
+  AlwaysOkResult<size_t> pull(std::string_view ascii_name,
+                              std::span<ResolvedAddress<IpvNAddr>> out) const noexcept {
+    auto res1 = detail::memory_cache_pull_impl<IpvNAddr, Ipv4Addr>(
+        [](detail::AddrStorageHeader const &addr_storage) { return addr_storage.ipv4s(); },
+        m_names,
+        ascii_name,
+        out);
+    out = out.subspan(res1.value());
+    auto res2 = detail::memory_cache_pull_impl<IpvNAddr, Ipv6Addr>(
+        [](detail::AddrStorageHeader const &addr_storage) { return addr_storage.ipv6s(); },
+        m_names,
+        ascii_name,
+        out);
+    return res1.value() + res2.value();
   }
 
   Result<void, AllocationError> push(CachePushTransaction transaction) noexcept {

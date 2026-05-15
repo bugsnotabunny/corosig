@@ -2,6 +2,7 @@
 
 #include "corosig/Clock.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/dns/ACache.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -69,12 +70,12 @@ SteadyClock::time_point AddrStorageHeader::expires_at() const noexcept {
   return m_expires_at;
 }
 
-template <typename IP>
-AlwaysOkResult<size_t>
-memory_cache_pull_impl(std::add_pointer_t<std::span<IP const>(AddrStorageHeader const &)> ip_source,
-                       memory_cache_names const &names,
-                       std::string_view ascii_name,
-                       std::span<IP> out) noexcept {
+template <typename IP, typename IP2>
+AlwaysOkResult<size_t> memory_cache_pull_impl(
+    std::add_pointer_t<std::span<IP2 const>(AddrStorageHeader const &)> ip_source,
+    memory_cache_names const &names,
+    std::string_view ascii_name,
+    std::span<ResolvedAddress<IP>> out) noexcept {
 
   auto name_it = names.find(ascii_name, std::less<>{});
   if (name_it == names.end()) {
@@ -94,8 +95,14 @@ memory_cache_pull_impl(std::add_pointer_t<std::span<IP const>(AddrStorageHeader 
 
     std::span ips = ip_source(addr_storage_header);
     ips = ips.subspan(0, std::min(out.size(), ips.size()));
-    std::ranges::copy(ips, out.begin());
-    out = out.subspan(ips.size());
+    for (IP2 const &ip : ips) {
+      out.front() = ResolvedAddress<IP>{
+          .address = IP{ip},
+          .expires_at = addr_storage_header.expires_at(),
+      };
+      out = out.subspan(1);
+    }
+
     pulled += ips.size();
   }
   return pulled;
@@ -105,17 +112,29 @@ NameStorageHeader &AddrStorageHeader::parent() const noexcept {
   return m_parent;
 }
 
-template AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv6Addr>(
+template AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv6Addr, Ipv6Addr>(
     std::add_pointer_t<std::span<Ipv6Addr const>(AddrStorageHeader const &)>,
     memory_cache_names const &,
     std::string_view,
-    std::span<Ipv6Addr>) noexcept;
+    std::span<ResolvedAddress<Ipv6Addr>>) noexcept;
 
-template AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv4Addr>(
+template AlwaysOkResult<size_t> memory_cache_pull_impl<Ipv4Addr, Ipv4Addr>(
     std::add_pointer_t<std::span<Ipv4Addr const>(AddrStorageHeader const &)>,
     memory_cache_names const &,
     std::string_view,
-    std::span<Ipv4Addr>) noexcept;
+    std::span<ResolvedAddress<Ipv4Addr>>) noexcept;
+
+template AlwaysOkResult<size_t> memory_cache_pull_impl<IpvNAddr, Ipv4Addr>(
+    std::add_pointer_t<std::span<Ipv4Addr const>(AddrStorageHeader const &)>,
+    memory_cache_names const &,
+    std::string_view,
+    std::span<ResolvedAddress<IpvNAddr>>) noexcept;
+
+template AlwaysOkResult<size_t> memory_cache_pull_impl<IpvNAddr, Ipv6Addr>(
+    std::add_pointer_t<std::span<Ipv6Addr const>(AddrStorageHeader const &)>,
+    memory_cache_names const &,
+    std::string_view,
+    std::span<ResolvedAddress<IpvNAddr>>) noexcept;
 
 } // namespace detail
 

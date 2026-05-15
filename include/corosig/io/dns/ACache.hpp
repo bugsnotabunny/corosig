@@ -4,6 +4,7 @@
 #include "corosig/Clock.hpp"
 #include "corosig/io/Sockaddr.hpp"
 #include "corosig/meta/AResult.hpp"
+#include "corosig/meta/Futurize.hpp"
 
 #include <algorithm>
 
@@ -24,6 +25,12 @@ constexpr bool debug_is_ascii(std::string_view str) noexcept {
 
 } // namespace detail
 
+template <typename IP>
+struct ResolvedAddress {
+  IP address;
+  SteadyClock::time_point expires_at;
+};
+
 struct CachePushTransaction {
   std::string_view name;
   SteadyClock::time_point expire_at;
@@ -34,8 +41,9 @@ struct CachePushTransaction {
 template <typename T>
 concept ACache = requires(T t) {
   // both methods should return result or future which resolve to size_t in case of success
-  { t.pull(std::string_view{}, std::span<Ipv6Addr>{}) } noexcept;
-  { t.pull(std::string_view{}, std::span<Ipv4Addr>{}) } noexcept;
+  { t.pull(std::string_view{}, std::span<ResolvedAddress<IpvNAddr>>{}) } noexcept;
+  { t.pull(std::string_view{}, std::span<ResolvedAddress<Ipv6Addr>>{}) } noexcept;
+  { t.pull(std::string_view{}, std::span<ResolvedAddress<Ipv4Addr>>{}) } noexcept;
 };
 
 template <typename T>
