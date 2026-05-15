@@ -87,14 +87,14 @@ COROSIG_SIGHANDLER_TEST_CASE("Flags: recursion available flag", "[flags]") {
 COROSIG_SIGHANDLER_TEST_CASE("Flags: rcode set/get", "[flags]") {
   dns::Header::Flags f{};
 
-  f.set_rcode(0);
-  COROSIG_REQUIRE(f.get_rcode() == 0);
+  f.set_rcode(dns::ServerResponseCode::NOERROR);
+  COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::NOERROR);
 
-  f.set_rcode(5);
-  COROSIG_REQUIRE(f.get_rcode() == 5);
+  f.set_rcode(dns::ServerResponseCode::REFUSED);
+  COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::REFUSED);
 
-  f.set_rcode(15);
-  COROSIG_REQUIRE(f.get_rcode() == 15);
+  f.set_rcode(dns::ServerResponseCode::Value{15});
+  COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::Value{15});
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Flags: chaining works correctly", "[flags]") {
@@ -105,14 +105,14 @@ COROSIG_SIGHANDLER_TEST_CASE("Flags: chaining works correctly", "[flags]") {
       .set_truncated(true)
       .set_recursion_desired(true)
       .set_recursion_available(true)
-      .set_rcode(3);
+      .set_rcode(dns::ServerResponseCode::NAME_ERROR);
 
   COROSIG_REQUIRE(f.is_response());
   COROSIG_REQUIRE(f.authoritative_answer());
   COROSIG_REQUIRE(f.truncated());
   COROSIG_REQUIRE(f.recursion_desired());
   COROSIG_REQUIRE(f.recursion_available());
-  COROSIG_REQUIRE(f.get_rcode() == 3);
+  COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::NAME_ERROR);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Flags: comparison operator", "[flags]") {
@@ -199,7 +199,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_header: encodes flags correctly", "[encode]
       .set_truncated(true)
       .set_recursion_desired(true)
       .set_recursion_available(true)
-      .set_rcode(9);
+      .set_rcode(dns::ServerResponseCode::Value(9));
 
   std::array<char, 1024> buffer;
   dns::detail::encode_header(buffer.begin(), h);

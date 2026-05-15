@@ -31,14 +31,15 @@ struct HostsFileParser {
                     std::string_view ascii_name,
                     std::span<dns::ResolvedAddress<IP>> out) noexcept {
     assert(dns::detail::debug_is_ascii(ascii_name));
+    if (ascii_name.size() > dns::detail::FQDN_MAX_OCTET_LEN) {
+      co_return 0;
+    }
 
     std::array<char, dns::detail::FQDN_MAX_OCTET_LEN> ascii_name_lowercase_buf;
-    std::ranges::transform(ascii_name, ascii_name_lowercase_buf.begin(), dns::detail::to_lower);
-
-    std::string_view ascii_name_lowercase{
-        ascii_name_lowercase_buf.data(),
-        ascii_name.size(),
-    };
+    char const *end =
+        std::ranges::transform(ascii_name, ascii_name_lowercase_buf.begin(), dns::detail::to_lower)
+            .out;
+    std::string_view ascii_name_lowercase = {ascii_name_lowercase_buf.begin(), end};
 
     COROSIG_CO_TRY(auto file, co_await File::open(r, path));
     HostsFileParser self{std::move(file)};

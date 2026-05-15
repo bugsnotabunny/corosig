@@ -9,7 +9,6 @@
 #include <catch2/catch_all.hpp>
 #include <cstdint>
 #include <iterator>
-#include <ranges>
 #include <string_view>
 
 namespace {
@@ -558,21 +557,19 @@ TEST_CASE("Encode -> Decode roundtrip", "[dns][roundtrip]") {
 
   std::vector<char> buffer(512);
 
-  QuestionParams params{
+  Question question{
       .id = 0xBEEF,
       .opcode = QueryOpcode::STANDARD,
       .recursion_desired = true,
-  };
-
-  std::vector<QuestionQueryEntry> entries = {
-      {"example.com", QueryType::A, QueryClass::IN},
-      {"www.example.com", QueryType::AAAA, QueryClass::IN},
+      .name = "example.com",
+      .qtype = QueryType::A,
+      .qclass = QueryClass::IN,
   };
 
   std::array<char, 1024> alloc_buf;
   corosig::Allocator alloc{alloc_buf};
 
-  auto res = encode_question(buffer.begin(), params, entries, alloc);
+  auto res = encode_question(buffer.begin(), question, alloc);
   REQUIRE(res);
 
   size_t size = std::distance(buffer.begin(), res.value());
@@ -585,16 +582,14 @@ TEST_CASE("Encode -> Decode roundtrip", "[dns][roundtrip]") {
   REQUIRE(header);
 
   REQUIRE(header.value().id == 0xBEEF);
-  REQUIRE(header.value().qdcount == entries.size());
+  REQUIRE(header.value().qdcount == 1);
 
-  for (auto &entry : entries) {
-    auto q = d.consume_question_entry();
-    REQUIRE(q);
+  auto q = d.consume_question_entry();
+  REQUIRE(q);
 
-    REQUIRE(std::ranges::equal(q.value().name.labels_svs(), split_into_labels(entry.name)));
-    REQUIRE(q.value().qtype == entry.qtype);
-    REQUIRE(q.value().qclass == entry.qclass);
-  }
+  REQUIRE(std::ranges::equal(q.value().name.labels_svs(), split_into_labels(question.name)));
+  REQUIRE(q.value().qtype == question.qtype);
+  REQUIRE(q.value().qclass == question.qclass);
 }
 
 TEST_CASE("Compression pointer to pointer chain (valid)", "[dns][compression][chain]") {
@@ -1141,7 +1136,7 @@ TEST_CASE("E2E decode with real-life data") {
   REQUIRE(header.flags.recursion_desired());
   REQUIRE(header.flags.recursion_available());
   REQUIRE(header.flags.truncated() == false);
-  REQUIRE(header.flags.get_rcode() == 0);
+  REQUIRE(header.flags.get_rcode() == ServerResponseCode::NOERROR);
   REQUIRE(header.qdcount == 1);
   REQUIRE(header.ancount == 6);
   REQUIRE(header.nscount == 0);

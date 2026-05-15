@@ -3,12 +3,14 @@
 #include "corosig/Clock.hpp"
 #include "corosig/io/Sockaddr.hpp"
 #include "corosig/io/dns/ACache.hpp"
+#include "corosig/io/dns/Protocol.hpp"
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <ranges>
 #include <span>
 #include <string_view>
 
@@ -22,8 +24,8 @@ std::string_view NameStorageHeader::name() const noexcept {
 
 NameStorageHeader::NameStorageHeader(std::string_view name_) noexcept
     : m_name_size{name_.size()} {
-  std::memcpy(
-      reinterpret_cast<char *>(this) + sizeof(NameStorageHeader), name_.data(), name_.size());
+  std::ranges::copy(name_ | std::views::transform(to_lower),
+                    reinterpret_cast<char *>(this) + sizeof(NameStorageHeader));
 }
 
 Ipv4Addr const *AddrStorageHeader::ipv4s_begin() const noexcept {
@@ -76,6 +78,17 @@ AlwaysOkResult<size_t> memory_cache_pull_impl(
     memory_cache_names const &names,
     std::string_view ascii_name,
     std::span<ResolvedAddress<IP>> out) noexcept {
+  assert(dns::detail::debug_is_ascii(ascii_name));
+  if (ascii_name.size() > dns::detail::FQDN_MAX_OCTET_LEN) {
+    return size_t(0);
+  }
+
+  std::array<char, FQDN_MAX_OCTET_LEN> ascii_name_lowercase_buf;
+  char const *end =
+      std::ranges::transform(ascii_name, ascii_name_lowercase_buf.begin(), dns::detail::to_lower)
+          .out;
+
+  std::string_view lowercase_ascii_name = {ascii_name_lowercase_buf.begin(), end};
 
   auto name_it = names.find(ascii_name, std::less<>{});
   if (name_it == names.end()) {

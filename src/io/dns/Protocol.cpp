@@ -12,6 +12,7 @@
 #include <cstring>
 #include <iterator>
 #include <optional>
+#include <type_traits>
 
 namespace {
 
@@ -572,13 +573,13 @@ Header::Flags &Header::Flags::set_recursion_available(bool v) noexcept {
   return get_bitfield<RA>(value) == 1;
 }
 
-Header::Flags &Header::Flags::set_rcode(uint8_t v) noexcept {
-  value = set_bitfield<RCODE>(value, v);
+Header::Flags &Header::Flags::set_rcode(ServerResponseCode v) noexcept {
+  value = set_bitfield<RCODE>(value, v.value);
   return *this;
 }
 
-[[nodiscard]] uint8_t Header::Flags::get_rcode() const noexcept {
-  return get_bitfield<RCODE>(value);
+[[nodiscard]] ServerResponseCode Header::Flags::get_rcode() const noexcept {
+  return ServerResponseCode::Value(get_bitfield<RCODE>(value));
 }
 
 DomainName::LabelsIterator::LabelsIterator(DomainName domain_name) noexcept
@@ -628,8 +629,6 @@ DomainName::DomainName(uint8_t const *original_message_start, uint8_t const *sel
 
 std::string_view QuestionEncodeError::description() const noexcept {
   switch (value) {
-  case TOO_MANY_QUESTION_ENTRIES:
-    return "QDCOUNT is u16 and given amount of entries was not representable by it";
   case TOO_LONG_DOMAIN_NAME:
     return NAME_LEN_TOO_BIG_MSG;
   case TOO_LONG_DOMAIN_NAME_LABEL:
@@ -696,6 +695,31 @@ std::string_view ResponseDecodeError::description() const noexcept {
   case RESOURCE_RECORD_DATA_BAD_MINFO:
     return "Error parsing MINFO type RDATA";
   }
+  assert(false && "Should be unreachable");
+  return {};
+}
+
+[[nodiscard]] std::string_view ServerResponseCode::description() const noexcept {
+  switch (value) {
+  case NOERROR:
+    return "No error";
+  case FORMAT_ERROR:
+    return "Server got a question query of invalid format";
+  case SERVER_FAILURE:
+    return "Internal server failure";
+  case NAME_ERROR:
+    return "Asked domain name does not exist";
+  case NOT_IMPLEMENTED:
+    return "Server does not support the requested kind of query";
+  case REFUSED:
+    return "Server refuses to perform the specified operation for policy reasons";
+  }
+
+  constexpr uint8_t OPCODE_MAX = 16;
+  if (std::underlying_type_t<Value>(value) < OPCODE_MAX) {
+    return "Got one of extended error codes";
+  }
+
   assert(false && "Should be unreachable");
   return {};
 }

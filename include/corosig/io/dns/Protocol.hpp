@@ -14,9 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <initializer_list>
 #include <iterator>
-#include <limits>
 #include <ranges>
 #include <string_view>
 #include <type_traits>
@@ -27,7 +25,6 @@ namespace corosig::dns {
 
 struct QuestionEncodeError {
   enum Value : uint8_t {
-    TOO_MANY_QUESTION_ENTRIES,
     TOO_LONG_DOMAIN_NAME,
     TOO_LONG_DOMAIN_NAME_LABEL,
     EMPTY_LABEL,
@@ -77,6 +74,25 @@ struct ResponseDecodeError {
   }
 
   constexpr auto operator<=>(const ResponseDecodeError &) const noexcept = default;
+
+  [[nodiscard]] std::string_view description() const noexcept;
+};
+
+struct ServerResponseCode {
+  enum Value : uint8_t {
+    NOERROR = 0,
+    FORMAT_ERROR = 1,
+    SERVER_FAILURE = 2,
+    NAME_ERROR = 3,
+    NOT_IMPLEMENTED = 4,
+    REFUSED = 5,
+  } value;
+
+  constexpr ServerResponseCode(Value v) noexcept
+      : value{v} {
+  }
+
+  constexpr auto operator<=>(const ServerResponseCode &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
@@ -193,8 +209,8 @@ struct Header {
     Flags &set_recursion_available(bool) noexcept;
     [[nodiscard]] bool recursion_available() const noexcept;
 
-    Flags &set_rcode(uint8_t) noexcept;
-    [[nodiscard]] uint8_t get_rcode() const noexcept;
+    Flags &set_rcode(ServerResponseCode) noexcept;
+    [[nodiscard]] ServerResponseCode get_rcode() const noexcept;
 
     constexpr auto operator<=>(Flags const &rhs) const noexcept = default;
 
@@ -202,6 +218,8 @@ struct Header {
   };
 
   constexpr auto operator<=>(Header const &rhs) const noexcept = default;
+
+  constexpr static uint16_t THE_ONLY_VALID_QDCOUNT = 1; // RFC 9619 restricts this field's value
 
   uint16_t id = 0;
   Flags flags = Flags{};
@@ -211,13 +229,10 @@ struct Header {
   uint16_t arcount = 0;
 };
 
-struct QuestionParams {
+struct Question {
   uint16_t id;
   QueryOpcode opcode = QueryOpcode::STANDARD;
   bool recursion_desired = true;
-};
-
-struct QuestionQueryEntry {
   std::string_view name;
   QueryType qtype;
   QueryClass qclass = QueryClass::IN;
@@ -579,15 +594,6 @@ encode_domain_name(CountingOutputIterator<OUT> out,
   return out;
 }
 
-template <std::output_iterator<char> OUT, AnAllocator ALLOCATOR>
-constexpr Result<OUT, QuestionEncodeError>
-encode_entry(OUT out, QuestionQueryEntry const &entry, CompressionMap<ALLOCATOR> &compression_map) {
-  COROSIG_TRY(out, detail::encode_domain_name(out, entry.name, compression_map));
-  out = detail::write_hton(out, uint16_t(entry.qtype));
-  out = detail::write_hton(out, uint16_t(entry.qclass));
-  return out;
-}
-
 } // namespace detail
 
 struct DecodeQuestionEntrySuccess {
@@ -611,49 +617,30 @@ private:
   std::span<uint8_t const> m_remaining_message = m_original_message;
 };
 
-template <std::output_iterator<char> OUT, std::ranges::sized_range ENTRIES, AnAllocator ALLOCATOR>
+template <std::output_iterator<char> OUT, AnAllocator ALLOCATOR>
 constexpr Result<OUT, QuestionEncodeError>
-encode_question(OUT out, QuestionParams params, ENTRIES const &entries, ALLOCATOR &&alloc) {
-  if (entries.size() >= std::numeric_limits<uint16_t>::max()) {
-    return Failure{QuestionEncodeError::TOO_MANY_QUESTION_ENTRIES};
-  }
-
+encode_question(OUT out, Question question, ALLOCATOR &&alloc) {
   size_t written_count = 0;
   detail::CountingOutputIterator counting_out{out, written_count};
 
   Header header{
-      .id = params.id,
-      .flags =
-          Header::Flags{}.set_opcode(params.opcode).set_recursion_desired(params.recursion_desired),
-      .qdcount = uint16_t(entries.size()),
+      .id = question.id,
+      .flags = Header::Flags{}
+                   .set_opcode(question.opcode)
+                   .set_recursion_desired(question.recursion_desired),
+      .qdcount = 1,
   };
 
   counting_out = detail::encode_header(counting_out, header);
 
   detail::CompressionMap compression_map{std::forward<ALLOCATOR>(alloc)};
 
-  for (QuestionQueryEntry const &entry : entries) {
-    COROSIG_TRY(counting_out, detail::encode_entry(counting_out, entry, compression_map));
-  }
+  COROSIG_TRY(counting_out,
+              detail::encode_domain_name(counting_out, question.name, compression_map));
+  counting_out = detail::write_hton(counting_out, uint16_t(question.qtype));
+  counting_out = detail::write_hton(counting_out, uint16_t(question.qclass));
 
   return counting_out.underlying_iter();
-}
-
-template <std::output_iterator<char> OUT, AnAllocator ALLOCATOR>
-constexpr Result<OUT, QuestionEncodeError> encode_question(OUT out,
-                                                           QuestionParams params,
-                                                           QuestionQueryEntry const &entry,
-                                                           ALLOCATOR &&alloc) {
-  return encode_question(out, params, std::views::single(entry), std::forward<ALLOCATOR>(alloc));
-}
-
-template <std::output_iterator<char> OUT, AnAllocator ALLOCATOR>
-constexpr Result<OUT, QuestionEncodeError>
-encode_question(OUT out,
-                QuestionParams params,
-                std::initializer_list<QuestionQueryEntry> const &entries,
-                ALLOCATOR &&alloc) {
-  return encode_question(out, params, std::span{entries}, std::forward<ALLOCATOR>(alloc));
 }
 
 } // namespace corosig::dns

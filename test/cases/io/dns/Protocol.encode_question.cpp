@@ -10,15 +10,6 @@ namespace {
 
 using namespace corosig;
 
-std::vector<dns::QuestionQueryEntry> const TOO_MUCH_ENTRIES{
-    std::numeric_limits<uint16_t>::max(),
-    dns::QuestionQueryEntry{
-        .name = "example.com",
-        .qtype = dns::QueryType::A,
-        .qclass = dns::QueryClass::IN,
-    },
-};
-
 std::string const LONG_NAME(256, 'a');
 
 } // namespace
@@ -205,32 +196,15 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: compression short-circuits remaining l
   COROSIG_REQUIRE((last & 0xC000) == 0xC000);
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("encode_question: fails if too many entries", "[encode_question]") {
-
-  std::array<char, 0> buffer;
-  auto res = encode_question(buffer.begin(),
-                             dns::QuestionParams{
-                                 .id = 1,
-                                 .opcode = dns::QueryOpcode::STANDARD,
-                                 .recursion_desired = true,
-                             },
-                             TOO_MUCH_ENTRIES,
-                             reactor.allocator());
-
-  COROSIG_REQUIRE(res.error() == dns::QuestionEncodeError::TOO_MANY_QUESTION_ENTRIES);
-}
-
 COROSIG_SIGHANDLER_TEST_CASE("encode_question: encodes single question correctly",
                              "[encode_question]") {
   std::array<char, 1024> buffer;
 
   COROSIG_REQUIRE(encode_question(buffer.begin(),
-                                  dns::QuestionParams{
+                                  dns::Question{
                                       .id = 0x1234,
                                       .opcode = dns::QueryOpcode::STANDARD,
                                       .recursion_desired = true,
-                                  },
-                                  dns::QuestionQueryEntry{
                                       .name = "example.com",
                                       .qtype = dns::QueryType::A,
                                       .qclass = dns::QueryClass::IN,
@@ -257,65 +231,17 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_question: encodes single question correctly
   COROSIG_REQUIRE(uint8_t(buffer[pos]) == 0);
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("encode_question: encodes multiple questions", "[encode_question]") {
-  std::array<char, 1024> buffer;
-
-  COROSIG_REQUIRE(encode_question(buffer.begin(),
-                                  dns::QuestionParams{
-                                      .id = 1,
-                                      .opcode = dns::QueryOpcode::STANDARD,
-                                      .recursion_desired = true,
-                                  },
-                                  {
-                                      dns::QuestionQueryEntry{
-                                          .name = "a.com",
-                                          .qtype = dns::QueryType::A,
-                                          .qclass = dns::QueryClass::IN,
-                                      },
-                                      dns::QuestionQueryEntry{
-                                          .name = "b.com",
-                                          .qtype = dns::QueryType::AAAA,
-                                          .qclass = dns::QueryClass::IN,
-                                      },
-                                  },
-                                  reactor.allocator()));
-
-  // QDCOUNT = 2
-  COROSIG_REQUIRE(uint8_t(buffer[4]) == 0x00);
-  COROSIG_REQUIRE(uint8_t(buffer[5]) == 0x02);
-
-  // 1a 3com 0
-  size_t pos = sizeof(dns::Header);
-  COROSIG_REQUIRE(uint8_t(buffer[pos]) == 1);
-  pos += 2;
-  size_t com_pos = pos;
-  COROSIG_REQUIRE(uint8_t(buffer[pos]) == 3);
-  pos += 4;
-  COROSIG_REQUIRE(uint8_t(buffer[pos]) == 0);
-  pos += 1;
-  // QTYPE QCLASS
-  pos += 4;
-  // 1b [compressed]
-  COROSIG_REQUIRE(uint8_t(buffer[pos]) == 1);
-  pos += 2;
-  COROSIG_REQUIRE((uint8_t(buffer[pos]) & 0xC0) == 0xC0);
-  COROSIG_REQUIRE(((uint8_t(buffer[pos]) & ~0xC0) << uint8_t(8) | uint8_t(buffer[pos + 1])) ==
-                  int(com_pos));
-}
-
 COROSIG_SIGHANDLER_TEST_CASE("encode_question: writes qtype and qclass", "[encode_question]") {
   std::array<char, 1024> buffer;
 
   COROSIG_REQUIRE(encode_question(buffer.begin(),
-                                  dns::QuestionParams{
+                                  dns::Question{
                                       .id = 1,
                                       .opcode = dns::QueryOpcode::STANDARD,
                                       .recursion_desired = true,
-                                  },
-                                  {
-                                      "a.com",
-                                      dns::QueryType::AAAA,
-                                      dns::QueryClass::IN,
+                                      .name = "a.com",
+                                      .qtype = dns::QueryType::AAAA,
+                                      .qclass = dns::QueryClass::IN,
                                   },
                                   reactor.allocator()));
 
