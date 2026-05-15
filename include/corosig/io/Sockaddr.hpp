@@ -18,6 +18,9 @@ struct SockaddrStorage {
 
 /// @brief Ipv4 address type
 struct Ipv4Addr {
+  /// @brief Make an Ipv4Addr pointing to local machine
+  static Ipv4Addr loopback() noexcept;
+
   /// @brief Set Ipv4Addr from Ipv4 groups, where each group is in host byte order
   static Ipv4Addr from_groups(std::array<uint8_t, 4> groups) noexcept;
 
@@ -42,6 +45,9 @@ private:
 
 /// @brief Ipv6 address type
 struct Ipv6Addr {
+  /// @brief Make an Ipv6Addr pointing to local machine
+  static Ipv6Addr loopback() noexcept;
+
   /// @brief Set Ipv6Addr from Ipv6 groups, where each group is in host byte order
   static Ipv6Addr from_groups(std::array<uint16_t, 8> groups) noexcept;
 
@@ -72,6 +78,8 @@ private:
 
 /// @brief Ipv4/Ipv6 address type
 struct IpvNAddr : Variant<Ipv4Addr, Ipv6Addr> {
+  using Variant::Variant;
+
   /// @brief Parse any Ipv6 or Ipv4 addr from string
   [[nodiscard]] static std::optional<IpvNAddr> parse(std::string_view addr) noexcept;
 

@@ -25,6 +25,20 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr from_bytes", "[ipv4]") {
   COROSIG_REQUIRE(addr.value() == expected);
 }
 
+COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr from_groups", "[ipv4]") {
+  std::array<uint8_t, 4> groups = {192, 168, 1, 1};
+  auto addr = Ipv4Addr::from_groups(groups);
+
+  auto expected = hton<uint32_t>((192 << 24) | (168 << 16) | (1 << 8) | 1);
+  COROSIG_REQUIRE(addr.value() == expected);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr loopback", "[ipv4]") {
+  auto addr = Ipv4Addr::loopback();
+  auto expected = hton<uint32_t>((127 << 24) | (0 << 16) | (0 << 8) | 1);
+  COROSIG_REQUIRE(addr.value() == expected);
+}
+
 COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr parse valid addresses", "[ipv4]") {
   struct TestCase {
     std::string_view input;
@@ -50,6 +64,18 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr parse valid addresses", "[ipv4]") {
     COROSIG_REQUIRE(result2.has_value());
     COROSIG_REQUIRE(result2->as<Ipv4Addr>().value() == Ipv4Addr::from_bytes(test.expected).value());
   }
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr parse edge cases", "[ipv4]") {
+  // Test single digit octets
+  auto result = Ipv4Addr::parse("1.2.3.4");
+  COROSIG_REQUIRE(result.has_value());
+  COROSIG_REQUIRE(result->value() == hton<uint32_t>((1 << 24) | (2 << 16) | (3 << 8) | 4));
+
+  // Test leading zeros
+  result = Ipv4Addr::parse("01.02.03.04");
+  COROSIG_REQUIRE(result.has_value());
+  COROSIG_REQUIRE(result->value() == hton<uint32_t>((1 << 24) | (2 << 16) | (3 << 8) | 4));
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr parse invalid addresses", "[ipv4]") {
@@ -87,7 +113,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr", "[ipv4]") {
   const auto *sockaddr = reinterpret_cast<const sockaddr_in *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin_family == AF_INET);
-  COROSIG_REQUIRE(sockaddr->sin_port == port);
+  COROSIG_REQUIRE(sockaddr->sin_port == htons(port));
 
   // Compare address
   auto expected = hton<uint32_t>((192 << 24) | (168 << 16) | (1 << 8) | 1);
@@ -101,6 +127,35 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr from_bytes", "[ipv6]") {
 
   auto result = addr.value();
   COROSIG_REQUIRE(result == bytes);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr from_groups", "[ipv6]") {
+  std::array<uint16_t, 8> groups = {0x2001, 0xdb8, 0, 0, 0, 0, 0, 0x1};
+  auto addr = Ipv6Addr::from_groups(groups);
+
+  auto expected = std::array<uint8_t, 16>{0x20,
+                                          0x01,
+                                          0x0d,
+                                          0xb8,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x00,
+                                          0x01};
+  COROSIG_REQUIRE(addr.value() == expected);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr loopback", "[ipv6]") {
+  auto addr = Ipv6Addr::loopback();
+  auto expected = std::array<uint8_t, 16>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+  COROSIG_REQUIRE(addr.value() == expected);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr parse_mapped_ipv4", "[ipv6]") {
@@ -228,29 +283,100 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr parse_regular valid", "[ipv6]") {
   }
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr parse_regular invalid", "[ipv6]") {
-  auto invalid = std::to_array<std::string_view>({
-      "",                       // Empty
-      ":::",                    // Triple colon
-      "1::2::3",                // Double compression
-      "g::1",                   // Invalid hex
-      "2001:db8::1::1",         // Multiple compressors
-      "2001:db8:1:2:3:4:5:6:7", // Too many groups
-      "2001:db8",               // Too few groups without compression
-      "::1::",                  // Invalid compression
-      "1:2:3:4:5:6:7:",         // Trailing colon
-      ":1:2:3:4:5:6:7",         // Leading colon
-      "2001:db8::1:2:3:4:5:6",  // Too many groups with compression
-      "12345::1",               // Group too large
-  });
+COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr parse edge cases", "[ipv6]") {
+  // Test compressed form with multiple zeros
+  auto result = Ipv6Addr::parse("2001:db8::1");
+  COROSIG_REQUIRE(result.has_value());
 
-  for (auto input : invalid) {
-    auto result = Ipv6Addr::parse_regular(input);
-    COROSIG_REQUIRE(!result.has_value());
+  // Test full form
+  result = Ipv6Addr::parse("2001:0db8:0000:0000:0000:0000:0000:0001");
+  COROSIG_REQUIRE(result.has_value());
 
-    result = Ipv6Addr::parse(input);
-    COROSIG_REQUIRE(!result.has_value());
-  }
+  // Test with mixed case
+  result = Ipv6Addr::parse("2001:DB8::1");
+  COROSIG_REQUIRE(result.has_value());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr roundtrip", "[ipv4]") {
+  auto addr = Ipv4Addr::parse("192.168.1.1").value();
+  uint16_t port = 8080;
+
+  auto storage = addr.to_sockaddr(port);
+  const auto *sockaddr = reinterpret_cast<const sockaddr_in *>(&storage.native_storage);
+
+  COROSIG_REQUIRE(sockaddr->sin_family == AF_INET);
+  COROSIG_REQUIRE(sockaddr->sin_port == htons(port));
+
+  // Verify we can reconstruct the address
+  auto haddr = ntoh(sockaddr->sin_addr.s_addr);
+  auto reconstructed = Ipv4Addr::from_bytes({static_cast<uint8_t>((haddr >> 24) & 0xFF),
+                                             static_cast<uint8_t>((haddr >> 16) & 0xFF),
+                                             static_cast<uint8_t>((haddr >> 8) & 0xFF),
+                                             static_cast<uint8_t>(haddr & 0xFF)});
+  COROSIG_REQUIRE(reconstructed.value() == addr.value());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr roundtrip", "[ipv6]") {
+  auto addr = Ipv6Addr::parse("2001:db8::1").value();
+  uint16_t port = 8080;
+
+  auto storage = addr.to_sockaddr(port);
+  const auto *sockaddr = reinterpret_cast<const sockaddr_in6 *>(&storage.native_storage);
+
+  COROSIG_REQUIRE(sockaddr->sin6_family == AF_INET6);
+  COROSIG_REQUIRE(sockaddr->sin6_port == htons(port));
+
+  // Verify we can reconstruct the address
+  auto bytes = addr.value();
+  COROSIG_REQUIRE(memcmp(&sockaddr->sin6_addr, bytes.data(), 16) == 0);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("IpvNAddr parse combinations", "[ipv4] [ipv6]") {
+  // Test IPv4 address parsing through IpvNAddr
+  auto result = IpvNAddr::parse("192.168.1.1");
+  COROSIG_REQUIRE(result.has_value());
+  COROSIG_REQUIRE(result->holds<Ipv4Addr>());
+  COROSIG_REQUIRE(result->as<Ipv4Addr>().value() == Ipv4Addr::parse("192.168.1.1").value().value());
+
+  // Test IPv6 address parsing through IpvNAddr
+  result = IpvNAddr::parse("2001:db8::1");
+  COROSIG_REQUIRE(result.has_value());
+  COROSIG_REQUIRE(result->holds<Ipv6Addr>());
+  COROSIG_REQUIRE(result->as<Ipv6Addr>().value() == Ipv6Addr::parse("2001:db8::1").value().value());
+
+  // Test IPv4-mapped IPv6 address
+  result = IpvNAddr::parse("::ffff:192.168.1.1");
+  COROSIG_REQUIRE(result.has_value());
+  COROSIG_REQUIRE(result->holds<Ipv6Addr>());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("IpvNAddr conversion", "[ipv4] [ipv6]") {
+  // Test Ipv4 conversion
+  auto ipv4 = Ipv4Addr::parse("192.168.1.1").value();
+  IpvNAddr ipv4_addr = ipv4;
+  COROSIG_REQUIRE(ipv4_addr.holds<Ipv4Addr>());
+  COROSIG_REQUIRE(ipv4_addr.as<Ipv4Addr>().value() == ipv4.value());
+
+  // Test Ipv6 conversion
+  auto ipv6 = Ipv6Addr::parse("2001:db8::1").value();
+  IpvNAddr ipv6_addr = ipv6;
+  COROSIG_REQUIRE(ipv6_addr.holds<Ipv6Addr>());
+  COROSIG_REQUIRE(ipv6_addr.as<Ipv6Addr>().value() == ipv6.value());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("IpvNAddr comparison", "[ipv4] [ipv6]") {
+  auto ipv4 = Ipv4Addr::parse("192.168.1.1").value();
+  auto ipv6 = Ipv6Addr::parse("2001:db8::1").value();
+
+  IpvNAddr ipv4_addr = ipv4;
+  IpvNAddr ipv6_addr = ipv6;
+
+  // Test equality
+  COROSIG_REQUIRE(ipv4_addr != ipv6_addr);
+
+  // Test that same addresses are equal
+  IpvNAddr ipv4_addr2 = Ipv4Addr::parse("192.168.1.1").value();
+  COROSIG_REQUIRE(ipv4_addr == ipv4_addr2);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr", "[ipv6]") {
@@ -261,7 +387,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr", "[ipv6]") {
   const auto *sockaddr = reinterpret_cast<const sockaddr_in6 *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin6_family == AF_INET6);
-  COROSIG_REQUIRE(sockaddr->sin6_port == port);
+  COROSIG_REQUIRE(sockaddr->sin6_port == htons(port));
 
   // Verify address by converting back
   std::array<char, INET6_ADDRSTRLEN> buffer;

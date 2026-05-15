@@ -3,6 +3,7 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "posix/FdOps.hpp"
 
@@ -33,13 +34,6 @@ Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) n
   return self;
 }
 
-Result<UdpSocket, SyscallError> UdpSocket::bound_randomly(sa_family_t family) noexcept {
-  SockaddrStorage addr_storage;
-  std::memset(&addr_storage.native_storage, 0, sizeof(addr_storage.native_storage));
-  addr_storage.native_storage.ss_family = family;
-  return bound(addr_storage);
-}
-
 UdpSocket::~UdpSocket() {
   close();
 }
@@ -52,10 +46,15 @@ UdpSocket::recv_from(Reactor &, std::span<char> out, SockaddrStorage *source_add
 
 Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
                                                       SockaddrStorage *source_addr) noexcept {
-  socklen_t addrlen;
-  socklen_t *addrlen_ptr = source_addr == nullptr ? nullptr : &addrlen;
-  sockaddr *addr_ptr =
-      source_addr == nullptr ? reinterpret_cast<sockaddr *>(&source_addr->native_storage) : nullptr;
+  socklen_t addrlen = sizeof(source_addr->native_storage);
+  socklen_t *addrlen_ptr = nullptr;
+  sockaddr *addr_ptr = nullptr;
+
+  if (source_addr != nullptr) {
+    addrlen_ptr = &addrlen;
+    addr_ptr = reinterpret_cast<sockaddr *>(&source_addr->native_storage);
+  }
+
   ssize_t result = ::recvfrom(m_fd.value, out.data(), out.size(), 0, addr_ptr, addrlen_ptr);
   if (result == -1) {
     return Failure{SyscallError::current()};

@@ -24,9 +24,6 @@ public:
   /// @brief Make a UDP socket which is bound to a specific addr. Or get a syscall error
   static Result<UdpSocket, SyscallError> bound(SockaddrStorage const &local) noexcept;
 
-  /// @brief Make a UDP socket which is bound to a random addr. Or get a syscall error
-  static Result<UdpSocket, SyscallError> bound_randomly(sa_family_t family = AF_INET) noexcept;
-
   UdpSocket(const UdpSocket &) = delete;
   UdpSocket(UdpSocket &&) noexcept = default;
   UdpSocket &operator=(const UdpSocket &) = delete;

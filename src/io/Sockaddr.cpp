@@ -59,7 +59,11 @@ constexpr std::string_view IPV6_COMPRESSOR = "::";
 
 namespace corosig {
 
-Ipv4Addr from_groups(std::array<uint8_t, 4> groups) noexcept {
+Ipv4Addr Ipv4Addr::loopback() noexcept {
+  return Ipv4Addr::from_groups({127, 0, 0, 1});
+}
+
+Ipv4Addr Ipv4Addr::from_groups(std::array<uint8_t, 4> groups) noexcept {
   return Ipv4Addr::from_bytes(groups);
 }
 
@@ -77,7 +81,7 @@ uint32_t Ipv4Addr::value() const noexcept {
   SockaddrStorage sockaddr;
   auto *result = reinterpret_cast<sockaddr_in *>(&sockaddr.native_storage);
   result->sin_family = AF_INET;
-  result->sin_port = port;
+  result->sin_port = hton(port);
   result->sin_addr.s_addr = m_value;
   return sockaddr;
 }
@@ -116,6 +120,10 @@ std::optional<Ipv4Addr> Ipv4Addr::parse(std::string_view addr) noexcept {
   return Ipv4Addr::from_bytes(result);
 }
 
+Ipv6Addr Ipv6Addr::loopback() noexcept {
+  return from_groups({0, 0, 0, 0, 0, 0, 0, 1});
+}
+
 Ipv6Addr Ipv6Addr::from_groups(std::array<uint16_t, 8> groups) noexcept {
   std::array<uint8_t, 16> network_bytes;
   for (size_t i = 0; i < groups.size(); ++i) {
@@ -139,7 +147,7 @@ std::array<uint8_t, 16> Ipv6Addr::value() const noexcept {
   SockaddrStorage sockaddr;
   auto *result = reinterpret_cast<sockaddr_in6 *>(&sockaddr.native_storage);
   result->sin6_family = AF_INET6;
-  result->sin6_port = port;
+  result->sin6_port = hton(port);
   std::memcpy(&result->sin6_addr, &m_value, sizeof(m_value));
   return sockaddr;
 }
