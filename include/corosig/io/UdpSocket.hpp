@@ -19,7 +19,7 @@ public:
   UdpSocket() noexcept = default;
 
   /// @brief Make a UDP socket which is not bound to any addr. Or get a syscall error
-  static Result<UdpSocket, SyscallError> unbound() noexcept;
+  static Result<UdpSocket, SyscallError> unbound(sa_family_t family = AF_INET) noexcept;
 
   /// @brief Make a UDP socket which is bound to a specific addr. Or get a syscall error
   static Result<UdpSocket, SyscallError> bound(SockaddrStorage const &local) noexcept;

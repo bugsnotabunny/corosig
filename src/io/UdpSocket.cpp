@@ -13,8 +13,8 @@
 
 namespace corosig {
 
-Result<UdpSocket, SyscallError> UdpSocket::unbound() noexcept {
-  int fd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
+Result<UdpSocket, SyscallError> UdpSocket::unbound(sa_family_t family) noexcept {
+  int fd = socket(family, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
   }
@@ -25,9 +25,9 @@ Result<UdpSocket, SyscallError> UdpSocket::unbound() noexcept {
 }
 
 Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) noexcept {
-  COROSIG_TRY(auto self, unbound());
+  COROSIG_TRY(auto self, unbound(local.native_storage.ss_family));
   auto len = os::posix::addr_length(local.native_storage);
-  if (bind(self.m_fd.value, (struct sockaddr *)&local, len) == -1) {
+  if (bind(self.m_fd.value, reinterpret_cast<sockaddr const *>(&local.native_storage), len) == -1) {
     return Failure{SyscallError::current()};
   }
   return self;
@@ -35,7 +35,7 @@ Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) n
 
 Result<UdpSocket, SyscallError> UdpSocket::bound_randomly(sa_family_t family) noexcept {
   SockaddrStorage addr_storage;
-  std::memset(&addr_storage, 0, sizeof(addr_storage));
+  std::memset(&addr_storage.native_storage, 0, sizeof(addr_storage.native_storage));
   addr_storage.native_storage.ss_family = family;
   return bound(addr_storage);
 }
@@ -54,12 +54,9 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
                                                       SockaddrStorage *source_addr) noexcept {
   socklen_t addrlen;
   socklen_t *addrlen_ptr = source_addr == nullptr ? nullptr : &addrlen;
-  ssize_t result = ::recvfrom(m_fd.value,
-                              out.data(),
-                              out.size(),
-                              0,
-                              reinterpret_cast<sockaddr *>(source_addr),
-                              addrlen_ptr);
+  sockaddr *addr_ptr =
+      source_addr == nullptr ? reinterpret_cast<sockaddr *>(&source_addr->native_storage) : nullptr;
+  ssize_t result = ::recvfrom(m_fd.value, out.data(), out.size(), 0, addr_ptr, addrlen_ptr);
   if (result == -1) {
     return Failure{SyscallError::current()};
   }
@@ -78,7 +75,7 @@ Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> messag
                             message.data(),
                             message.size(),
                             0,
-                            reinterpret_cast<sockaddr const *>(&dest),
+                            reinterpret_cast<sockaddr const *>(&dest.native_storage),
                             os::posix::addr_length(dest.native_storage));
   if (result == -1) {
     return Failure{SyscallError::current()};

@@ -71,7 +71,7 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
   (void)::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
   auto len = os::posix::addr_length(addr.native_storage);
-  if (::connect(sock, (sockaddr const *)&addr, len) == -1) {
+  if (::connect(sock, reinterpret_cast<sockaddr const *>(&addr.native_storage), len) == -1) {
     auto current_error = SyscallError::current();
     if (current_error.value != EINPROGRESS) {
       co_return Failure{current_error};
