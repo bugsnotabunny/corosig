@@ -17,6 +17,8 @@ namespace {
 
 using namespace corosig;
 
+using int_milliseconds_type = std::chrono::duration<int, std::milli>;
+
 constexpr auto ITERATIONS_LIMIT = 1024;
 
 void resume_ready_sleepers(SleepList &sleeping) noexcept {
@@ -37,8 +39,8 @@ void resume_ready_sleepers(SleepList &sleeping) noexcept {
   }
 }
 
-Result<void, SyscallError>
-poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout) noexcept {
+Result<void, SyscallError> poll_and_resume(PollList &polled,
+                                           int_milliseconds_type timeout) noexcept {
   if (polled.empty()) {
     return Ok{};
   }
@@ -90,8 +92,8 @@ void resume(CoroList &ready) noexcept {
   }
 }
 
-std::chrono::milliseconds ceil_to_millis(std::chrono::nanoseconds nanos) noexcept {
-  return std::chrono::milliseconds{nanos.count() / 1000 + nanos.count() % 1000};
+int_milliseconds_type ceil_to_millis(std::chrono::nanoseconds nanos) noexcept {
+  return std::chrono::ceil<int_milliseconds_type>(nanos);
 }
 
 } // namespace
@@ -136,12 +138,12 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   resume(m_ready);
 
   using namespace std::chrono_literals;
-  auto poll_timeout = -1ms;
+  int_milliseconds_type poll_timeout = -1ms;
   if (!m_ready.empty()) {
     poll_timeout = 0ms;
   } else if (!m_sleeping.empty()) {
-    poll_timeout =
-        std::max(0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
+    poll_timeout = std::max<int_milliseconds_type>(
+        0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
   }
 
   return poll_and_resume(m_polled, poll_timeout);
