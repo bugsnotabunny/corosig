@@ -200,7 +200,7 @@ public:
       return Ok{};
     }
 
-    COROSIG_TRYV(reserve(size() + count));
+    COROSIG_TRYV(reserve(count));
     m_size = count;
     return Ok{};
   }
