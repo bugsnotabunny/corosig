@@ -32,7 +32,7 @@ private:
   char const *m_path;
 };
 
-static_assert(ACache<HostsFileCache>);
+
 
 } // namespace corosig::dns
 

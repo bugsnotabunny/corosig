@@ -35,13 +35,14 @@ struct Cache {
     return pull_impl(m_hosts_cache.underlying_reactor(), ascii_name, out);
   }
 
-  Fut<size_t, Error<AllocationError, SyscallError>>
-  pull(std::string_view ascii_name, std::span<ResolvedAddress<IpvNAddr>> out) const noexcept {
-    return pull_impl(m_hosts_cache.underlying_reactor(), ascii_name, out);
+  Result<void, AllocationError> push(std::string_view ascii_name,
+                                     std::span<ResolvedAddress<Ipv4Addr> const> addrs) noexcept {
+    return m_mem_cache.push(ascii_name, addrs);
   }
 
-  Result<void, Error<AllocationError>> push(CachePushTransaction transaction) noexcept {
-    return m_mem_cache.push(transaction);
+  Result<void, AllocationError> push(std::string_view ascii_name,
+                                     std::span<ResolvedAddress<Ipv6Addr> const> addrs) noexcept {
+    return m_mem_cache.push(ascii_name, addrs);
   }
 
   void prune() noexcept {
@@ -52,6 +53,8 @@ private:
   template <typename IP>
   Fut<size_t, Error<AllocationError, SyscallError>> pull_impl(
       Reactor &, std::string_view ascii_name, std::span<ResolvedAddress<IP>> out) const noexcept {
+    assert(detail::debug_is_ascii(ascii_name));
+
     Result res = co_await m_hosts_cache.pull(ascii_name, out);
     if (res.is_ok() && res.value() != 0) {
       co_return res;

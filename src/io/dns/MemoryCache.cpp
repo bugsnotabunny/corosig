@@ -14,6 +14,14 @@
 #include <span>
 #include <string_view>
 
+namespace {
+
+using namespace corosig;
+
+static_assert(dns::AMutableCache<dns::MemoryCache<>>);
+
+} // namespace
+
 namespace corosig::dns {
 
 namespace detail {
@@ -35,21 +43,6 @@ Ipv4Addr const *AddrStorageHeader::ipv4s_begin() const noexcept {
 
 Ipv4Addr *AddrStorageHeader::ipv4s_begin() noexcept {
   return reinterpret_cast<Ipv4Addr *>(reinterpret_cast<char *>(this) + sizeof(AddrStorageHeader));
-}
-
-AddrStorageHeader::AddrStorageHeader(NameStorageHeader &parent,
-                                     SteadyClock::time_point expires_at,
-                                     std::span<Ipv4Addr const> ipv4s_list,
-                                     std::span<Ipv6Addr const> ipv6s_list) noexcept
-    : m_parent{parent},
-      m_expires_at{expires_at},
-      m_ipv4s_count{uint32_t(ipv4s_list.size())},
-      m_ipv6s_count{uint32_t(ipv6s_list.size())} {
-  assert(ipv4s_list.size() <= std::numeric_limits<uint32_t>::max());
-  assert(ipv6s_list.size() <= std::numeric_limits<uint32_t>::max());
-  std::ranges::copy(ipv4s_list, ipv4s().begin());
-  std::ranges::copy(ipv6s_list, ipv6s().begin());
-  parent.ips.push_front(*this);
 }
 
 std::span<Ipv6Addr> AddrStorageHeader::ipv6s() noexcept {
@@ -90,7 +83,7 @@ AlwaysOkResult<size_t> memory_cache_pull_impl(
 
   std::string_view lowercase_ascii_name = {ascii_name_lowercase_buf.begin(), end};
 
-  auto name_it = names.find(ascii_name, std::less<>{});
+  auto name_it = names.find(lowercase_ascii_name, std::less<>{});
   if (name_it == names.end()) {
     return size_t(0);
   }

@@ -4,7 +4,6 @@
 #include "corosig/Clock.hpp"
 #include "corosig/io/Sockaddr.hpp"
 #include "corosig/meta/AResult.hpp"
-#include "corosig/meta/Futurize.hpp"
 
 #include <algorithm>
 
@@ -31,24 +30,17 @@ struct ResolvedAddress {
   SteadyClock::time_point expires_at;
 };
 
-struct CachePushTransaction {
-  std::string_view name;
-  SteadyClock::time_point expire_at;
-  std::span<Ipv4Addr const> ipv4s = {};
-  std::span<Ipv6Addr const> ipv6s = {};
-};
-
 template <typename T>
 concept ACache = requires(T t) {
   // both methods should return result or future which resolve to size_t in case of success
-  { t.pull(std::string_view{}, std::span<ResolvedAddress<IpvNAddr>>{}) } noexcept;
   { t.pull(std::string_view{}, std::span<ResolvedAddress<Ipv6Addr>>{}) } noexcept;
   { t.pull(std::string_view{}, std::span<ResolvedAddress<Ipv4Addr>>{}) } noexcept;
 };
 
 template <typename T>
 concept AMutableCache = ACache<T> && requires(T t) {
-  { t.push(CachePushTransaction{}) } noexcept -> AResult;
+  { t.push(std::string_view{}, std::span<ResolvedAddress<Ipv4Addr> const>{}) } noexcept -> AResult;
+  { t.push(std::string_view{}, std::span<ResolvedAddress<Ipv6Addr> const>{}) } noexcept -> AResult;
   { t.prune() } noexcept -> std::same_as<void>;
 };
 

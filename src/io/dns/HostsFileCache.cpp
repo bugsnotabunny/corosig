@@ -23,6 +23,8 @@ namespace {
 
 using namespace corosig;
 
+static_assert(dns::ACache<dns::HostsFileCache>);
+
 struct HostsFileParser {
   template <typename IP>
   static Fut<size_t, Error<AllocationError, SyscallError>>

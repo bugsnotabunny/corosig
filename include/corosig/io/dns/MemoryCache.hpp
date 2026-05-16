@@ -6,6 +6,7 @@
 #include "corosig/Result.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/container/UniquePtr.hpp"
+#include "corosig/container/Vector.hpp"
 #include "corosig/io/Sockaddr.hpp"
 #include "corosig/io/dns/ACache.hpp"
 #include "corosig/meta/AlwaysOkResult.hpp"
@@ -18,9 +19,12 @@
 #include <boost/intrusive/options.hpp>
 #include <boost/intrusive/slist.hpp>
 #include <boost/intrusive/slist_hook.hpp>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iostream>
+#include <ranges>
 #include <span>
 #include <string_view>
 #include <type_traits>
@@ -43,12 +47,16 @@ struct AddrStorageHeader
   AddrStorageHeader &operator=(const AddrStorageHeader &) = delete;
   AddrStorageHeader &operator=(AddrStorageHeader &&) = delete;
 
-  template <AnAllocator ALLOC>
+  template <AnAllocator ALLOC, typename IPV4S, typename IPV6S>
+    requires(std::ranges::sized_range<IPV4S> &&
+             std::same_as<std::ranges::range_value_t<IPV4S>, Ipv4Addr> &&
+             std::ranges::sized_range<IPV6S> &&
+             std::same_as<std::ranges::range_value_t<IPV6S>, Ipv6Addr>)
   static UniquePtr<AddrStorageHeader, ALLOC> make(ALLOC &&alloc,
                                                   NameStorageHeader &parent,
                                                   SteadyClock::time_point expires_at,
-                                                  std::span<Ipv4Addr const> ipv4s,
-                                                  std::span<Ipv6Addr const> ipv6s) noexcept {
+                                                  IPV4S &&ipv4s,
+                                                  IPV6S &&ipv6s) noexcept {
     size_t allocation_size = sizeof(AddrStorageHeader);
     allocation_size += ipv4s.size() * sizeof(Ipv4Addr);
     allocation_size += ipv6s.size() * sizeof(Ipv6Addr);
@@ -60,6 +68,34 @@ struct AddrStorageHeader
 
     auto *header = new (mem) AddrStorageHeader{parent, expires_at, ipv4s, ipv6s};
     return UniquePtr<AddrStorageHeader, ALLOC>{header, std::forward<ALLOC>(alloc)};
+  }
+
+  template <AnAllocator ALLOC, typename IPV4S>
+    requires(std::ranges::sized_range<IPV4S> &&
+             std::same_as<std::ranges::range_value_t<IPV4S>, Ipv4Addr>)
+  static UniquePtr<AddrStorageHeader, ALLOC> make(ALLOC &&alloc,
+                                                  NameStorageHeader &parent,
+                                                  SteadyClock::time_point expires_at,
+                                                  IPV4S &&addrs) noexcept {
+    return make(std::forward<ALLOC>(alloc),
+                parent,
+                expires_at,
+                std::forward<IPV4S>(addrs),
+                std::span<Ipv6Addr>{});
+  }
+
+  template <AnAllocator ALLOC, typename IPV6S>
+    requires(std::ranges::sized_range<IPV6S> &&
+             std::same_as<std::ranges::range_value_t<IPV6S>, Ipv6Addr>)
+  static UniquePtr<AddrStorageHeader, ALLOC> make(ALLOC &&alloc,
+                                                  NameStorageHeader &parent,
+                                                  SteadyClock::time_point expires_at,
+                                                  IPV6S &&addrs) noexcept {
+    return make(std::forward<ALLOC>(alloc),
+                parent,
+                expires_at,
+                std::span<Ipv4Addr>{},
+                std::forward<IPV6S>(addrs));
   }
 
   std::span<Ipv4Addr const> ipv4s() const noexcept;
@@ -77,10 +113,15 @@ struct AddrStorageHeader
   }
 
 private:
+  template <typename IPV4S, typename IPV6S>
+    requires(std::ranges::sized_range<IPV4S> &&
+             std::same_as<std::ranges::range_value_t<IPV4S>, Ipv4Addr> &&
+             std::ranges::sized_range<IPV6S> &&
+             std::same_as<std::ranges::range_value_t<IPV6S>, Ipv6Addr>)
   AddrStorageHeader(NameStorageHeader &parent,
                     SteadyClock::time_point expires_at,
-                    std::span<Ipv4Addr const> ipv4s_list,
-                    std::span<Ipv6Addr const> ipv6s_list) noexcept;
+                    IPV4S &&ipv4s_list,
+                    IPV6S &&ipv6s_list) noexcept;
 
   Ipv4Addr *ipv4s_begin() noexcept;
 
@@ -139,6 +180,26 @@ private:
   size_t m_name_size;
 };
 
+template <typename IPV4S, typename IPV6S>
+  requires(std::ranges::sized_range<IPV4S> &&
+           std::same_as<std::ranges::range_value_t<IPV4S>, Ipv4Addr> &&
+           std::ranges::sized_range<IPV6S> &&
+           std::same_as<std::ranges::range_value_t<IPV6S>, Ipv6Addr>)
+inline AddrStorageHeader::AddrStorageHeader(NameStorageHeader &parent,
+                                            SteadyClock::time_point expires_at,
+                                            IPV4S &&ipv4s_list,
+                                            IPV6S &&ipv6s_list) noexcept
+    : m_parent{parent},
+      m_expires_at{expires_at},
+      m_ipv4s_count{uint32_t(ipv4s_list.size())},
+      m_ipv6s_count{uint32_t(ipv6s_list.size())} {
+  assert(ipv4s_list.size() <= std::numeric_limits<uint32_t>::max());
+  assert(ipv6s_list.size() <= std::numeric_limits<uint32_t>::max());
+  std::ranges::copy(ipv4s_list, ipv4s().begin());
+  std::ranges::copy(ipv6s_list, ipv6s().begin());
+  parent.ips.push_front(*this);
+}
+
 using memory_cache_names = boost::intrusive::avl_set<detail::NameStorageHeader,
                                                      boost::intrusive::constant_time_size<false>>;
 
@@ -186,56 +247,14 @@ struct MemoryCache {
         out);
   }
 
-  AlwaysOkResult<size_t> pull(std::string_view ascii_name,
-                              std::span<ResolvedAddress<IpvNAddr>> out) const noexcept {
-    auto res1 = detail::memory_cache_pull_impl<IpvNAddr, Ipv4Addr>(
-        [](detail::AddrStorageHeader const &addr_storage) { return addr_storage.ipv4s(); },
-        m_names,
-        ascii_name,
-        out);
-    out = out.subspan(res1.value());
-    auto res2 = detail::memory_cache_pull_impl<IpvNAddr, Ipv6Addr>(
-        [](detail::AddrStorageHeader const &addr_storage) { return addr_storage.ipv6s(); },
-        m_names,
-        ascii_name,
-        out);
-    return res1.value() + res2.value();
+  Result<void, AllocationError> push(std::string_view ascii_name,
+                                     std::span<ResolvedAddress<Ipv4Addr> const> addrs) noexcept {
+    return push_impl(ascii_name, addrs);
   }
 
-  Result<void, AllocationError> push(CachePushTransaction transaction) noexcept {
-    auto it = m_names.lower_bound(transaction.name, std::less<>{});
-
-    UniquePtr<detail::NameStorageHeader, ptr_allocator_ref_type> new_name_store{
-        nullptr,
-        ptr_allocator_ref_type{m_alloc},
-    };
-
-    if (it == m_names.end() || !std::ranges::equal(it->name(), transaction.name)) {
-      new_name_store =
-          detail::NameStorageHeader::make(ptr_allocator_ref_type{m_alloc}, transaction.name);
-
-      if (new_name_store == nullptr) {
-        return Failure{AllocationError{}};
-      }
-
-      it = m_names.insert_before(it, *new_name_store);
-    }
-
-    UniquePtr addrs_store = detail::AddrStorageHeader::make(ptr_allocator_ref_type{m_alloc},
-                                                            *it,
-                                                            transaction.expire_at,
-                                                            transaction.ipv4s,
-                                                            transaction.ipv6s);
-
-    if (addrs_store == nullptr) {
-      return Failure{AllocationError{}};
-    }
-
-    m_addrs_by_expire_time.insert(*addrs_store);
-
-    (void)new_name_store.release();
-    (void)addrs_store.release();
-    return Ok{};
+  Result<void, AllocationError> push(std::string_view ascii_name,
+                                     std::span<ResolvedAddress<Ipv6Addr> const> addrs) noexcept {
+    return push_impl(ascii_name, addrs);
   }
 
   void prune() noexcept {
@@ -260,6 +279,82 @@ struct MemoryCache {
   }
 
 private:
+  template <typename IP>
+  Result<void, AllocationError> push_impl(std::string_view ascii_name,
+                                          std::span<ResolvedAddress<IP> const> addrs) noexcept {
+    auto name_it = m_names.lower_bound(ascii_name, std::less<>{});
+
+    UniquePtr<detail::NameStorageHeader, ptr_allocator_ref_type> new_name_store{
+        nullptr,
+        ptr_allocator_ref_type{m_alloc},
+    };
+
+    if (name_it == m_names.end() || !std::ranges::equal(name_it->name(), ascii_name)) {
+      new_name_store = detail::NameStorageHeader::make(ptr_allocator_ref_type{m_alloc}, ascii_name);
+
+      if (new_name_store == nullptr) {
+        return Failure{AllocationError{}};
+      }
+
+      name_it = m_names.insert_before(name_it, *new_name_store);
+    }
+
+    Vector<ResolvedAddress<IP>, ptr_allocator_ref_type> sorted_addrs{m_alloc};
+
+    static_assert(std::is_trivially_destructible_v<ResolvedAddress<IP>>);
+    COROSIG_TRYV(sorted_addrs.resize_uninitialized(addrs.size()));
+
+    auto now = SteadyClock::now();
+    auto new_end = std::ranges::copy_if(addrs, sorted_addrs.begin(), [&](ResolvedAddress<IP> addr) {
+                     return addr.expires_at > now;
+                   }).out;
+    (void)sorted_addrs.resize_uninitialized(new_end - sorted_addrs.begin());
+
+    std::ranges::sort(sorted_addrs, [](ResolvedAddress<IP> lhs, ResolvedAddress<IP> rhs) {
+      return lhs.expires_at < rhs.expires_at;
+    });
+
+    struct MultisetGuard {
+      MultisetGuard(ptr_allocator_ref_type alloc)
+          : alloc{alloc} {
+      }
+
+      ~MultisetGuard() {
+        set.clear_and_dispose(AllocatorBoundDeleter<ptr_allocator_ref_type>{alloc});
+      }
+
+      addrs_by_expire_time set;
+      ptr_allocator_ref_type alloc;
+    } addrs_by_expire_time_buf{m_alloc};
+
+    auto it = sorted_addrs.begin();
+    while (it != sorted_addrs.end()) {
+      auto it2 = std::find_if(it, sorted_addrs.end(), [&](ResolvedAddress<IP> addr) {
+        return it->expires_at < addr.expires_at;
+      });
+
+      auto r =
+          std::ranges::subrange{it, it2} | std::views::transform(&ResolvedAddress<IP>::address);
+      UniquePtr addrs_store = detail::AddrStorageHeader::make(
+          ptr_allocator_ref_type{m_alloc}, *name_it, it->expires_at, r);
+
+      if (addrs_store == nullptr) {
+        return Failure{AllocationError{}};
+      }
+
+      addrs_by_expire_time_buf.set.insert(*addrs_store);
+      (void)addrs_store.release();
+
+      it = it2;
+    }
+
+    addrs_by_expire_time_buf.set.clear_and_dispose(
+        [&](auto *addr) { m_addrs_by_expire_time.insert(*addr); });
+
+    (void)new_name_store.release();
+    return Ok{};
+  }
+
   using ptr_allocator_ref_type = AllocatorRef<ALLOCATOR>;
 
   using addrs_by_expire_time =
