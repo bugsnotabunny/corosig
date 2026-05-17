@@ -4,7 +4,6 @@
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
-
 using namespace corosig;
 
 COROSIG_SIGHANDLER_TEST_CASE("Coroutine yielded") {

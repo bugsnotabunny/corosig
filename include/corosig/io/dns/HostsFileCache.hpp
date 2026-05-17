@@ -32,8 +32,6 @@ private:
   char const *m_path;
 };
 
-
-
 } // namespace corosig::dns
 
 #endif
