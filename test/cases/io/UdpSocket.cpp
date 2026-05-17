@@ -196,7 +196,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_recv_from returns not blocked when 
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_send_to works immediately") {
-  auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
+  auto test_coro = [](Reactor &) -> Fut<void, Error<AllocationError, SyscallError>> {
     SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(8765);
 
     COROSIG_CO_TRY(auto sock, UdpSocket::bound(local));

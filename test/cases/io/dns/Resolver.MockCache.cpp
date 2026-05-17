@@ -224,8 +224,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache pull is called on resol
   cache.expect_pull("example.com", std::move(result));
 
   auto test_coro =
-      [](MockCache &c,
-         Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
+      [](Reactor &r,
+         MockCache &c) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
                    dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
 
@@ -252,7 +252,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache pull is called on resol
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(cache, reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor, cache).block_on().is_ok());
   cache.verify();
 }
 
@@ -269,8 +269,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache hit returns cached valu
   cache.expect_pull("cached.com", std::move(result));
 
   auto test_coro =
-      [](MockCache &c,
-         Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
+      [](Reactor &r,
+         MockCache &c) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
                    dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
 
@@ -291,7 +291,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache hit returns cached valu
     COROSIG_REQUIRE(c.push_count() == 0);
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(cache, reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor, cache).block_on().is_ok());
   cache.verify();
 }
 
@@ -299,8 +299,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache miss falls through") {
   MockCache cache{reactor};
 
   auto test_coro =
-      [](MockCache &c,
-         Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
+      [](Reactor &r,
+         MockCache &c) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
                    dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
 
@@ -329,7 +329,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache miss falls through") {
     COROSIG_REQUIRE(push_call->name == "uncached.com");
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(cache, reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor, cache).block_on().is_ok());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache error falls through") {
@@ -341,8 +341,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache error falls through") {
   cache.pop_expected_pull();
 
   auto test_coro =
-      [](MockCache &c,
-         Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
+      [](Reactor &r,
+         MockCache &c) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
                    dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
 
@@ -371,15 +371,15 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: cache error falls through") {
     COROSIG_REQUIRE(push_call->name == "error.com");
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(cache, reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor, cache).block_on().is_ok());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: multiple sequential calls") {
   MockCache cache{reactor};
 
   auto test_coro =
-      [](MockCache &c,
-         Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
+      [](Reactor &r,
+         MockCache &c) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
                    dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
 
@@ -398,7 +398,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: multiple sequential calls") {
     }
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(cache, reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor, cache).block_on().is_ok());
   COROSIG_REQUIRE(cache.pull_count() >= 3);
   COROSIG_REQUIRE(cache.prune_count() == 3);
   COROSIG_REQUIRE(cache.push_count() >= 3);
@@ -415,8 +415,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: IPv6 resolve works") {
   cache.expect_pull("ipv6.com", std::move(result));
 
   auto test_coro =
-      [](MockCache &c,
-         Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
+      [](Reactor &r,
+         MockCache &c) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
                    dns::CachelessResolver::make(
                        RAND_SEED, Ipv6Addr::from_groups({0, 0, 0, 0, 0, 0, 0, 0}).to_sockaddr()));
@@ -438,6 +438,6 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: IPv6 resolve works") {
     COROSIG_REQUIRE(c.push_count() == 0);
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(cache, reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor, cache).block_on().is_ok());
   cache.verify();
 }

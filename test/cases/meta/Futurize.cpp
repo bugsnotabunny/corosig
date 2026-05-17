@@ -14,7 +14,7 @@ using namespace corosig;
 COROSIG_SIGHANDLER_TEST_CASE("futurize: awaitable value simply returned") {
   static_assert(AnAwaitable<Fut<int, AllocationError>>);
 
-  auto f = [](Reactor &r) -> Fut<int, AllocationError> { co_return 1; }(reactor);
+  auto f = [](Reactor &) -> Fut<int, AllocationError> { co_return 1; }(reactor);
   auto &&f2 = futurize(f);
   static_assert(std::same_as<std::decay_t<decltype(f2)>, std::decay_t<decltype(f)>>);
   COROSIG_REQUIRE(&f == &f2);
