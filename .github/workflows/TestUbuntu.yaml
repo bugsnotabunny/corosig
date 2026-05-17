@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        config: [asan, tsan, fast, small]
+        config: [asan, tsan, release, minsizerel]
         toolchain: [clang, gcc]
     steps:
       - uses: actions/checkout@v4

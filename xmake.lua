@@ -1,14 +1,14 @@
-add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release")
+add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release", "mode.minsizerel")
 
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
-if is_mode("fast") then
+if is_mode("release") then
     set_optimize("fastest")
     add_defines("NDEBUG")
     set_strip("debug")
     set_policy("build.optimization.lto", true)
-elseif is_mode("small") then
+elseif is_mode("minsizerel") then
     set_optimize("smallest")
     add_defines("NDEBUG")
     set_strip("debug")
