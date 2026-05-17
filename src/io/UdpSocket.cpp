@@ -1,14 +1,16 @@
 #include "corosig/io/UdpSocket.hpp"
 
+#include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/os/Handle.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "posix/FdOps.hpp"
 
 #include <cstddef>
-#include <netinet/in.h>
+#include <span>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -40,7 +42,7 @@ UdpSocket::~UdpSocket() {
 
 Fut<size_t, Error<AllocationError, SyscallError>>
 UdpSocket::recv_from(Reactor &, std::span<char> out, SockaddrStorage *source_addr) noexcept {
-  co_await PollEvent{m_fd.value, poll_event_e::CAN_READ};
+  co_await PollEvent{m_fd.value, PollEventExpectance::CAN_READ};
   co_return try_recv_from(out, source_addr);
 }
 
@@ -64,7 +66,7 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
 
 Fut<size_t, Error<AllocationError, SyscallError>>
 UdpSocket::send_to(Reactor &, std::span<char const> message, SockaddrStorage const &dest) noexcept {
-  co_await PollEvent{m_fd.value, poll_event_e::CAN_WRITE};
+  co_await PollEvent{m_fd.value, PollEventExpectance::CAN_WRITE};
   co_return try_send_to(message, dest);
 }
 

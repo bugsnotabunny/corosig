@@ -9,7 +9,6 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <array>
-#include <catch2/catch_all.hpp>
 #include <concepts>
 #include <functional>
 

@@ -101,7 +101,8 @@ constexpr uint8_t get_bitfield(uint16_t mask) noexcept {
   return (mask & FIELD) >> std::countr_zero(FIELD);
 }
 
-enum class Type : uint16_t {
+// Is a subset of QueryType
+enum class RdataType : uint8_t {
   A = 1,
   AAAA = 28,
   NS = 2,
@@ -352,10 +353,10 @@ constexpr Result<RData, ResponseDecodeError>
 parse_rdata(std::span<uint8_t const> original_message,
             uint16_t rtype,
             std::span<uint8_t const> rdata_raw) noexcept {
-  using enum Type;
+  using enum RdataType;
   using enum ResponseDecodeError::Value;
 
-  switch (Type(rtype)) {
+  switch (RdataType(rtype)) {
   case A:
     return parse_rdata_ipv4(rdata_raw);
   case AAAA:

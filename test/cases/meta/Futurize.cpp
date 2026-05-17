@@ -3,7 +3,6 @@
 #include "corosig/Coro.hpp"
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_all.hpp>
 #include <string>
 
 namespace {
@@ -40,5 +39,5 @@ COROSIG_SIGHANDLER_TEST_CASE("ReadyAwaitable: await_resume moves value") {
 
   std::string result = awaitable.await_resume();
   COROSIG_REQUIRE(result == "test");
-  COROSIG_REQUIRE(str.empty());
+  COROSIG_REQUIRE(str.empty()); // NOLINT (bugprone-use-after-move)
 }

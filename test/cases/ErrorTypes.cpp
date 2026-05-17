@@ -1,6 +1,6 @@
 #include "corosig/ErrorTypes.hpp"
 
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace corosig;
 

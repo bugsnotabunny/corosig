@@ -241,6 +241,7 @@ CachelessResolver::receiver_type CachelessResolver::receive_server_answers(React
 
 template <typename IP>
 Result<size_t, Error<AllocationError, SyscallError, ResolveError>>
+// NOLINTNEXTLINE (bugprone-exception-escape)
 CachelessResolver::PendingRequest<IP>::process_server_answer_impl(
     Header header, ResponseDecoder &decoder) noexcept {
   COROSIG_TRYV(validate_response(header, decoder, question));

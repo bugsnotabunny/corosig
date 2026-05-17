@@ -19,7 +19,7 @@ BackgroundTask bg_yield(Reactor &) noexcept {
 
 BackgroundTask bg_sleep(Reactor &) noexcept {
   using namespace std::chrono_literals;
-  co_await Sleep{10ms};
+  co_await Sleep{10ms}; // NOLINT (false report)
 }
 
 BackgroundTask bg_noop(Reactor &) noexcept {

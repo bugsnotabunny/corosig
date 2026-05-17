@@ -1,17 +1,18 @@
 #include "corosig/io/TcpSocket.hpp"
 
+#include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/os/Handle.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "posix/FdOps.hpp"
 
 #include <cerrno>
 #include <cstddef>
-#include <fcntl.h>
-#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <span>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <unistd.h>
 
 namespace corosig {
@@ -68,7 +69,7 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+  (void)::setsockopt(sock, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
 
   auto len = os::posix::addr_length(addr.native_storage);
   if (::connect(sock, reinterpret_cast<sockaddr const *>(&addr.native_storage), len) == -1) {
@@ -78,7 +79,7 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
     }
   }
 
-  co_await PollEvent{sock, poll_event_e::CAN_WRITE};
+  co_await PollEvent{sock, PollEventExpectance::CAN_WRITE};
 
   int socket_error = 0;
   socklen_t socket_error_len = sizeof(socket_error);

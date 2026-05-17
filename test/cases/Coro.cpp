@@ -6,9 +6,7 @@
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
-#include <catch2/catch_all.hpp>
-#include <cmath>
-#include <csignal>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace corosig;
 

@@ -3,8 +3,6 @@
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
-#include <arpa/inet.h>
-#include <catch2/catch_all.hpp>
 #include <cstring>
 #include <netinet/in.h>
 #include <span>

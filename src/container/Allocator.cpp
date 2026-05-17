@@ -2,11 +2,14 @@
 
 #include "corosig/meta/AnAllocator.hpp"
 
-#include <array>
+#include <algorithm>
+#include <bit>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <span>
 
 #if COROSIG_ASAN_ENABLED
 #include <sanitizer/asan_interface.h>

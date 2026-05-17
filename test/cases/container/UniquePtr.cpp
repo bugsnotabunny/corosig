@@ -1,6 +1,6 @@
 #include "corosig/container/UniquePtr.hpp"
 
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <cstddef>
 #include <type_traits>
 
@@ -55,6 +55,7 @@ struct Tracked {
 
 int Tracked::constructions = 0;
 int Tracked::destructions = 0;
+
 } // namespace
 
 TEST_CASE("make_unique constructs object and allocates memory") {

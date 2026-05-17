@@ -2,9 +2,9 @@
 #define COROSIG_CORO_HPP
 
 #include "corosig/ErrorTypes.hpp"
-#include "corosig/Result.hpp"
+#include "corosig/Result.hpp" // IWYU pragma: export
 #include "corosig/reactor/CoroList.hpp"
-#include "corosig/reactor/Reactor.hpp"
+#include "corosig/reactor/Reactor.hpp" // IWYU pragma: export
 #include "corosig/reactor/SleepList.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 

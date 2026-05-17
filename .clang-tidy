@@ -1,6 +1,5 @@
 Checks: >
     performance-*,
-    -performance-enum-size,
     bugprone-*,
     -bugprone-easily-swappable-parameters,
     -bugprone-suspicious-stringview-data-usage,
@@ -8,8 +7,17 @@ Checks: >
     -modernize-use-trailing-return-type,
     -modernize-use-integer-sign-comparison,
     -modernize-use-std-array,
+    -modernize-use-nodiscard
     portability-*,
+    misc-*,
+    -misc-const-correctness,
+    -misc-use-anonymous-namespace,
+    -misc-non-private-member-variables-in-classes,
     readability-*,
+    concurrency-*,
+    clang-analyzer-*,
+    clang-diagnostic-*,
+    -readability-redundant-member-init,
     -readability-identifier-length,
     -readability-uppercase-literal-suffix,
     -readability-static-accessed-through-instance,
@@ -24,20 +32,21 @@ Checks: >
 WarningsAsErrors: "*"
 
 CheckOptions:
-  - { key: readability-function-cognitive-complexity.IgnoreMacros, value: true       }
-  - { key: readability-identifier-naming.ConstantCase,             value: UPPER_CASE }
-  - { key: readability-identifier-naming.LocalConstantCase,        value: lower_case }
-  - { key: readability-identifier-naming.NamespaceCase,            value: lower_case }
-  - { key: readability-identifier-naming.ConstexprVariableCase,    value: UPPER_CASE }
-  - { key: readability-identifier-naming.ClassCase,                value: CamelCase  }
-  - { key: readability-identifier-naming.StructCase,               value: CamelCase  }
-  - { key: readability-identifier-naming.TemplateParameterCase,    value: UPPER_CASE }
-  - { key: readability-identifier-naming.FunctionCase,             value: lower_case }
-  - { key: readability-identifier-naming.VariableCase,             value: lower_case }
-  - { key: readability-identifier-naming.PrivateMemberPrefix,      value: m_         }
-  - { key: readability-identifier-naming.ProtectedMemberPrefix,    value: m_         }
-  - { key: readability-identifier-naming.MacroDefinitionCase,      value: UPPER_CASE }
-  - { key: readability-identifier-naming.LocalVariableCase,        value: lower_case }
-  - { key: readability-identifier-naming.PublicMemberCase,         value: lower_case }
-  - { key: readability-identifier-naming.PrivateMemberCase,        value: lower_case }
-  - { key: readability-identifier-naming.ProtectedMemberCase,      value: lower_case }
+  - { key: readability-function-cognitive-complexity.IgnoreMacros, value: true                                                          }
+  - { key: misc-include-cleaner.MissingIncludes,                   value: false                                                         }
+  - { key: readability-identifier-naming.ConstantCase,             value: UPPER_CASE                                                    }
+  - { key: readability-identifier-naming.LocalConstantCase,        value: lower_case                                                    }
+  - { key: readability-identifier-naming.NamespaceCase,            value: lower_case                                                    }
+  - { key: readability-identifier-naming.ConstexprVariableCase,    value: UPPER_CASE                                                    }
+  - { key: readability-identifier-naming.ClassCase,                value: CamelCase                                                     }
+  - { key: readability-identifier-naming.StructCase,               value: CamelCase                                                     }
+  - { key: readability-identifier-naming.TemplateParameterCase,    value: UPPER_CASE                                                    }
+  - { key: readability-identifier-naming.FunctionCase,             value: lower_case                                                    }
+  - { key: readability-identifier-naming.VariableCase,             value: lower_case                                                    }
+  - { key: readability-identifier-naming.PrivateMemberPrefix,      value: m_                                                            }
+  - { key: readability-identifier-naming.ProtectedMemberPrefix,    value: m_                                                            }
+  - { key: readability-identifier-naming.MacroDefinitionCase,      value: UPPER_CASE                                                    }
+  - { key: readability-identifier-naming.LocalVariableCase,        value: lower_case                                                    }
+  - { key: readability-identifier-naming.PublicMemberCase,         value: lower_case                                                    }
+  - { key: readability-identifier-naming.PrivateMemberCase,        value: lower_case                                                    }
+  - { key: readability-identifier-naming.ProtectedMemberCase,      value: lower_case                                                    }

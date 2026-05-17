@@ -1,9 +1,15 @@
 #include "corosig/io/Pipe.hpp"
 
+#include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
+#include "corosig/os/Handle.hpp"
 #include "posix/FdOps.hpp"
 
+#include <array>
+#include <cstddef>
 #include <fcntl.h>
+#include <span>
 #include <unistd.h>
 #include <utility>
 
@@ -64,7 +70,7 @@ void PipeRead::close() noexcept {
 Result<PipePair, SyscallError> PipePair::make() noexcept {
   std::array<int, 2> fds;
   if (::pipe2(fds.data(), O_NONBLOCK) == -1) {
-    return Failure{SyscallError{errno}};
+    return Failure{SyscallError::current()};
   }
   PipeRead read;
   PipeWrite write;

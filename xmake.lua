@@ -33,7 +33,7 @@ target("corosig")
     add_includedirs("include", { public = true })
     add_files("src/**.cpp")
     set_default(true)
-    add_packages("boost", { public = true })
+    add_packages("boost", { external = true, public = true })
 
     before_build(function (target)
         local policies = import("core.project.policy").policies()
@@ -52,7 +52,7 @@ target("corosig-testing")
     add_includedirs("test/lib/include", { public = true })
     add_files("test/lib/src/**.cpp")
     add_deps("corosig", { public = true })
-    add_packages("catch2", { public = true })
+    add_packages("catch2", { external = true, public = true })
 target_end()
 
 

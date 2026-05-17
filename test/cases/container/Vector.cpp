@@ -6,7 +6,6 @@
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
-#include <catch2/catch_all.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <initializer_list>
 #include <list>

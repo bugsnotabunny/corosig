@@ -4,10 +4,6 @@
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/benchmark/catch_benchmark_all.hpp>
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_all.hpp>
-
 namespace {
 
 using namespace corosig;

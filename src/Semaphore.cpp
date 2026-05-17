@@ -3,8 +3,10 @@
 #include "corosig/reactor/Reactor.hpp"
 
 #include <cassert>
+#include <coroutine>
 #include <cstring>
 #include <memory>
+#include <optional>
 
 namespace corosig {
 

@@ -4,9 +4,6 @@
 #include "corosig/testing/NonMovable.hpp"
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_string.hpp>
-#include <catch2/matchers/catch_matchers_vector.hpp>
 #include <type_traits>
 
 namespace {
@@ -59,7 +56,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Result holding reference to value") {
   COROSIG_REQUIRE(r.is_ok());
   COROSIG_REQUIRE(r.value() == 42);
 
-  value = 100;
+  value = 100; // NOLINT
   COROSIG_REQUIRE(r.value() == 100);
 }
 

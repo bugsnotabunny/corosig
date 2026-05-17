@@ -30,7 +30,7 @@ struct CloneFn {
   }
 };
 
-inline constexpr CloneFn clone; // NOLINT
+inline constexpr CloneFn clone; // NOLINT (readability-identifier-naming)
 
 } // namespace corosig
 

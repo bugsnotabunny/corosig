@@ -5,8 +5,6 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <array>
-#include <catch2/catch_all.hpp>
-#include <netinet/in.h>
 #include <string_view>
 #include <sys/socket.h>
 

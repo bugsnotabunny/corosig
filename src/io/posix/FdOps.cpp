@@ -4,11 +4,17 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
+#include <cassert>
 #include <cstddef>
 #include <limits>
+#include <netinet/in.h>
 #include <span>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #ifndef __unix__
 static_assert(false, "Platform-specific file included on wrong platform");
@@ -20,7 +26,7 @@ Fut<size_t, Error<AllocationError, SyscallError>>
 read(Reactor &, int fd, std::span<char> buf) noexcept {
   size_t read = 0;
   while (read < buf.size()) {
-    co_await PollEvent{fd, poll_event_e::CAN_READ};
+    co_await PollEvent{fd, PollEventExpectance::CAN_READ};
     Result current_read = try_read_some(fd, buf.subspan(read));
     if (current_read.is_ok()) {
       size_t value = current_read.value();
@@ -39,7 +45,7 @@ read(Reactor &, int fd, std::span<char> buf) noexcept {
 
 Fut<size_t, Error<AllocationError, SyscallError>>
 read_some(Reactor &, int fd, std::span<char> buf) noexcept {
-  co_await PollEvent{fd, poll_event_e::CAN_READ};
+  co_await PollEvent{fd, PollEventExpectance::CAN_READ};
   co_return try_read_some(fd, buf);
 }
 
@@ -55,7 +61,7 @@ Fut<size_t, Error<AllocationError, SyscallError>>
 write(Reactor &, int fd, std::span<char const> buf) noexcept {
   size_t written = 0;
   while (written < buf.size()) {
-    co_await PollEvent{fd, poll_event_e::CAN_WRITE};
+    co_await PollEvent{fd, PollEventExpectance::CAN_WRITE};
 
     Result current_write = try_write_some(fd, buf);
     if (current_write.is_ok()) {
@@ -72,7 +78,7 @@ write(Reactor &, int fd, std::span<char const> buf) noexcept {
 
 Fut<size_t, Error<AllocationError, SyscallError>>
 write_some(Reactor &, int fd, std::span<char const> buf) noexcept {
-  co_await PollEvent{fd, poll_event_e::CAN_WRITE};
+  co_await PollEvent{fd, PollEventExpectance::CAN_WRITE};
   co_return try_write_some(fd, buf);
 }
 

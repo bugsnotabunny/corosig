@@ -5,7 +5,6 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <array>
-#include <catch2/catch_all.hpp>
 #include <concepts>
 #include <string_view>
 
@@ -42,7 +41,7 @@ COROSIG_SIGHANDLER_TEST_CASE("CachelessResolver: make fails on invalid socket") 
 }
 
 template <typename RESOLVER>
-void test_resolve_ipv4(Reactor &reactor) noexcept {
+static void test_resolve_ipv4(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -73,7 +72,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve IPv4 address for google.com") {
 }
 
 template <typename RESOLVER>
-void test_resolve_ipv6(Reactor &reactor) noexcept {
+static void test_resolve_ipv6(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -105,7 +104,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve IPv6 address for google.com") {
 }
 
 template <typename RESOLVER>
-void test_resolve_name1_ipv4(Reactor &reactor) noexcept {
+static void test_resolve_name1_ipv4(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -134,7 +133,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve_name1 for IPv4 address") {
 }
 
 template <typename RESOLVER>
-void test_resolve_name1_ipv6(Reactor &reactor) noexcept {
+static void test_resolve_name1_ipv6(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -164,7 +163,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve_name1 for IPv6 address") {
 }
 
 template <typename RESOLVER>
-void test_resolve_multiple_servers(Reactor &reactor) noexcept {
+static void test_resolve_multiple_servers(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -197,7 +196,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve multiple DNS servers") {
 }
 
 template <typename RESOLVER>
-void test_empty_dns_servers(Reactor &reactor) noexcept {
+static void test_empty_dns_servers(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -228,7 +227,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve with empty DNS server list") {
 }
 
 template <typename RESOLVER>
-void test_empty_output_buffer(Reactor &reactor) noexcept {
+static void test_empty_output_buffer(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -260,7 +259,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: resolve with empty output buffer") {
 }
 
 template <typename RESOLVER>
-void test_multiple_sequential_resolves(Reactor &reactor) noexcept {
+static void test_multiple_sequential_resolves(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -295,7 +294,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: multiple sequential resolves") {
 }
 
 template <typename RESOLVER>
-void test_non_existent_domain(Reactor &reactor) noexcept {
+static void test_non_existent_domain(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -326,7 +325,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: handle non-existent domain") {
 }
 
 template <typename RESOLVER>
-void test_move_constructor(Reactor &reactor) noexcept {
+static void test_move_constructor(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver1_base,
@@ -358,7 +357,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: move constructor preserves functionality
 }
 
 template <typename RESOLVER>
-void test_fills_output_buffer(Reactor &reactor) noexcept {
+static void test_fills_output_buffer(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
@@ -392,7 +391,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver: fills output buffer up to capacity") {
 }
 
 template <typename RESOLVER>
-void test_ttl_correctly_set(Reactor &reactor) noexcept {
+static void test_ttl_correctly_set(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,

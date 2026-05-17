@@ -1,12 +1,11 @@
 #include "corosig/io/dns/Protocol.hpp"
 
-#include "catch2/catch_test_macros.hpp"
 #include "catch2/generators/catch_generators.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/io/Sockaddr.hpp"
 
 #include <algorithm>
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_template_test_macros.hpp>
 #include <cstdint>
 #include <iterator>
 #include <string_view>
@@ -433,7 +432,7 @@ TEST_CASE("Decoder invalidates after failure", "[dns][state]") {
   ResponseDecoder d(raw);
 
   auto h = d.consume_header();
-  REQUIRE_ERROR(h, ResponseDecodeError::WRONG_HEADER_BYTES_COUNT);
+  REQUIRE_ERROR(h, ResponseDecodeError::WRONG_HEADER_BYTES_COUNT); // NOLINT
 
   // must stay invalid
   auto q = d.consume_question_entry();
@@ -1100,7 +1099,7 @@ TEST_CASE("Decode MINFO record", "[dns][rdata][minfo]") {
   REQUIRE(rr.value().rdata.holds<RDataMailInfo>());
 }
 
-constexpr uint8_t hex_to_int(char c) noexcept {
+static constexpr uint8_t hex_to_int(char c) noexcept {
   if (c >= '0' && c <= '9') {
     return c - '0';
   }

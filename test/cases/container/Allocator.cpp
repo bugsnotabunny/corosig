@@ -2,7 +2,7 @@
 
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <random>

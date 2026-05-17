@@ -13,7 +13,7 @@ namespace corosig {
 
 /// @brief Strictly-typed wrapper for poll events bitmask. Meant to abstract some OS-specific stuff
 /// @warning Exact values and underlying type are OS-specific
-enum class poll_event_e : short {
+enum class PollEventExpectance : short { // NOLINT (performance-enum-size)
   CAN_READ = POLLIN,
   CAN_WRITE = POLLOUT,
 };
@@ -29,7 +29,7 @@ struct PollListNode
   os::Handle handle;
 
   /// @brief An event for which handle waits
-  poll_event_e event;
+  PollEventExpectance event;
 };
 
 /// @brief A list of coroutines stopped due to await of some IO-related events

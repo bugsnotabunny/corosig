@@ -93,8 +93,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Flags: rcode set/get", "[flags]") {
   f.set_rcode(dns::ServerResponseCode::REFUSED);
   COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::REFUSED);
 
-  f.set_rcode(dns::ServerResponseCode::Value{15});
-  COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::Value{15});
+  f.set_rcode(dns::ServerResponseCode::Value{15});                      // NOLINT
+  COROSIG_REQUIRE(f.get_rcode() == dns::ServerResponseCode::Value{15}); // NOLINT
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Flags: chaining works correctly", "[flags]") {
@@ -199,7 +199,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_header: encodes flags correctly", "[encode]
       .set_truncated(true)
       .set_recursion_desired(true)
       .set_recursion_available(true)
-      .set_rcode(dns::ServerResponseCode::Value(9));
+      .set_rcode(dns::ServerResponseCode::Value(9)); // NOLINT
 
   std::array<char, 1024> buffer;
   dns::detail::encode_header(buffer.begin(), h);

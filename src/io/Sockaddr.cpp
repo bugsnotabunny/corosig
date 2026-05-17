@@ -11,12 +11,15 @@
 #include <netinet/in.h>
 #include <optional>
 #include <ranges>
+#include <span>
 #include <string_view>
 #include <sys/socket.h>
 
 namespace {
 
 using namespace corosig;
+
+constexpr std::string_view IPV6_COMPRESSOR = "::";
 
 std::optional<uint8_t> hex_char_to_num(char c) noexcept {
   if (c >= '0' && c <= '9') {
@@ -53,7 +56,47 @@ std::optional<ParseIpv6GroupOk> parse_ipv6_group(std::string_view group_str) noe
   return ParseIpv6GroupOk{.group = group, .addr_without_group = group_str};
 }
 
-constexpr std::string_view IPV6_COMPRESSOR = "::";
+struct ParseFrontGroupsSuccess {
+  bool has_met_compressor = false;
+  size_t groups = 0;
+  std::string_view addr;
+};
+
+std::optional<ParseFrontGroupsSuccess>
+ipv6_parse_front_groups(std::string_view addr, std::array<uint16_t, 8> &expansion_buf) noexcept {
+  bool has_met_compressor = false;
+  size_t front_groups = 0;
+
+  if (addr.starts_with(IPV6_COMPRESSOR)) {
+    has_met_compressor = true;
+    addr.remove_prefix(1);
+  } else {
+    while (!addr.empty() && front_groups < expansion_buf.size()) {
+      auto res = parse_ipv6_group(addr);
+      if (!res) {
+        return std::nullopt;
+      }
+
+      expansion_buf[front_groups] = res->group;
+      addr = res->addr_without_group;
+      ++front_groups;
+
+      if (addr.starts_with(IPV6_COMPRESSOR)) {
+        has_met_compressor = true;
+        addr.remove_prefix(1);
+        break;
+      }
+
+      addr.remove_prefix(std::min(size_t(1), addr.size()));
+    }
+  }
+
+  return ParseFrontGroupsSuccess{
+      .has_met_compressor = has_met_compressor,
+      .groups = front_groups,
+      .addr = addr,
+  };
+}
 
 } // namespace
 
@@ -93,7 +136,7 @@ std::optional<Ipv4Addr> Ipv4Addr::parse(std::string_view addr) noexcept {
     if (i == 4) {
       return std::nullopt;
     }
-    if (group.size() < 1 || group.size() > 3) {
+    if (group.empty() || group.size() > 3) {
       return std::nullopt;
     }
 
@@ -192,39 +235,20 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_mapped_ipv4(std::string_view addr) noexc
 
 std::optional<Ipv6Addr> Ipv6Addr::parse_regular(std::string_view addr) noexcept {
   std::array<uint16_t, 8> expansion_buf;
-  bool has_met_compressor = false;
-  size_t front_groups = 0;
 
-  if (addr.starts_with(IPV6_COMPRESSOR)) {
-    has_met_compressor = true;
-    addr.remove_prefix(1);
-  } else {
-    while (!addr.empty() && front_groups < expansion_buf.size()) {
-      auto res = parse_ipv6_group(addr);
-      if (!res) {
-        return std::nullopt;
-      }
-
-      expansion_buf[front_groups] = res->group;
-      addr = res->addr_without_group;
-      ++front_groups;
-
-      if (addr.starts_with(IPV6_COMPRESSOR)) {
-        has_met_compressor = true;
-        addr.remove_prefix(1);
-        break;
-      }
-
-      addr.remove_prefix(std::min(size_t(1), addr.size()));
-    }
+  auto front_res = ipv6_parse_front_groups(addr, expansion_buf);
+  if (!front_res) {
+    return std::nullopt;
   }
+  addr = front_res->addr;
 
   size_t back_groups = 0;
-  if (has_met_compressor) {
+  if (front_res->has_met_compressor) {
     constexpr size_t MINIMAL_ZERO_GROUPS_IN_COMPRESSOR = 1;
 
     while (!addr.empty()) {
-      if (back_groups + front_groups + MINIMAL_ZERO_GROUPS_IN_COMPRESSOR > expansion_buf.size() ||
+      if (back_groups + front_res->groups + MINIMAL_ZERO_GROUPS_IN_COMPRESSOR >
+              expansion_buf.size() ||
           !addr.starts_with(':') || addr.starts_with(IPV6_COMPRESSOR)) {
         return std::nullopt;
       }
@@ -236,22 +260,23 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_regular(std::string_view addr) noexcept 
       if (!res) {
         return std::nullopt;
       }
-      expansion_buf[front_groups + back_groups] = res->group;
+      expansion_buf[front_res->groups + back_groups] = res->group;
       addr = res->addr_without_group;
       ++back_groups;
     }
 
-    size_t expanded_zero_groups = expansion_buf.size() - front_groups - back_groups;
-    std::shift_right(
-        expansion_buf.begin() + front_groups, expansion_buf.end(), ptrdiff_t(expanded_zero_groups));
-    std::fill_n(expansion_buf.begin() + front_groups, expanded_zero_groups, 0);
+    size_t expanded_zero_groups = expansion_buf.size() - front_res->groups - back_groups;
+    std::shift_right(expansion_buf.begin() + front_res->groups,
+                     expansion_buf.end(),
+                     ptrdiff_t(expanded_zero_groups));
+    std::fill_n(expansion_buf.begin() + front_res->groups, expanded_zero_groups, 0);
 
-    if (front_groups + back_groups >= expansion_buf.size()) {
-
+    if (front_res->groups + back_groups >= expansion_buf.size()) {
       return std::nullopt;
     }
   }
-  if ((!has_met_compressor && front_groups != expansion_buf.size()) || !addr.empty()) {
+  if ((!front_res->has_met_compressor && front_res->groups != expansion_buf.size()) ||
+      !addr.empty()) {
     return std::nullopt;
   }
 
@@ -275,6 +300,7 @@ std::optional<IpvNAddr> IpvNAddr::parse(std::string_view addr) noexcept {
   return std::nullopt;
 }
 
+// NOLINTNEXTLINE (bugprone-exception-escape)
 SockaddrStorage IpvNAddr::to_sockaddr(uint16_t port) const noexcept {
   return visit([&](auto const &addr) { return addr.to_sockaddr(port); });
 }

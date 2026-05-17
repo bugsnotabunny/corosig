@@ -61,8 +61,7 @@ namespace detail {
 
 template <typename T>
 struct IsNotNoError {
-  constexpr static bool value = // NOLINT
-      !std::same_as<T, NoError>;
+  constexpr static bool value = !std::same_as<T, NoError>; // NOLINT (readability-identifier-naming)
 };
 
 template <typename... ES>

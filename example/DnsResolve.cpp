@@ -57,6 +57,7 @@ sighandler_impl(corosig::Reactor &r, int) noexcept {
 
   auto resolve_start = SteadyClock::now();
 
+  // NOLINTNEXTLINE (bugprone-unchecked-optional-access)
   SockaddrStorage dns_server_addr = Ipv4Addr::parse("8.8.8.8")->to_sockaddr(dns::STANDARD_PORT);
   COROSIG_CO_TRY(
       auto addr,

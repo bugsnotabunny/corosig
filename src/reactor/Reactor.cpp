@@ -7,6 +7,8 @@
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
+#include <array>
+#include <cassert>
 #include <chrono>
 #include <coroutine>
 #include <cstddef>

@@ -5,7 +5,6 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <array>
-#include <catch2/catch_all.hpp>
 #include <filesystem>
 #include <fstream>
 #include <random>
