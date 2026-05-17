@@ -3,12 +3,11 @@
 #include "corosig/meta/AnAllocator.hpp"
 
 #include <algorithm>
-#include <bit>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <limits> // IWYU pragma: keep
 #include <span>
 
 #if COROSIG_ASAN_ENABLED

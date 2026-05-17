@@ -88,9 +88,9 @@ struct HostsFileParser {
         std::string_view domain_name{used_buf.begin().base(), it};
 
         if (std::ranges::equal(domain_name, ascii_name_lowercase)) {
-          assert(addr && "Addr shall have been set before going into NAME state");
           dns::ResolvedAddress<IP> &result = out.front();
-          result.address = *addr;
+          assert(addr && "Addr shall have been set before going into NAME state");
+          result.address = *addr; // NOLINT (bugprone-unchecked-optional-access)
           // shall only be used for current transaction
           result.expires_at = SteadyClock::time_point{SteadyClock::duration{0}};
           out = out.subspan(1);
