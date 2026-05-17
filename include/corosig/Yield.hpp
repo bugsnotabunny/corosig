@@ -10,7 +10,7 @@
 namespace corosig {
 
 /// @brief  Break the execution of a coroutine to let other coroutines to work
-struct Yield {
+struct [[nodiscard("forgot to await?")]] Yield {
   [[nodiscard]] static bool await_ready() noexcept {
     return false;
   }

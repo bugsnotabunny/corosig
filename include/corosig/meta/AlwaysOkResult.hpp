@@ -5,11 +5,12 @@
 #include "corosig/Result.hpp"
 
 #include <concepts>
+#include <type_traits>
 
 namespace corosig {
 
 /// @brief Result which always holds value. Usefull to mimic regular Result
-template <typename R, typename E = void>
+template <typename R>
 struct AlwaysOkResult {
 private:
   struct Void {};
@@ -33,7 +34,7 @@ public:
 
   /// @brief Construct a result holding a value
   template <typename T>
-    requires(!std::same_as<AlwaysOkResult, T>)
+    requires(!std::same_as<AlwaysOkResult, std::decay_t<T>>)
   AlwaysOkResult(T &&value) noexcept
       : AlwaysOkResult{Ok{std::forward<T>(value)}} {
   }
@@ -44,7 +45,7 @@ public:
   }
 
   /// @brief Tell if this result has a value inside
-  explicit constexpr operator bool() const noexcept {
+  constexpr operator bool() const noexcept {
     return is_ok();
   }
 

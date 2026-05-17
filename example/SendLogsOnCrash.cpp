@@ -12,6 +12,7 @@
 #include "corosig/Result.hpp"
 #include "corosig/Sighandler.hpp"
 #include "corosig/io/File.hpp"
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/io/Stdio.hpp"
 #include "corosig/io/TcpSocket.hpp"
 #include "corosig/io/UdpSocket.hpp"
@@ -32,10 +33,10 @@
 
 namespace {
 
-sockaddr_storage localhost(uint16_t port) noexcept {
-  ::sockaddr_storage addr;
-  std::memset(&addr, 0, sizeof(addr));
+using namespace corosig;
 
+SockaddrStorage localhost(uint16_t port) noexcept {
+  SockaddrStorage addr;
   auto *addr4 = (::sockaddr_in *)&addr;
   addr4->sin_family = AF_INET;
   addr4->sin_port = htons(port);
@@ -43,8 +44,8 @@ sockaddr_storage localhost(uint16_t port) noexcept {
   return addr;
 }
 
-sockaddr_storage const TCP_SERVER_ADDR = localhost(8080);
-sockaddr_storage const UDP_SERVER_ADDR = localhost(9090);
+SockaddrStorage const TCP_SERVER_ADDR = localhost(8080);
+SockaddrStorage const UDP_SERVER_ADDR = localhost(9090);
 
 constexpr std::string_view FILE1 = "file1.log";
 constexpr std::string_view FILE2 = "file2.log";
@@ -139,7 +140,7 @@ Fut<void, Error<AllocationError, SyscallError>> send_via_tcp(Reactor &r) {
 };
 
 Fut<void, Error<AllocationError, SyscallError>> send_via_udp(Reactor &r) {
-  COROSIG_CO_TRY(auto socket, UdpSocket::writer());
+  COROSIG_CO_TRY(auto socket, UdpSocket::unbound());
   for (auto &log : logs_buffer) {
     COROSIG_CO_TRYV(co_await socket.send_to(r, log, UDP_SERVER_ADDR));
   }

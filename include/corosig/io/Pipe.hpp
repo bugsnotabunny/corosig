@@ -24,7 +24,13 @@ public:
   PipeRead(const PipeRead &) = delete;
   PipeRead(PipeRead &&) noexcept = default;
   PipeRead &operator=(const PipeRead &) = delete;
-  PipeRead &operator=(PipeRead &&) noexcept = default;
+  PipeRead &operator=(PipeRead &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~PipeRead();
+      new (this) PipeRead{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~PipeRead();
 
@@ -63,7 +69,13 @@ public:
   PipeWrite(const PipeWrite &) = delete;
   PipeWrite(PipeWrite &&) noexcept = default;
   PipeWrite &operator=(const PipeWrite &) = delete;
-  PipeWrite &operator=(PipeWrite &&) noexcept = default;
+  PipeWrite &operator=(PipeWrite &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~PipeWrite();
+      new (this) PipeWrite{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~PipeWrite();
 

@@ -1,18 +1,20 @@
-add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release")
+add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release", "mode.minsizerel")
 
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
-if is_mode("fast") then
+local toolchain = get_config("toolchain") or ""
+
+if is_mode("release") then
     set_optimize("fastest")
     add_defines("NDEBUG")
     set_strip("debug")
-    set_policy("build.optimization.lto", true)
-elseif is_mode("small") then
+    set_policy("build.optimization.lto", toolchain ~= "gcc")
+elseif is_mode("minsizerel") then
     set_optimize("smallest")
     add_defines("NDEBUG")
     set_strip("debug")
-    set_policy("build.optimization.lto", true)
+    set_policy("build.optimization.lto", toolchain ~= "gcc")
 else
     set_optimize("fast")
 end
@@ -28,13 +30,18 @@ end
 
 add_requires("boost 1.86.0", { configs = { filesystem = false } })
 
-
 target("corosig")
-    set_kind("shared")
+    set_kind("static")
     add_includedirs("include", { public = true })
     add_files("src/**.cpp")
     set_default(true)
-    add_packages("boost", { public = true })
+    add_packages("boost", { external = true, public = true })
+
+    before_build(function (target)
+        if is_mode("tsan") then
+            target:add("defines", "COROSIG_ASAN_ENABLED=1")
+        end
+    end)
 target_end()
 
 
@@ -46,7 +53,7 @@ target("corosig-testing")
     add_includedirs("test/lib/include", { public = true })
     add_files("test/lib/src/**.cpp")
     add_deps("corosig", { public = true })
-    add_packages("catch2", { public = true })
+    add_packages("catch2", { external = true, public = true })
 target_end()
 
 

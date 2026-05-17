@@ -6,9 +6,7 @@
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
-#include <catch2/catch_all.hpp>
-#include <cmath>
-#include <csignal>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace corosig;
 
@@ -33,7 +31,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor transfers ownership") {
 COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor with nontrivial move") {
   using MoveType = SetDefaultOnMove<double, double(2 << 10)>;
 
-  auto foo = [](Reactor &) -> Fut<MoveType> { co_return Ok(MoveType{123.0}); };
+  auto foo = [](Reactor &) -> Fut<MoveType> { co_return Ok{MoveType{123.0}}; };
 
   Fut<MoveType> fut1 = foo(reactor);
   COROSIG_REQUIRE(fut1.completed());

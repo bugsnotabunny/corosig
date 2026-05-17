@@ -7,6 +7,8 @@
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
+#include <array>
+#include <cassert>
 #include <chrono>
 #include <coroutine>
 #include <cstddef>
@@ -17,10 +19,17 @@ namespace {
 
 using namespace corosig;
 
-void resume_ready_sleepers(SleepList &sleeping) noexcept {
-  auto now = Clock::now();
+using int_milliseconds_type = std::chrono::duration<int, std::milli>;
 
-  while (!sleeping.empty()) {
+constexpr auto ITERATIONS_LIMIT = 1024;
+
+void resume_ready_sleepers(SleepList &sleeping) noexcept {
+  if (sleeping.empty()) {
+    return;
+  }
+
+  auto now = SteadyClock::now();
+  for (size_t i = 0; !sleeping.empty() && i < ITERATIONS_LIMIT; ++i) {
     SleepListNode &node = *sleeping.begin();
     if (node.awake_time > now) {
       break;
@@ -32,8 +41,8 @@ void resume_ready_sleepers(SleepList &sleeping) noexcept {
   }
 }
 
-Result<void, SyscallError>
-poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout) noexcept {
+Result<void, SyscallError> poll_and_resume(PollList &polled,
+                                           int_milliseconds_type timeout) noexcept {
   if (polled.empty()) {
     return Ok{};
   }
@@ -42,15 +51,13 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
   std::array<::pollfd, BUF_SIZE> poll_fds;
 
   size_t fds_count = 0;
-  for (PollListNode &node : polled) {
+  for (auto it = polled.begin(); it != polled.end() && fds_count < BUF_SIZE; ++fds_count, ++it) {
+    PollListNode &node = *it;
     assert(node.handle != -1);
 
     ::pollfd &poll_fd = poll_fds[fds_count];
-
     poll_fd.fd = node.handle;
     poll_fd.events = short(node.event);
-
-    ++fds_count;
   }
 
   int ret = ::poll(poll_fds.data(), fds_count, timeout.count());
@@ -58,8 +65,15 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
     return Failure{SyscallError::current()};
   }
 
-  for (size_t i = 0; i < size_t(ret); ++i) {
-    auto &node = polled.front();
+  // polled list may become empty if some coroutine cancels execution which may trigger deletion of
+  // some of list nodes
+  for (size_t i = 0; !polled.empty() && i < size_t(ret); ++i) {
+    PollListNode &node = polled.front();
+    // list node was deleted due to coroutine cancelling
+    if (poll_fds[i].fd != node.handle) {
+      continue;
+    }
+
     polled.pop_front();
 
     assert(node.waiting_coro != nullptr);
@@ -70,8 +84,6 @@ poll_and_resume(PollList &polled, std::chrono::duration<int, std::milli> timeout
 }
 
 void resume(CoroList &ready) noexcept {
-  constexpr auto ITERATIONS_LIMIT = 1024;
-
   for (size_t i = 0; !ready.empty() && i < ITERATIONS_LIMIT; ++i) {
     auto &node = ready.front();
     ready.pop_front();
@@ -82,13 +94,17 @@ void resume(CoroList &ready) noexcept {
   }
 }
 
-std::chrono::milliseconds ceil_to_millis(std::chrono::nanoseconds nanos) noexcept {
-  return std::chrono::milliseconds{nanos.count() / 1000 + nanos.count() % 1000};
+int_milliseconds_type ceil_to_millis(std::chrono::nanoseconds nanos) noexcept {
+  return std::chrono::ceil<int_milliseconds_type>(nanos);
 }
 
 } // namespace
 
 namespace corosig {
+
+Reactor::Reactor(std::span<char> mem) noexcept
+    : m_alloc{mem} {
+}
 
 Allocator &Reactor::allocator() noexcept {
   return m_alloc;
@@ -107,7 +123,7 @@ void Reactor::schedule_when_time_passes(SleepListNode &node) noexcept {
 }
 
 bool Reactor::has_active_tasks() const noexcept {
-  return !m_polled.empty() && !m_ready.empty();
+  return !m_polled.empty() || !m_ready.empty() || !m_sleeping.empty();
 }
 
 size_t Reactor::peak_memory() const noexcept {
@@ -119,17 +135,17 @@ size_t Reactor::current_memory() const noexcept {
 }
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
-  assert((!m_sleeping.empty() || !m_ready.empty() || !m_polled.empty()) &&
-         "Nothing to process. Deadlock will happen");
+  assert(has_active_tasks() && "Nothing to process. Deadlock will happen");
   resume_ready_sleepers(m_sleeping);
   resume(m_ready);
 
   using namespace std::chrono_literals;
-  auto poll_timeout = -1ms;
+  int_milliseconds_type poll_timeout = -1ms;
   if (!m_ready.empty()) {
     poll_timeout = 0ms;
   } else if (!m_sleeping.empty()) {
-    poll_timeout = std::max(0ms, ceil_to_millis(m_sleeping.begin()->awake_time - Clock::now()));
+    poll_timeout = std::max<int_milliseconds_type>(
+        0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
   }
 
   return poll_and_resume(m_polled, poll_timeout);

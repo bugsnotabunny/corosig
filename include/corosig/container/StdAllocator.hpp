@@ -18,7 +18,7 @@ namespace corosig {
 /// @code
 /// StdAllocator<int, GlobalAllocator> alloc;
 /// StdAllocator<int, LocalAllocator> owning_alloc{std::move(local_alloc)};
-/// StdAllocator<int, LocalAllocator&> non_owning_alloc{local_alloc}
+/// StdAllocator<int, AllocatorRef<LocalAllocator>> non_owning_alloc{local_alloc}
 /// @endcode
 template <typename T, AnAllocator ALLOCATOR>
 struct StdAllocator {

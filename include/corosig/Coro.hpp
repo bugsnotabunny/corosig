@@ -2,9 +2,9 @@
 #define COROSIG_CORO_HPP
 
 #include "corosig/ErrorTypes.hpp"
-#include "corosig/Result.hpp"
+#include "corosig/Result.hpp" // IWYU pragma: export
 #include "corosig/reactor/CoroList.hpp"
-#include "corosig/reactor/Reactor.hpp"
+#include "corosig/reactor/Reactor.hpp" // IWYU pragma: export
 #include "corosig/reactor/SleepList.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
@@ -12,6 +12,7 @@
 #include <concepts>
 #include <coroutine>
 #include <cstddef>
+#include <new>
 #include <utility>
 
 namespace corosig {
@@ -54,7 +55,7 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n);
+    return reactor.allocator().allocate(n, alignof(std::max_align_t));
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
@@ -65,7 +66,29 @@ struct CoroutinePromiseType : CoroListNode {
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n);
+    return reactor.allocator().allocate(n, alignof(std::max_align_t));
+  }
+
+  /// @brief Allocate new coroutine frame using allocator from reactor
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return reactor.allocator().allocate(n, size_t(align));
+  }
+
+  /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
+  ///         some object's method is declared as coroutine
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            NotReactor auto const &,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return reactor.allocator().allocate(n, size_t(align));
   }
 
   /// @brief Noop
@@ -161,16 +184,27 @@ struct [[nodiscard("forgot to await?")]] Fut {
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   using promise_type = detail::CoroutinePromiseType<T, E>;
 
+  static Fut make_failed_to_allocate() noexcept {
+    return Fut<T, E>{nullptr};
+  }
+
   Fut(const Fut &) = delete;
   Fut(Fut &&rhs) noexcept = default;
   Fut &operator=(const Fut &) = delete;
-  Fut &operator=(Fut &&rhs) noexcept = default;
+  Fut &operator=(Fut &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~Fut();
+      new (this) Fut{std::move(rhs)};
+    }
+    return *this;
+  }
 
   ~Fut() {
     if (m_handle.value != nullptr) {
       Reactor &reactor = promise().m_reactor;
+      void *addr = m_handle.value.address();
       m_handle.value.destroy();
-      reactor.allocator().deallocate(m_handle.value.address());
+      reactor.allocator().deallocate(addr);
     }
   }
 
@@ -263,7 +297,7 @@ Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object() noexcept {
 
 template <typename T, typename E>
 Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object_on_allocation_failure() noexcept {
-  return Fut<T, E>{nullptr};
+  return Fut<T, E>::make_failed_to_allocate();
 }
 
 } // namespace corosig

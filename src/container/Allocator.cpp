@@ -2,7 +2,17 @@
 
 #include "corosig/meta/AnAllocator.hpp"
 
-#include <utility>
+#include <algorithm>
+#include <cassert>
+#include <concepts>
+#include <cstddef>
+#include <cstdint>
+#include <limits> // IWYU pragma: keep
+#include <span>
+
+#if COROSIG_ASAN_ENABLED
+#include <sanitizer/asan_interface.h>
+#endif
 
 namespace {
 
@@ -10,132 +20,164 @@ using namespace corosig;
 
 static_assert(AnAllocator<Allocator>);
 
-size_t padding_with_header(size_t base_address, size_t alignment, size_t header_size) noexcept {
-  size_t multiplier = (base_address / alignment) + 1;
-  size_t aligned_address = multiplier * alignment;
-  size_t padding = aligned_address - base_address;
-  size_t needed_space = header_size;
+struct AllocationHeader {
+  // located after header
+  uint32_t block_size;
+  // located before header
+  uint32_t padding;
+};
 
-  if (padding < needed_space) {
-    // Header does not fit - Calculate next aligned address that header fits
-    needed_space -= padding;
+char *align_left(char *p, size_t align) noexcept {
+  return p - (size_t(p) % align);
+}
 
-    // How many alignments I need to fit the header
-    if (needed_space % alignment > 0) {
-      padding += alignment * (1 + (needed_space / alignment));
-    } else {
-      padding += alignment * (needed_space / alignment);
-    }
+char *align_right(char *p, size_t align) noexcept {
+  return size_t(p) % align == 0 ? p : align_left(p + align, align);
+}
+
+template <std::unsigned_integral T>
+T sub_sat(T a, T b) noexcept {
+  if (a < b) {
+    return 0;
   }
-
-  return padding;
+  return a - b;
 }
 
 } // namespace
 
 namespace corosig {
 
-Allocator::Allocator(Allocator &&rhs) noexcept
-    : m_used{std::exchange(rhs.m_used, 0)},
-      m_peak{std::exchange(rhs.m_peak, 0)},
-      m_free_list{std::exchange(rhs.m_free_list, FreeList{})},
-      m_mem{std::exchange(rhs.m_mem, nullptr)},
-      m_mem_size{std::exchange(rhs.m_mem_size, 0)} {
-}
+Allocator::Allocator(std::span<char> mem) noexcept
+    : m_mem{mem} {
+#if COROSIG_ASAN_ENABLED
+  ASAN_POISON_MEMORY_REGION(mem.data(), mem.size());
 
-Allocator &Allocator::operator=(Allocator &&rhs) noexcept {
-  this->~Allocator();
-  new (this) Allocator{std::move(rhs)};
-  return *this;
+  constexpr size_t ASAN_POISON_GUARDS = 8;
+  mem = mem.subspan(std::min(mem.size(), ASAN_POISON_GUARDS));
+  mem = mem.subspan(0, std::min(mem.size(), mem.size() - ASAN_POISON_GUARDS));
+#endif
+
+  char *aligned_mem_start = align_right(mem.data(), alignof(FreeNode));
+
+  size_t mem_size = mem.size() - size_t(aligned_mem_start - mem.data());
+
+  if (mem_size >= sizeof(FreeNode)) {
+#if COROSIG_ASAN_ENABLED
+    ASAN_UNPOISON_MEMORY_REGION(aligned_mem_start, sizeof(FreeNode));
+#endif
+    new (aligned_mem_start) FreeNode{
+        .block_size = mem_size - sizeof(AllocationHeader),
+    };
+    link(*reinterpret_cast<FreeNode *>(aligned_mem_start));
+  }
 }
 
 Allocator::~Allocator() {
-  assert(m_used == 0 && "Memory leak detected");
+  assert(*m_used == 0 && "Memory leak detected");
+#if COROSIG_ASAN_ENABLED
+  ASAN_UNPOISON_MEMORY_REGION(m_mem.data(), m_mem.size());
+#endif
 }
 
 size_t Allocator::peak_memory() const noexcept {
-  return m_peak;
+  return *m_peak;
 }
 
 size_t Allocator::current_memory() const noexcept {
-  return m_used;
+  return *m_used;
 }
 
-void Allocator::FreeList::insert(Node *previousNode, Node *newNode) noexcept {
-  if (previousNode == nullptr) {
-    // Is the first node
-    if (head != nullptr) {
-      // The list has more elements
-      newNode->next = head;
-    } else {
-      newNode->next = nullptr;
-    }
-    head = newNode;
-  } else {
-    if (previousNode->next == nullptr) {
-      // Is the last node
-      previousNode->next = newNode;
-      newNode->next = nullptr;
-    } else {
-      // Is a middle node
-      newNode->next = previousNode->next;
-      previousNode->next = newNode;
-    }
-  }
+void Allocator::link(FreeNode &node) noexcept {
+  assert(size_t(&node) % alignof(FreeNode) == 0);
+  m_nodes_by_addr.insert(node);
+  m_nodes_by_size.insert(node);
 }
 
-void Allocator::FreeList::remove(Node *previousNode, Node *deleteNode) noexcept {
-  if (previousNode == nullptr) {
-    // Is the first node
-    if (deleteNode->next == nullptr) { // List only has one element
-      head = nullptr;
-    } else {
-      // List has more elements
-      head = deleteNode->next;
-    }
-  } // namespace corosig
-  else {
-    previousNode->next = deleteNode->next;
-  }
+void Allocator::unlink_and_destroy(FreeNode &node) noexcept {
+  assert(size_t(&node) % alignof(FreeNode) == 0);
+  node.~FreeNode();
 }
 
 void *Allocator::allocate(size_t size, size_t alignment) noexcept {
-  size = std::max(size, sizeof(Node));
-  alignment = std::max(alignment, MIN_ALIGNMENT);
+  static_assert(alignof(AllocationHeader) <= alignof(FreeNode));
+  size_t const original_size = size;
+  assert(std::has_single_bit(alignment) && "Alignment must be a power of 2");
 
-  assert("Allocation size must be bigger" && size >= sizeof(Node));
-  assert("Alignment must be 8 at least" && alignment >= 8);
-  assert("Alignment must be a power of 2" && std::has_single_bit(alignment));
+  // we should always be able to construct FreeNode in allocation place
+  // to make deallocate implementation more trivial
+  size = std::max(original_size, sizeof(FreeNode) - sizeof(AllocationHeader));
 
-  // Search through the free list for a free block that has enough space to allocate our data
-  size_t padding;
-  Node *affected_node;
-  Node *previous_node;
-  find(size, alignment, padding, previous_node, affected_node);
-  if (affected_node == nullptr) {
-    return nullptr;
+  char *allocated_block = nullptr;
+
+  for (auto it = m_nodes_by_size.lower_bound(FreeNode{.block_size = size});
+       it != m_nodes_by_size.end();
+       ++it) {
+    char *const node_addr = reinterpret_cast<char *>(&*it);
+    assert(size_t(node_addr) % alignof(FreeNode) == 0);
+
+    char *allocation_header_addr = node_addr;
+    char *const allocated_block_addr = allocation_header_addr + sizeof(AllocationHeader);
+    char *const aligned_allocated_block_addr = align_right(allocated_block_addr, alignment);
+    size_t const padding = aligned_allocated_block_addr - allocated_block_addr;
+    if (padding > 0) {
+      // make header lie right before allocated block. required to access it during deallocation
+      allocation_header_addr += padding;
+      assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
+    }
+
+    size_t const aligned_allocated_block_size =
+        sub_sat(reinterpret_cast<FreeNode *>(node_addr)->block_size, padding);
+
+    if (aligned_allocated_block_size < size) {
+      continue;
+    }
+
+    char *const new_free_node_addr =
+        align_right(aligned_allocated_block_addr + size, alignof(FreeNode));
+    size_t actually_allocated_size = new_free_node_addr - aligned_allocated_block_addr;
+    size_t const extra_free_space = sub_sat(aligned_allocated_block_size, actually_allocated_size);
+
+    if (extra_free_space < sizeof(FreeNode)) {
+      // take whole block. don't divide it
+      actually_allocated_size = aligned_allocated_block_size;
+    } else {
+#if COROSIG_ASAN_ENABLED
+      ASAN_UNPOISON_MEMORY_REGION(new_free_node_addr, sizeof(FreeNode));
+#endif
+      new (new_free_node_addr) FreeNode{
+          .block_size = extra_free_space - sizeof(AllocationHeader),
+      };
+      link(*reinterpret_cast<FreeNode *>(new_free_node_addr));
+    }
+
+    unlink_and_destroy(*reinterpret_cast<FreeNode *>(node_addr));
+#if COROSIG_ASAN_ENABLED
+    ASAN_POISON_MEMORY_REGION(node_addr, sizeof(FreeNode));
+#endif
+
+    assert(padding <= std::numeric_limits<uint32_t>::max());
+    assert(actually_allocated_size <= std::numeric_limits<uint32_t>::max());
+
+    assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
+#if COROSIG_ASAN_ENABLED
+    ASAN_UNPOISON_MEMORY_REGION(allocation_header_addr, sizeof(AllocationHeader) + original_size);
+#endif
+    new (allocation_header_addr) AllocationHeader{
+        .block_size = uint32_t(actually_allocated_size),
+        .padding = uint32_t(padding),
+    };
+#if COROSIG_ASAN_ENABLED
+    ASAN_POISON_MEMORY_REGION(allocation_header_addr - padding, padding + sizeof(AllocationHeader));
+#endif
+
+    allocated_block = aligned_allocated_block_addr;
+    *m_used += actually_allocated_size + padding + sizeof(AllocationHeader);
+    *m_peak = std::max(*m_peak, *m_used);
+    break;
   }
 
-  size_t alignment_padding = padding - sizeof(AllocationHeader);
-  size_t required_size = size + padding;
-  size_t rest = affected_node->data.block_size - required_size;
-
-  if (rest > 0) {
-    // We have to split the block into the data block and a free block of size 'rest'
-    Node *new_free_node = (Node *)((char *)affected_node + required_size);
-    new_free_node->data.block_size = rest;
-    m_free_list.insert(affected_node, new_free_node);
-  }
-  m_free_list.remove(previous_node, affected_node);
-
-  // Setup data block
-  auto *header_ptr = (AllocationHeader *)((char *)affected_node + alignment_padding);
-  header_ptr->block_size = required_size;
-  header_ptr->padding = alignment_padding;
-
-  m_used += required_size;
-  m_peak = std::max(m_peak, m_used);
-  return (void *)((char *)header_ptr + sizeof(AllocationHeader));
+  assert(size_t(allocated_block) % alignment == 0);
+  return allocated_block;
 }
 
 void Allocator::deallocate(void *ptr) noexcept {
@@ -143,65 +185,68 @@ void Allocator::deallocate(void *ptr) noexcept {
     return;
   }
 
-  auto current_address = size_t(ptr);
-  size_t header_address = current_address - sizeof(AllocationHeader);
-  auto *allocation_header = std::bit_cast<AllocationHeader *>(header_address);
+  char *const current_addr = reinterpret_cast<char *>(ptr);
+  char *const header_addr = current_addr - sizeof(AllocationHeader);
 
-  Node *freenode = std::bit_cast<Node *>(header_address);
-  freenode->data.block_size = allocation_header->block_size + allocation_header->padding;
-  freenode->next = nullptr;
-  assert(freenode);
+  assert(size_t(header_addr) % alignof(AllocationHeader) == 0);
 
-  Node *it = m_free_list.head;
-  Node *it_prev = nullptr;
-  while (it != nullptr) {
-    if (ptr < it) {
-      m_free_list.insert(it_prev, freenode);
+#if COROSIG_ASAN_ENABLED
+  ASAN_UNPOISON_MEMORY_REGION(header_addr, sizeof(AllocationHeader));
+#endif
+
+  auto const padding = reinterpret_cast<AllocationHeader *>(header_addr)->padding;
+  auto const block_size = reinterpret_cast<AllocationHeader *>(header_addr)->block_size;
+
+  char *const node_addr = header_addr - padding;
+
+#if COROSIG_ASAN_ENABLED
+  ASAN_POISON_MEMORY_REGION(header_addr + sizeof(AllocationHeader), block_size);
+  ASAN_UNPOISON_MEMORY_REGION(node_addr, sizeof(FreeNode));
+#endif
+  new (node_addr) FreeNode{
+      .block_size = block_size + padding,
+  };
+  auto *node = reinterpret_cast<FreeNode *>(node_addr);
+  link(*node);
+
+  assert(*m_used >= block_size + padding + sizeof(AllocationHeader) &&
+         "Double free detected. Also there might have been other double frees before that");
+  *m_used -= block_size + padding + sizeof(AllocationHeader);
+
+  // merge with neighbours if possible
+  auto iter = m_nodes_by_addr.iterator_to(*node);
+
+  do {
+    auto iter_before = iter;
+    --iter_before;
+
+    if (iter_before == m_nodes_by_addr.end()) {
       break;
     }
-    it_prev = it;
-    it = it->next;
-  }
 
-  assert(m_used >= freenode->data.block_size && "Double free detected");
-  m_used -= freenode->data.block_size;
+    if (reinterpret_cast<char *>(&*iter_before) + sizeof(AllocationHeader) +
+            iter_before->block_size ==
+        reinterpret_cast<char *>(&*iter)) {
+      iter_before->block_size += sizeof(AllocationHeader) + iter->block_size;
+      unlink_and_destroy(*iter);
+      iter = iter_before;
+    }
+  } while (false);
 
-  // Merge contiguous nodes
-  coalescence(it_prev, freenode);
-}
+  do {
+    auto iter_next = iter;
+    ++iter_next;
 
-void Allocator::coalescence(Node *prevNode, Node *freeNode) noexcept {
-  if (freeNode->next != nullptr &&
-      size_t(freeNode) + freeNode->data.block_size == size_t(freeNode->next)) {
-    freeNode->data.block_size += freeNode->next->data.block_size;
-    m_free_list.remove(freeNode, freeNode->next);
-  }
-
-  if (prevNode != nullptr && size_t(prevNode) + prevNode->data.block_size == size_t(freeNode)) {
-    prevNode->data.block_size += freeNode->data.block_size;
-    m_free_list.remove(prevNode, freeNode);
-  }
-}
-
-void Allocator::find(size_t size,
-                     size_t alignment,
-                     size_t &padding,
-                     Node *&previousNode,
-                     Node *&foundNode) const noexcept {
-  Node *it = m_free_list.head;
-  Node *it_prev = nullptr;
-
-  while (it != nullptr) {
-    padding = padding_with_header(size_t(it), alignment, sizeof(AllocationHeader));
-    size_t required_space = size + padding;
-    if (it->data.block_size >= required_space) {
+    if (iter_next == m_nodes_by_addr.end()) {
       break;
     }
-    it_prev = it;
-    it = it->next;
-  }
-  previousNode = it_prev;
-  foundNode = it;
+
+    if (reinterpret_cast<char *>(&*iter) + sizeof(AllocationHeader) + iter->block_size ==
+        reinterpret_cast<char *>(&*iter_next)) {
+      iter->block_size += sizeof(AllocationHeader) + iter_next->block_size;
+      unlink_and_destroy(*iter_next);
+    }
+  } while (false);
 }
 
 } // namespace corosig

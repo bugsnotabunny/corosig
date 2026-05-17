@@ -2,20 +2,27 @@
 
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <random>
+
+namespace {
 
 using namespace corosig;
+
+constexpr size_t DEFAULT_ALIGN = alignof(std::max_align_t);
+
+} // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
   Allocator::Memory<1024> mem;
   Allocator alloc{mem};
 
-  void *p1 = alloc.allocate(128);
+  void *p1 = alloc.allocate(128, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p1 != nullptr);
 
-  void *p2 = alloc.allocate(256);
+  void *p2 = alloc.allocate(256, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p2 != nullptr);
 
   alloc.deallocate(p1);
@@ -26,7 +33,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Allocation exceeds capacity") {
   Allocator::Memory<256> mem;
   Allocator alloc{mem};
 
-  void *p = alloc.allocate(512);
+  void *p = alloc.allocate(512, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p == nullptr);
 }
 
@@ -34,11 +41,10 @@ COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
   Allocator::Memory<1024> mem;
   Allocator alloc{mem};
 
-  constexpr size_t ALIGN = alignof(std::max_align_t);
-  void *p = alloc.allocate(64, ALIGN);
+  void *p = alloc.allocate(64, DEFAULT_ALIGN);
 
   COROSIG_REQUIRE(p != nullptr);
-  COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % ALIGN == 0);
+  COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % DEFAULT_ALIGN == 0);
   alloc.deallocate(p);
 }
 
@@ -48,7 +54,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
 
   std::array<void *, 10> blocks = {};
   size_t count = 0;
-  while (void *p = alloc.allocate(16)) {
+  while (void *p = alloc.allocate(16, DEFAULT_ALIGN)) {
     blocks[count++] = p;
   }
   COROSIG_REQUIRE(count > 0);
@@ -70,9 +76,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or nul
   Allocator::Memory<128> mem;
   Allocator alloc{mem};
 
-  void *p = alloc.allocate(0);
-  // Depending on implementation: could return nullptr or a valid pointer.
-  // Just ensure it doesn't crash.
+  void *p = alloc.allocate(0, DEFAULT_ALIGN);
   alloc.deallocate(p);
 }
 
@@ -80,29 +84,55 @@ COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
   Allocator::Memory<128> mem;
   Allocator alloc{mem};
 
-  void *p1 = alloc.allocate(64);
+  void *p1 = alloc.allocate(64, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p1 != nullptr);
   alloc.deallocate(p1);
 
-  void *p2 = alloc.allocate(64);
+  void *p2 = alloc.allocate(64, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p2 != nullptr);
   alloc.deallocate(p2);
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("Stress test with varied sizes and alignments") {
-  Allocator::Memory<512> mem;
-  Allocator alloc{mem};
+TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][stress]") {
+  constexpr auto BUFFER_SIZE = size_t(20) * 1024 * 1024;
+  std::vector<char> mem;
+  mem.resize(BUFFER_SIZE);
+  Allocator allocator{mem};
 
-  void *a = alloc.allocate(32, alignof(int));
-  COROSIG_REQUIRE(a != nullptr);
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<size_t> size_dist(1, size_t(1024) * 1024);
+  std::uniform_int_distribution<size_t> alignments_dist(0, 12);
 
-  void *b = alloc.allocate(64, alignof(double));
-  COROSIG_REQUIRE(b != nullptr);
+  std::vector<void *> allocations;
 
-  void *c = alloc.allocate(128, alignof(std::max_align_t));
-  COROSIG_REQUIRE(c != nullptr);
+  for (size_t i = 0; i != 1000000; ++i) {
+    if (!allocations.empty() && gen() % 4 == 0) {
+      std::uniform_int_distribution<size_t> idx_dist(0, allocations.size() - 1);
+      size_t idx = idx_dist(gen);
+      allocator.deallocate(allocations[idx]);
+      allocations.erase(allocations.begin() + long(idx));
+      continue;
+    }
 
-  alloc.deallocate(a);
-  alloc.deallocate(b);
-  alloc.deallocate(c);
+    size_t size = size_dist(gen);
+    size_t alignment = 1 << alignments_dist(gen);
+
+    void *ptr = allocator.allocate(size, alignment);
+    if (ptr != nullptr) {
+      std::memset(ptr, 0, size);
+      REQUIRE(reinterpret_cast<uintptr_t>(ptr) % alignment == 0);
+      allocations.push_back(ptr);
+    }
+
+    // Verify no double frees or memory corruption
+    size_t current = allocator.current_memory();
+    REQUIRE(current <= BUFFER_SIZE);
+  }
+
+  for (void *ptr : allocations) {
+    allocator.deallocate(ptr);
+  }
+
+  REQUIRE(allocator.current_memory() == 0);
 }

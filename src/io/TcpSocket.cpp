@@ -1,16 +1,18 @@
 #include "corosig/io/TcpSocket.hpp"
 
+#include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
+#include "corosig/io/Sockaddr.hpp"
+#include "corosig/os/Handle.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "posix/FdOps.hpp"
 
 #include <cerrno>
 #include <cstddef>
-#include <fcntl.h>
-#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <span>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <unistd.h>
 
 namespace corosig {
@@ -56,8 +58,8 @@ void TcpSocket::close() noexcept {
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
-TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
-  int sock = ::socket(addr.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
+TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
+  int sock = ::socket(addr.native_storage.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
   if (sock == -1) {
     co_return Failure{SyscallError::current()};
   }
@@ -67,17 +69,27 @@ TcpSocket::connect(Reactor &, sockaddr_storage const &addr) noexcept {
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(sock, SOL_SOCKET, O_NDELAY, &on, sizeof(on));
+  (void)::setsockopt(sock, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
 
-  auto len = os::posix::addr_length(addr);
-  if (::connect(sock, (sockaddr const *)&addr, len) == -1) {
+  auto len = os::posix::addr_length(addr.native_storage);
+  if (::connect(sock, reinterpret_cast<sockaddr const *>(&addr.native_storage), len) == -1) {
     auto current_error = SyscallError::current();
     if (current_error.value != EINPROGRESS) {
       co_return Failure{current_error};
     }
   }
 
-  co_await PollEvent{sock, poll_event_e::CAN_WRITE};
+  co_await PollEvent{sock, PollEventExpectance::CAN_WRITE};
+
+  int socket_error = 0;
+  socklen_t socket_error_len = sizeof(socket_error);
+  if (::getsockopt(sock, SOL_SOCKET, SO_ERROR, &socket_error, &socket_error_len) == -1) {
+    co_return Failure{SyscallError::current()};
+  }
+  if (socket_error != 0) {
+    co_return Failure{SyscallError{socket_error}};
+  }
+
   co_return self;
 }
 

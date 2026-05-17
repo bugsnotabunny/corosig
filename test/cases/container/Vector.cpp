@@ -1,12 +1,13 @@
 #include "corosig/container/Vector.hpp"
 
+#include "catch2/catch_test_macros.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
-#include <catch2/catch_all.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
+#include <initializer_list>
 #include <list>
 
 namespace {
@@ -271,7 +272,7 @@ COROSIG_SIGHANDLER_TEST_CASE("clone() propagates clone failure from value_type",
   COROSIG_REQUIRE(v.push_back(NonCopyableCloneable{99, true}));
 
   auto r = v.clone();
-  COROSIG_REQUIRE(!r.is_ok());
+  COROSIG_REQUIRE(!r);
   COROSIG_REQUIRE(r.error().holds<CloneError>());
 }
 
@@ -282,7 +283,7 @@ COROSIG_SIGHANDLER_TEST_CASE("resize() growing branch uses clone() and propagate
 
   auto result = v.resize(3, NonCopyableCloneable{777, true});
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<CloneError>());
   COROSIG_REQUIRE(v.size() == 1);
 }
@@ -294,7 +295,7 @@ COROSIG_SIGHANDLER_TEST_CASE("resize() growing branch clones multiple times and 
 
   auto result = v.resize(5, NonCopyableCloneable{888, true});
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<CloneError>());
   COROSIG_REQUIRE(v.size() == 1);
 }
@@ -309,7 +310,7 @@ COROSIG_SIGHANDLER_TEST_CASE("shrink_to_fit with clone-only value_type (no error
   auto old_cap = v.capacity();
 
   auto result = v.shrink_to_fit();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   COROSIG_REQUIRE(v.size() == 5);
   COROSIG_REQUIRE(v.capacity() <= old_cap);
 }
@@ -323,8 +324,8 @@ COROSIG_SIGHANDLER_TEST_CASE(
 
   auto result = v.shrink_to_fit();
 
-  REQUIRE(result.is_ok());
-  REQUIRE(v.size() == 2);
+  COROSIG_REQUIRE(result);
+  COROSIG_REQUIRE(v.size() == 2);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("assign from sized range", "[vector][assign]") {
@@ -332,7 +333,7 @@ COROSIG_SIGHANDLER_TEST_CASE("assign from sized range", "[vector][assign]") {
   std::array src{1, 2, 3};
 
   auto result = v.assign(src);
-  REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 
   COROSIG_REQUIRE(v.size() == 3);
   COROSIG_REQUIRE(v[0] == 1);
@@ -349,7 +350,7 @@ TEST_CASE("assign from unsized range", "[vector][assign]") {
   std::list<int> src{10, 20, 30, 40};
 
   auto result = v.assign(src);
-  REQUIRE(result.is_ok());
+  REQUIRE(result);
 
   REQUIRE(v.size() == 4);
   REQUIRE(v[0] == 10);
@@ -386,4 +387,202 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector::erase(pos) removes a single element and sh
 
   COROSIG_REQUIRE(LifetimeCounter::constructed == 3);
   COROSIG_REQUIRE(LifetimeCounter::destructed == 1);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element at beginning") {
+  Vector<int> vec{reactor.allocator()};
+
+  auto *it = vec.insert(vec.begin(), 42).value();
+
+  COROSIG_REQUIRE(vec.size() == 1);
+  COROSIG_REQUIRE(vec[0] == 42);
+  COROSIG_REQUIRE(it == vec.begin());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element in middle") {
+  Vector<int> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.push_back(1));
+  COROSIG_REQUIRE(vec.push_back(3));
+
+  auto *it = vec.insert(vec.begin() + 1, 2).value();
+
+  COROSIG_REQUIRE(vec.size() == 3);
+  COROSIG_REQUIRE(vec[0] == 1);
+  COROSIG_REQUIRE(vec[1] == 2);
+  COROSIG_REQUIRE(vec[2] == 3);
+  COROSIG_REQUIRE(it == vec.begin() + 1);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element at end") {
+  Vector<int> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.push_back(1));
+  COROSIG_REQUIRE(vec.push_back(2));
+
+  auto *it = vec.insert(vec.end(), 3).value();
+
+  COROSIG_REQUIRE(vec.size() == 3);
+  COROSIG_REQUIRE(vec[0] == 1);
+  COROSIG_REQUIRE(vec[1] == 2);
+  COROSIG_REQUIRE(vec[2] == 3);
+  COROSIG_REQUIRE(it == vec.begin() + 2);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element into empty vector") {
+  Vector<int> vec{reactor.allocator()};
+
+  auto *it = vec.insert(vec.begin(), 99).value();
+
+  COROSIG_REQUIRE(vec.size() == 1);
+  COROSIG_REQUIRE(vec[0] == 99);
+  COROSIG_REQUIRE(it == vec.begin());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element triggers reallocation") {
+  Vector<int> vec{reactor.allocator()};
+
+  // Fill to force reallocation (assuming small initial capacity)
+  for (int i = 0; i < 16; ++i) {
+    COROSIG_REQUIRE(vec.push_back(i));
+  }
+
+  size_t old_capacity = vec.capacity();
+  auto *old_data = vec.data();
+
+  COROSIG_REQUIRE(vec.insert(vec.begin() + 5, 99));
+
+  COROSIG_REQUIRE(vec.capacity() > old_capacity);
+  COROSIG_REQUIRE(vec.data() != old_data);
+  COROSIG_REQUIRE(vec.size() == 17);
+  COROSIG_REQUIRE(vec[5] == 99);
+
+  // Verify all elements
+  for (int i = 0; i < 5; ++i) {
+    COROSIG_REQUIRE(vec[i] == i);
+  }
+  for (int i = 6; i < 17; ++i) {
+    COROSIG_REQUIRE(vec[i] == i - 1);
+  }
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element with move semantics") {
+  Vector<MoveOnly, AllocatorRef<Allocator>> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.push_back(1));
+  COROSIG_REQUIRE(vec.push_back(2));
+
+  MoveOnly value{3};
+  COROSIG_REQUIRE(vec.insert(vec.begin() + 1, std::move(value)));
+
+  COROSIG_REQUIRE(vec.size() == 3);
+  COROSIG_REQUIRE(vec[0].value == 1);
+  COROSIG_REQUIRE(vec[1].value == 3);
+  COROSIG_REQUIRE(vec[2].value == 2);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert range at beginning") {
+  Vector<int> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.push_back(4));
+  COROSIG_REQUIRE(vec.push_back(5));
+
+  std::initializer_list<int> to_insert{1, 2, 3};
+  auto *it = vec.insert(vec.begin(), to_insert).value();
+
+  COROSIG_REQUIRE(vec.size() == 5);
+  COROSIG_REQUIRE(vec[0] == 1);
+  COROSIG_REQUIRE(vec[1] == 2);
+  COROSIG_REQUIRE(vec[2] == 3);
+  COROSIG_REQUIRE(vec[3] == 4);
+  COROSIG_REQUIRE(vec[4] == 5);
+  COROSIG_REQUIRE(it == vec.begin());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert range in middle") {
+
+  Vector<int, AllocatorRef<Allocator>> vec{reactor.allocator()};
+
+  for (int i = 0; i < 5; ++i) {
+    COROSIG_REQUIRE(vec.push_back(i * 10));
+  }
+
+  std::array<int, 3> to_insert{15, 16, 17};
+  auto *it = vec.insert(vec.begin() + 2, to_insert).value();
+
+  COROSIG_REQUIRE(vec.size() == 8);
+  COROSIG_REQUIRE(vec[0] == 0);
+  COROSIG_REQUIRE(vec[1] == 10);
+  COROSIG_REQUIRE(vec[2] == 15);
+  COROSIG_REQUIRE(vec[3] == 16);
+  COROSIG_REQUIRE(vec[4] == 17);
+  COROSIG_REQUIRE(vec[5] == 20);
+  COROSIG_REQUIRE(vec[6] == 30);
+  COROSIG_REQUIRE(vec[7] == 40);
+  COROSIG_REQUIRE(it == vec.begin() + 2);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert range at end") {
+  Vector<int> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.push_back(1));
+  COROSIG_REQUIRE(vec.push_back(2));
+
+  std::initializer_list<int> to_insert{3, 4, 5};
+  auto *it = vec.insert(vec.end(), to_insert).value();
+
+  COROSIG_REQUIRE(vec.size() == 5);
+  COROSIG_REQUIRE(vec[0] == 1);
+  COROSIG_REQUIRE(vec[1] == 2);
+  COROSIG_REQUIRE(vec[2] == 3);
+  COROSIG_REQUIRE(vec[3] == 4);
+  COROSIG_REQUIRE(vec[4] == 5);
+  COROSIG_REQUIRE(it == vec.begin() + 2);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert empty range") {
+  Vector<int> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.push_back(1));
+  COROSIG_REQUIRE(vec.push_back(2));
+
+  auto *it = vec.insert(vec.begin() + 1, std::initializer_list<int>{}).value();
+
+  COROSIG_REQUIRE(vec.size() == 2);
+  COROSIG_REQUIRE(vec[0] == 1);
+  COROSIG_REQUIRE(vec[1] == 2);
+  COROSIG_REQUIRE(it == vec.begin() + 1);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert object lifetime") {
+  Vector<LifetimeCounter> vec{reactor.allocator()};
+
+  COROSIG_REQUIRE(vec.insert(vec.begin(), LifetimeCounter{123}));
+
+  COROSIG_REQUIRE(LifetimeCounter::constructed == 1);
+  COROSIG_REQUIRE(LifetimeCounter::destructed == 0);
+
+  COROSIG_REQUIRE(vec[0].value == 123);
+
+  vec.clear();
+  COROSIG_REQUIRE(LifetimeCounter::constructed == 1);
+  COROSIG_REQUIRE(LifetimeCounter::destructed == 1);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Vector::insert returns iterator to first inserted element") {
+  Vector<int, AllocatorRef<Allocator>> vec{reactor.allocator()};
+
+  for (int i = 0; i < 5; ++i) {
+    COROSIG_REQUIRE(vec.push_back(i));
+  }
+
+  auto *it1 = vec.insert(vec.begin() + 2, 99).value();
+  COROSIG_REQUIRE(it1 == vec.begin() + 2);
+  COROSIG_REQUIRE(*it1 == 99);
+
+  auto *it2 = vec.insert(vec.begin() + 4, std::array{10, 11, 12}).value();
+  COROSIG_REQUIRE(it2 == vec.begin() + 4);
+  COROSIG_REQUIRE(*it2 == 10);
+  COROSIG_REQUIRE(*(it2 + 1) == 11);
+  COROSIG_REQUIRE(*(it2 + 2) == 12);
 }

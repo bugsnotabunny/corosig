@@ -1,20 +1,23 @@
 #include "corosig/io/UdpSocket.hpp"
 
+#include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/io/Sockaddr.hpp"
+#include "corosig/os/Handle.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "posix/FdOps.hpp"
 
 #include <cstddef>
-#include <netinet/in.h>
+#include <span>
 #include <sys/socket.h>
 #include <unistd.h>
 
 namespace corosig {
 
-Result<UdpSocket, SyscallError> UdpSocket::writer() noexcept {
-  int fd = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
+Result<UdpSocket, SyscallError> UdpSocket::unbound(sa_family_t family) noexcept {
+  int fd = socket(family, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
   }
@@ -24,10 +27,10 @@ Result<UdpSocket, SyscallError> UdpSocket::writer() noexcept {
   return self;
 }
 
-Result<UdpSocket, SyscallError> UdpSocket::readwriter(sockaddr_storage const &local) noexcept {
-  COROSIG_TRY(auto self, writer());
-  auto len = os::posix::addr_length(local);
-  if (bind(self.m_fd.value, (struct sockaddr *)&local, len) == -1) {
+Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) noexcept {
+  COROSIG_TRY(auto self, unbound(local.native_storage.ss_family));
+  auto len = os::posix::addr_length(local.native_storage);
+  if (bind(self.m_fd.value, reinterpret_cast<sockaddr const *>(&local.native_storage), len) == -1) {
     return Failure{SyscallError::current()};
   }
   return self;
@@ -38,37 +41,43 @@ UdpSocket::~UdpSocket() {
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
-UdpSocket::recv_from(Reactor &, std::span<char> out, sockaddr_storage *source_addr) noexcept {
-  co_await PollEvent{m_fd.value, poll_event_e::CAN_READ};
+UdpSocket::recv_from(Reactor &, std::span<char> out, SockaddrStorage *source_addr) noexcept {
+  co_await PollEvent{m_fd.value, PollEventExpectance::CAN_READ};
   co_return try_recv_from(out, source_addr);
 }
 
 Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
-                                                      sockaddr_storage *source_addr) noexcept {
-  socklen_t addrlen;
-  socklen_t *addrlen_ptr = source_addr == nullptr ? nullptr : &addrlen;
-  ssize_t result =
-      ::recvfrom(m_fd.value, out.data(), out.size(), 0, (sockaddr *)source_addr, addrlen_ptr);
+                                                      SockaddrStorage *source_addr) noexcept {
+  socklen_t addrlen = sizeof(source_addr->native_storage);
+  socklen_t *addrlen_ptr = nullptr;
+  sockaddr *addr_ptr = nullptr;
+
+  if (source_addr != nullptr) {
+    addrlen_ptr = &addrlen;
+    addr_ptr = reinterpret_cast<sockaddr *>(&source_addr->native_storage);
+  }
+
+  ssize_t result = ::recvfrom(m_fd.value, out.data(), out.size(), 0, addr_ptr, addrlen_ptr);
   if (result == -1) {
     return Failure{SyscallError::current()};
   }
   return size_t(result);
 }
 
-Fut<size_t, Error<AllocationError, SyscallError>> UdpSocket::send_to(
-    Reactor &, std::span<char const> message, sockaddr_storage const &dest) noexcept {
-  co_await PollEvent{m_fd.value, poll_event_e::CAN_WRITE};
+Fut<size_t, Error<AllocationError, SyscallError>>
+UdpSocket::send_to(Reactor &, std::span<char const> message, SockaddrStorage const &dest) noexcept {
+  co_await PollEvent{m_fd.value, PollEventExpectance::CAN_WRITE};
   co_return try_send_to(message, dest);
 }
 
 Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> message,
-                                                    sockaddr_storage const &dest) noexcept {
+                                                    SockaddrStorage const &dest) noexcept {
   ssize_t result = ::sendto(m_fd.value,
                             message.data(),
                             message.size(),
                             0,
-                            (sockaddr const *)&dest,
-                            os::posix::addr_length(dest));
+                            reinterpret_cast<sockaddr const *>(&dest.native_storage),
+                            os::posix::addr_length(dest.native_storage));
   if (result == -1) {
     return Failure{SyscallError::current()};
   }

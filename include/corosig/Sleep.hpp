@@ -4,20 +4,17 @@
 #include "corosig/Clock.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
-#include <csignal>
-#include <cstdlib>
-
 namespace corosig {
 
 /// @brief  Break the execution of a coroutine until specified amount of time passes
-struct Sleep : SleepListNode {
-  Sleep(Clock::time_point until) {
+struct [[nodiscard("forgot to await?")]] Sleep : SleepListNode {
+  explicit Sleep(SteadyClock::time_point until) noexcept {
     this->awake_time = until;
   }
 
   template <typename REP, typename PERIOD>
-  Sleep(std::chrono::duration<REP, PERIOD> sleep_for)
-      : Sleep{Clock::now() + sleep_for} {
+  explicit Sleep(std::chrono::duration<REP, PERIOD> sleep_for) noexcept
+      : Sleep{SteadyClock::now() + sleep_for} {
   }
 
   [[nodiscard]] static bool await_ready() noexcept {

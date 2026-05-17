@@ -1,11 +1,13 @@
 #include "corosig/io/Stdio.hpp"
 
+#include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
+#include "corosig/os/Handle.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "posix/FdOps.hpp"
 
-#include <fcntl.h>
-#include <unistd.h>
+#include <cstddef>
+#include <span>
 
 namespace corosig {
 

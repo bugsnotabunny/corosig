@@ -1,39 +1,60 @@
 #ifndef COROSIG_CONTAINER_UNIQUE_PTR_HPP
 #define COROSIG_CONTAINER_UNIQUE_PTR_HPP
 
+#include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/meta/AnAllocator.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <memory>
 
 namespace corosig {
 
 /// @brief An allocator-aware deleter for unique pointers
-template <typename T, AnAllocator ALLOCATOR = Allocator &>
+template <AnAllocator ALLOCATOR = AllocatorRef<Allocator>>
 struct AllocatorBoundDeleter {
+  template <typename T>
   void operator()(T *p) noexcept {
-    p->~T();
-    return alloc.deallocate(p);
+    if (p) {
+      p->~T();
+      return alloc.deallocate(p);
+    }
   }
 
   [[no_unique_address]] ALLOCATOR alloc;
 };
 
 /// @brief Unique pointer wrapper to make it easier to use with AllocatorBoundDeleter
-template <typename T, AnAllocator ALLOCATOR = Allocator &>
-struct UniquePtr : std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>> {
-  using std::unique_ptr<T, AllocatorBoundDeleter<T, ALLOCATOR>>::unique_ptr;
+template <typename T, AnAllocator ALLOCATOR = AllocatorRef<Allocator>>
+struct UniquePtr : std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>> {
+  using std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>>::unique_ptr;
+
+  UniquePtr(T *p, ALLOCATOR alloc) noexcept
+      : std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>>{
+            p, AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)}} {
+  }
+
+  UniquePtr(std::nullptr_t, ALLOCATOR alloc) noexcept
+      : std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>>{
+            static_cast<T *>(nullptr),
+            AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)}} {
+  }
 };
 
 /// @brief Make a unique pointer via given allocator
-template <typename T, AnAllocator ALLOCATOR = Allocator &, typename... ARGS>
-UniquePtr<T, ALLOCATOR> make_unique(ALLOCATOR &&alloc, ARGS &&...args) noexcept {
-  void *p = alloc.allocate(sizeof(T));
+template <typename T, AnAllocator ALLOCATOR = AllocatorRef<Allocator>, typename... ARGS>
+Result<UniquePtr<T, ALLOCATOR>, AllocationError> make_unique(ALLOCATOR &&alloc,
+                                                             ARGS &&...args) noexcept {
+  void *p = alloc.allocate(sizeof(T), alignof(T));
+  if (p == nullptr) {
+    return Failure{AllocationError{}};
+  }
   new (p) T{std::forward<ARGS>(args)...};
   return UniquePtr<T, ALLOCATOR>{
       static_cast<T *>(p),
-      AllocatorBoundDeleter<T, ALLOCATOR>{std::forward<ALLOCATOR>(alloc)},
+      AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)},
   };
 }
 

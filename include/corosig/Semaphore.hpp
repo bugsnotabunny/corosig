@@ -26,7 +26,13 @@ struct Semaphore {
     Holder(const Holder &) = delete;
     Holder(Holder &&) = default;
     Holder &operator=(const Holder &) = delete;
-    Holder &operator=(Holder &&) = default;
+    Holder &operator=(Holder &&rhs) noexcept {
+      if (this != &rhs) {
+        this->~Holder();
+        new (this) Holder{std::move(rhs)};
+      }
+      return *this;
+    }
 
     ~Holder();
 
@@ -44,7 +50,7 @@ struct Semaphore {
   /// @brief   Awaits for specified units count to become available in semaphore
   /// @warning Methods within this type are not really intended to be called directly in user code.
   ///          Prefer sticking to just operator co_await
-  struct HolderAwaiter : CoroListNode {
+  struct [[nodiscard("forgot to await?")]] HolderAwaiter : CoroListNode {
     HolderAwaiter(const HolderAwaiter &) = delete;
     HolderAwaiter(HolderAwaiter &&) = delete;
     HolderAwaiter &operator=(const HolderAwaiter &) = delete;
@@ -98,10 +104,8 @@ private:
   void take_units(size_t units) noexcept;
   void free_units(size_t units) noexcept;
 
-  using waiters_queue_type = boost::intrusive::slist<HolderAwaiter,
-                                                     boost::intrusive::constant_time_size<false>,
-                                                     boost::intrusive::linear<true>,
-                                                     boost::intrusive::cache_last<true>>;
+  using waiters_queue_type =
+      boost::intrusive::list<HolderAwaiter, boost::intrusive::constant_time_size<false>>;
 
   size_t m_max_parallelism;
   size_t m_current_parallelism = 0;

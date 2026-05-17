@@ -2,7 +2,6 @@
 
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_all.hpp>
 #include <utility>
 
 using namespace corosig;

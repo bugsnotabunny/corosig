@@ -11,8 +11,8 @@ namespace corosig {
 
 /// @brief Await for event to occur for handle
 /// @note Event is only actually polled when this struct is co_awaited
-struct PollEvent : PollListNode {
-  PollEvent(os::Handle handle, poll_event_e event) {
+struct [[nodiscard("forgot to await?")]] PollEvent : PollListNode {
+  PollEvent(os::Handle handle, PollEventExpectance event) {
     this->handle = handle;
     this->event = event;
   }

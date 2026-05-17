@@ -19,12 +19,8 @@ struct Reactor {
   Reactor &operator=(const Reactor &) = delete;
   Reactor &operator=(Reactor &&) = delete;
 
-  /// @brief Construct a reactor which allocates memory for it's coroutines from provided static
-  /// buffer
-  template <size_t SIZE>
-  Reactor(Allocator::Memory<SIZE> &mem)
-      : m_alloc{mem} {
-  }
+  /// @brief Construct a reactor which allocates memory for it's coroutines from provided buffer
+  Reactor(std::span<char> mem) noexcept;
 
   /// @brief Access underlying allocator. Usefull to allocate memory from it for containers
   Allocator &allocator() noexcept;
