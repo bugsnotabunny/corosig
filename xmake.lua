@@ -3,16 +3,18 @@ add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release", "mode.minsizer
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
+local toolchain = get_config("toolchain") or ""
+
 if is_mode("release") then
     set_optimize("fastest")
     add_defines("NDEBUG")
     set_strip("debug")
-    set_policy("build.optimization.lto", true)
+    set_policy("build.optimization.lto", toolchain ~= "gcc")
 elseif is_mode("minsizerel") then
     set_optimize("smallest")
     add_defines("NDEBUG")
     set_strip("debug")
-    set_policy("build.optimization.lto", true)
+    set_policy("build.optimization.lto", toolchain ~= "gcc")
 else
     set_optimize("fast")
 end
@@ -36,8 +38,7 @@ target("corosig")
     add_packages("boost", { external = true, public = true })
 
     before_build(function (target)
-        local policies = import("core.project.policy").policies()
-        if policies["build.sanitizer.address"] then
+        if is_mode("tsan") then
             target:add("defines", "COROSIG_ASAN_ENABLED=1")
         end
     end)
