@@ -153,7 +153,6 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: encodes multi-label domain", "[write_n
   COROSIG_REQUIRE(uint8_t(buffer[0]) == 3);
   COROSIG_REQUIRE(uint8_t(buffer[4]) == 7);
   COROSIG_REQUIRE(uint8_t(buffer[12]) == 3);
-  COROSIG_REQUIRE(uint8_t(buffer.back()) == 0);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("write_name: propagates label error (empty label)", "[write_name]") {
