@@ -267,7 +267,8 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: returns allocation failure on OOM") {
 COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: handles long hostnames") {
   dns::MemoryCache<> cache{reactor.allocator()};
 
-  std::string const long_name = "a.very.long.hostname.that.goes.on.and.on.subdomain.example.com";
+  constexpr std::string_view long_name =
+      "a.very.long.hostname.that.goes.on.and.on.subdomain.example.com";
 
   COROSIG_REQUIRE(
       cache
