@@ -1,5 +1,6 @@
 #include "corosig/io/TcpSocket.hpp"
 
+#include "corosig/io/Sockaddr.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
@@ -54,13 +55,7 @@ TEST_CASE("TcpSocket connect to server succeeds") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [&](Reactor &r) -> Fut<int, Error<AllocationError, SyscallError>> {
-      sockaddr_in addr;
-      addr.sin_port = htons(PORT);
-      addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
-
-      SockaddrStorage ss{};
-      std::memcpy(&ss, &addr, sizeof(addr));
+      SockaddrStorage ss = Ipv4Addr::loopback().to_sockaddr(PORT);
 
       COROSIG_CO_TRY(auto socket, co_await TcpSocket::connect(r, ss));
       COROSIG_REQUIRE(socket.underlying_handle() >= 0);
@@ -77,14 +72,7 @@ TEST_CASE("TcpSocket write/read roundtrip") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [&](Reactor &r) -> Fut<int, Error<AllocationError, SyscallError>> {
-      sockaddr_in addr{};
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(PORT);
-      addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-      SockaddrStorage ss{};
-
-      std::memcpy(&ss, &addr, sizeof(addr));
+      SockaddrStorage ss = Ipv4Addr::loopback().to_sockaddr(PORT);
 
       COROSIG_CO_TRY(auto sock, co_await TcpSocket::connect(r, ss));
 
@@ -105,13 +93,7 @@ TEST_CASE("TcpSocket write/read roundtrip") {
 TEST_CASE("TcpSocket connect to non-existent server fails") {
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      sockaddr_in addr{};
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(1234);
-      addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-      SockaddrStorage ss{};
-      std::memcpy(&ss, &addr, sizeof(addr));
+      SockaddrStorage ss = Ipv4Addr::loopback().to_sockaddr(1234);
 
       auto connect_result = co_await TcpSocket::connect(r, ss);
       COROSIG_REQUIRE(!connect_result.is_ok());
@@ -129,13 +111,7 @@ TEST_CASE("TcpSocket move semantics") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      sockaddr_in addr{};
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(PORT);
-      addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-      SockaddrStorage ss{};
-      std::memcpy(&ss, &addr, sizeof(addr));
+      SockaddrStorage ss = Ipv4Addr::loopback().to_sockaddr(PORT);
 
       COROSIG_CO_TRY(auto sock1, co_await TcpSocket::connect(r, ss));
       int fd_before = sock1.underlying_handle();
@@ -163,13 +139,7 @@ TEST_CASE("TcpSocket move assignment") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      sockaddr_in addr{};
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(PORT);
-      addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-      SockaddrStorage ss{};
-      std::memcpy(&ss, &addr, sizeof(addr));
+      SockaddrStorage ss = Ipv4Addr::loopback().to_sockaddr(PORT);
 
       COROSIG_CO_TRY(auto sock1, co_await TcpSocket::connect(r, ss));
 
@@ -197,13 +167,7 @@ TEST_CASE("TcpSocket close() invalidates descriptor") {
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-      sockaddr_in addr{};
-      addr.sin_family = AF_INET;
-      addr.sin_port = htons(PORT);
-      addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-      SockaddrStorage ss{};
-      std::memcpy(&ss, &addr, sizeof(addr));
+      SockaddrStorage ss = Ipv4Addr::loopback().to_sockaddr(PORT);
 
       COROSIG_CO_TRY(auto sock, co_await TcpSocket::connect(r, ss));
 
