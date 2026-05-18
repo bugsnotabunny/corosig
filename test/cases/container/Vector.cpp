@@ -3,8 +3,9 @@
 #include "catch2/catch_test_macros.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/Reactor.hpp"
+#include "corosig/testing/LifetimeCounter.hpp"
+#include "corosig/testing/NonCopyable.hpp"
 #include "corosig/testing/Signals.hpp"
-#include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <initializer_list>
@@ -13,43 +14,7 @@
 namespace {
 
 using namespace corosig;
-
-struct LifetimeCounter {
-  static inline int constructed = 0;
-  static inline int destructed = 0;
-  int value;
-  SetDefaultOnMove<bool, false> owned = true;
-
-  LifetimeCounter(int v = 1234) noexcept
-      : value(v) {
-    constructed++;
-  }
-
-  LifetimeCounter(LifetimeCounter const &rhs) noexcept
-      : value{rhs.value},
-        owned{*rhs.owned} {
-    if (*owned) {
-      constructed++;
-    }
-  }
-
-  LifetimeCounter(LifetimeCounter &&) noexcept = default;
-
-  ~LifetimeCounter() {
-    if (*owned) {
-      destructed++;
-    }
-  }
-
-  static void reset() {
-    constructed = 0;
-    destructed = 0;
-  }
-
-  bool operator==(int rhs) {
-    return value == rhs;
-  }
-};
+using namespace corosig::testing;
 
 struct LifetimeCounterResetListener : Catch::EventListenerBase {
   using Catch::EventListenerBase::EventListenerBase;
@@ -60,16 +25,6 @@ struct LifetimeCounterResetListener : Catch::EventListenerBase {
 };
 
 CATCH_REGISTER_LISTENER(LifetimeCounterResetListener);
-
-struct MoveOnly {
-  int value;
-  MoveOnly(int x) noexcept
-      : value(x) {
-  }
-  MoveOnly(const MoveOnly &) = delete;
-  MoveOnly(MoveOnly &&) noexcept = default;
-  MoveOnly &operator=(MoveOnly &&) noexcept = default;
-};
 
 struct CloneError {};
 
@@ -178,10 +133,10 @@ COROSIG_SIGHANDLER_TEST_CASE("clear destroys all elements", "[vector]") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Vector supports move-only types", "[vector]") {
-  Vector<MoveOnly> v{reactor.allocator()};
+  Vector<NonCopyable> v{reactor.allocator()};
 
-  COROSIG_REQUIRE(v.push_back(MoveOnly{1}));
-  COROSIG_REQUIRE(v.push_back(MoveOnly{2}));
+  COROSIG_REQUIRE(v.push_back(NonCopyable{1}));
+  COROSIG_REQUIRE(v.push_back(NonCopyable{2}));
 
   COROSIG_REQUIRE(v.size() == 2);
   COROSIG_REQUIRE(v[0].value == 1);
@@ -467,12 +422,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element triggers reallocatio
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Vector::insert single element with move semantics") {
-  Vector<MoveOnly, AllocatorRef<Allocator>> vec{reactor.allocator()};
+  Vector<NonCopyable, AllocatorRef<Allocator>> vec{reactor.allocator()};
 
   COROSIG_REQUIRE(vec.push_back(1));
   COROSIG_REQUIRE(vec.push_back(2));
 
-  MoveOnly value{3};
+  NonCopyable value{3};
   COROSIG_REQUIRE(vec.insert(vec.begin() + 1, std::move(value)));
 
   COROSIG_REQUIRE(vec.size() == 3);

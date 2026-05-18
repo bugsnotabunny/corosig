@@ -4,7 +4,6 @@
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
-#include <cstring>
 #include <netinet/in.h>
 #include <span>
 #include <sys/socket.h>

@@ -1,5 +1,6 @@
 #include "corosig/util/Variant.hpp"
 
+#include "corosig/testing/NonCopyable.hpp"
 #include "corosig/testing/Signals.hpp"
 
 namespace {
@@ -44,23 +45,7 @@ TEST_CASE("Variant shuffled conversion with non-trivial types - String type") {
 
 COROSIG_SIGHANDLER_TEST_CASE(
     "Variant shuffled conversion with non-trivial types - Custom move-only type") {
-  struct MoveOnly {
-    MoveOnly(int v = 0)
-        : value{v} {
-    }
-
-    MoveOnly(const MoveOnly &) = delete;
-    MoveOnly(MoveOnly &&) noexcept = default;
-    MoveOnly &operator=(const MoveOnly &) = delete;
-    MoveOnly &operator=(MoveOnly &&) noexcept = default;
-    ~MoveOnly() = default;
-
-    constexpr auto operator<=>(MoveOnly const &) const noexcept = default;
-
-    int value;
-  };
-
-  Variant<int, MoveOnly, double> v1{MoveOnly{42}};
-  Variant<double, int, MoveOnly> v2{std::move(v1)};
-  REQUIRE(v2 == MoveOnly{42});
+  Variant<int, NonCopyable, double> v1{NonCopyable{42}};
+  Variant<double, int, NonCopyable> v2{std::move(v1)};
+  REQUIRE(v2 == NonCopyable{42});
 }
