@@ -58,7 +58,8 @@ target_end()
 
 
 for _, file in ipairs(os.files("test/cases/**.cpp")) do
-    local name = "Test" .. path.basename(file)
+    local rel_path = path.relative(file, "test/cases")
+    local name = "test." .. rel_path:gsub("/", "."):sub(1, -5)
     target(name)
         set_kind("binary")
         add_deps("corosig-testing")
