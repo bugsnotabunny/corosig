@@ -13,23 +13,9 @@ struct MockAllocator {
   size_t last_alloc_size = 0;
   void *last_dealloc_ptr = nullptr;
 
-  void *allocate(size_t n, size_t) noexcept {
-    return allocate(n);
-  }
-
-  void *allocate(size_t n) noexcept {
-    ++allocate_calls;
-    allocated_bytes += n;
-    last_alloc_size = n;
-    last_alloc_ptr = ::operator new(n * sizeof(std::max_align_t));
-    return last_alloc_ptr;
-  }
-
-  void deallocate(void *p) noexcept {
-    ++deallocate_calls;
-    last_dealloc_ptr = p;
-    ::operator delete(p);
-  }
+  void *allocate(size_t n, size_t) noexcept;
+  void *allocate(size_t n) noexcept;
+  void deallocate(void *p) noexcept;
 };
 
 } // namespace corosig::testing

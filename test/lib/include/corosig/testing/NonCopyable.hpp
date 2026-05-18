@@ -10,6 +10,7 @@ struct NonCopyable {
   NonCopyable(int v = -1234444)
       : value{v} {
   }
+
   NonCopyable(const NonCopyable &) = delete;
   NonCopyable(NonCopyable &&) noexcept = default;
   NonCopyable &operator=(const NonCopyable &) = delete;
