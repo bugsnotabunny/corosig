@@ -1,5 +1,6 @@
 #ifndef COROSIG_RANDOM_HPP
 #define COROSIG_RANDOM_HPP
+
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/reactor/Reactor.hpp"
@@ -22,19 +23,21 @@ concept ARandomGenerator = requires(T gen) {
 };
 
 struct ChaCha20RandomGenerator {
-  ChaCha20RandomGenerator(std::array<uint8_t, 32> seed) noexcept;
+  ChaCha20RandomGenerator(std::array<uint8_t, 32> seed,
+                          std::array<uint32_t, 3> nonce = {},
+                          uint32_t block_counter = 0) noexcept;
 
   void generate_bytes(std::span<std::byte> out) noexcept;
 
 private:
-  void refill() noexcept;
+  void refill_state() noexcept;
 
-  static constexpr size_t STATE_WORDS = 16;
-  static constexpr size_t BLOCK_BYTES = 64;
+  static constexpr uint8_t STATE_WORDS = 16;
+  static constexpr uint8_t BLOCK_BYTES = 64;
 
-  size_t m_pos = 64;
   std::array<uint32_t, STATE_WORDS> m_state;
-  std::array<uint8_t, BLOCK_BYTES> m_buffer;
+  std::array<uint32_t, STATE_WORDS> m_working_state;
+  uint8_t m_pos = BLOCK_BYTES;
 };
 
 } // namespace corosig
