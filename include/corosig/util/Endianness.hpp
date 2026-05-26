@@ -4,9 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
-#include <climits>
 #include <concepts>
-#include <span>
 #include <type_traits>
 
 namespace corosig {
@@ -55,7 +53,7 @@ constexpr T htole(T value) noexcept {
   if constexpr (std::endian::native == std::endian::little) {
     return value;
   } else if (std::endian::native == std::endian::big) {
-    return betole(value);
+    return detail::byteswap(value);
   } else {
     static_assert(false, "Unsupported byte order");
   }
