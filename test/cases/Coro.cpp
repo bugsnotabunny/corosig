@@ -2,13 +2,25 @@
 
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/Sleep.hpp"
+#include "corosig/Yield.hpp"
 #include "corosig/reactor/Reactor.hpp"
+#include "corosig/testing/LifetimeCounter.hpp"
+#include "corosig/testing/NonCopyable.hpp"
+#include "corosig/testing/NonMovable.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
+#include <array>
 #include <catch2/catch_test_macros.hpp>
+#include <chrono>
+
+namespace {
 
 using namespace corosig;
+using namespace corosig::testing;
+
+} // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("Coroutine executed synchronously") {
   auto foo = [](Reactor &) -> Fut<int> { //
@@ -55,4 +67,70 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut can be co_awaited inside a coroutine") {
   auto result = BAR(reactor).block_on();
   REQUIRE(result.is_ok());
   REQUIRE(result.value() == 123 + 99);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Fut destruction calls dtor for object on frame") {
+  LifetimeCounter::reset();
+
+  {
+    auto coro = [](Reactor &) -> Fut<LifetimeCounter> {
+      LifetimeCounter obj{42};
+      co_return obj;
+    };
+    Fut<LifetimeCounter> fut = coro(reactor);
+    COROSIG_REQUIRE(fut.completed());
+    COROSIG_REQUIRE(LifetimeCounter::constructed == 1);
+    COROSIG_REQUIRE(LifetimeCounter::destructed == 0);
+  }
+
+  COROSIG_REQUIRE(LifetimeCounter::constructed == 1);
+  COROSIG_REQUIRE(LifetimeCounter::destructed == 1);
+
+  COROSIG_REQUIRE(!reactor.has_active_tasks());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Fut discarding before coroutine finishes") {
+  LifetimeCounter::reset();
+
+  {
+    auto coro = [](Reactor &) -> Fut<int> {
+      LifetimeCounter obj1{100};
+      LifetimeCounter obj2{200};
+      co_await Yield{};
+      LifetimeCounter obj3{300};
+      co_await Yield{};
+      co_return 999;
+    };
+    Fut<int> fut = coro(reactor);
+    COROSIG_REQUIRE(!fut.completed());
+    COROSIG_REQUIRE(LifetimeCounter::constructed == 2);
+    COROSIG_REQUIRE(LifetimeCounter::destructed == 0);
+  }
+
+  COROSIG_REQUIRE(LifetimeCounter::constructed == 2);
+  COROSIG_REQUIRE(LifetimeCounter::destructed == 2);
+  COROSIG_REQUIRE(!reactor.has_active_tasks());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Fut discarding at sleep suspension point") {
+  using namespace std::chrono_literals;
+
+  LifetimeCounter::reset();
+
+  {
+    auto coro = [](Reactor &) -> Fut<int> {
+      LifetimeCounter obj{111};
+      co_await Sleep{5ms};
+      LifetimeCounter obj2{222};
+      co_return 0;
+    };
+    Fut<int> fut = coro(reactor);
+    COROSIG_REQUIRE(LifetimeCounter::constructed == 1);
+    COROSIG_REQUIRE(LifetimeCounter::destructed == 0);
+  }
+
+  COROSIG_REQUIRE(LifetimeCounter::constructed == 1);
+  COROSIG_REQUIRE(LifetimeCounter::destructed == 1);
+
+  COROSIG_REQUIRE(!reactor.has_active_tasks());
 }
