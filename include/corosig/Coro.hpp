@@ -160,7 +160,8 @@ struct CoroutinePromiseType : CoroListNode {
   void return_value(U &&value) noexcept {
     assert(m_value.is_nothing());
     assert(!m_waiting_coro.done());
-    m_value = Result<T, E>{std::forward<U>(value)};
+    m_value.~Result();
+    new (&m_value) Result<T, E>{std::forward<U>(value)};
   }
 
 private:
