@@ -2,7 +2,6 @@
 
 #include "corosig/testing/FileHelpers.hpp"
 
-#include <catch2/catch_all.hpp>
 
 namespace corosig::testing {
 
