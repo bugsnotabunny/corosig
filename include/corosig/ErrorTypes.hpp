@@ -116,7 +116,7 @@ struct SyscallError {
 
   [[nodiscard]] std::string_view description() const noexcept;
 
-  int value;
+  int value = 0;
 };
 
 } // namespace corosig
