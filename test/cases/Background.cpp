@@ -5,9 +5,15 @@
 #include "corosig/Result.hpp"
 #include "corosig/Sleep.hpp"
 #include "corosig/Yield.hpp"
+#include "corosig/container/Allocator.hpp"
 #include "corosig/io/Pipe.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
+
+#include <array>
+#include <cstddef>
+#include <type_traits>
+#include <utility>
 
 namespace {
 
@@ -70,4 +76,31 @@ COROSIG_SIGHANDLER_TEST_CASE("run_in_background basic behavior") {
 
   auto foo = [](Reactor &) -> Fut<void> { co_return Ok{}; };
   COROSIG_REQUIRE(foo(reactor).block_on_with_reactor_drain());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask allocation failure") {
+  constexpr static auto FOO = [](Reactor &) -> BackgroundTask { co_return; };
+
+  Allocator::Memory<0> mem;
+  Reactor limited_reactor{mem};
+
+  auto task = FOO(limited_reactor);
+  COROSIG_REQUIRE(!task);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask multiple concurrent tasks") {
+  using namespace std::chrono_literals;
+
+  auto test_concurrent = [](Reactor &r) -> Fut<int> {
+    for (int i = 0; i < 70; ++i) {
+      COROSIG_REQUIRE(run_in_background(r, Sleep{20ms}));
+    }
+
+    co_await Sleep{20ms};
+
+    co_return 0;
+  };
+
+  auto res = test_concurrent(reactor).block_on();
+  COROSIG_REQUIRE(res);
 }
