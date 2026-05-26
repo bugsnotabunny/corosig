@@ -20,7 +20,8 @@ struct BackgroundCoroutinePromiseType;
 
 }
 
-struct BackgroundTask : Result<void, AllocationError> {
+struct [[nodiscard("Check if task was spawned successfully")]] BackgroundTask
+    : Result<void, AllocationError> {
 
   using promise_type = detail::BackgroundCoroutinePromiseType;
 
