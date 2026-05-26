@@ -64,7 +64,8 @@ for _, file in ipairs(os.files("test/cases/**.cpp")) do
         set_kind("binary")
         add_deps("corosig-testing")
         add_files(file)
-    add_tests("default")
+    add_tests("default", { runargs = { "--skip-benchmarks" } })
+    add_tests("norandord", { runargs = { "--skip-benchmarks", "--order=decl" } })
 end
 
 
