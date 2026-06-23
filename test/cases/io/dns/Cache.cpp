@@ -3,57 +3,22 @@
 #include "corosig/io/Sockaddr.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
+#include "corosig/testing/TemporaryFileTestListener.hpp"
 
 #include <array>
-#include <filesystem>
-#include <fstream>
-#include <random>
+#include <catch2/catch_test_macros.hpp>
 
 namespace {
 
 using namespace corosig;
+using namespace corosig::testing;
 
-char const *g_test_hosts_file{nullptr};
-
-std::filesystem::path tmp_hosts_file() {
-  auto tmp_dir = std::filesystem::temp_directory_path();
-  std::array<char, 16> filename{};
-  do {
-    std::random_device rd;
-    std::mt19937 gen{rd()};
-    std::uniform_int_distribution<char> distr{'a', 'z'};
-    auto rand_letter = [&] { return distr(gen); };
-    std::ranges::generate_n(filename.begin(), std::size(filename) - 1, rand_letter);
-  } while (std::filesystem::exists(tmp_dir / std::string_view{filename.data(), filename.size()}));
-  return tmp_dir / std::string_view{filename.data(), filename.size()};
-}
-
-struct TestListener : Catch::EventListenerBase {
-  using Catch::EventListenerBase::EventListenerBase;
-
-  void testCaseStarting(Catch::TestCaseInfo const &) override {
-    file = tmp_hosts_file();
-    g_test_hosts_file = file.c_str();
-  }
-  void testCaseEnded(Catch::TestCaseStats const &) override {
-    std::filesystem::remove(file);
-    g_test_hosts_file = nullptr;
-  }
-
-  std::filesystem::path file;
-};
-
-CATCH_REGISTER_LISTENER(TestListener);
-
-void write_hosts_file(std::string_view content) {
-  std::ofstream ofs(g_test_hosts_file);
-  ofs << content;
-}
+CATCH_REGISTER_LISTENER(TemporaryFileTestListener);
 
 } // namespace
 
 TEST_CASE("Cache: pull returns from HostsFileCache when hostname exists there") {
-  write_hosts_file("192.168.1.100 hosts.example.com\n");
+  write_temp_file("192.168.1.100 hosts.example.com\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -68,12 +33,12 @@ TEST_CASE("Cache: pull returns from HostsFileCache when hostname exists there") 
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }
 
 TEST_CASE("Cache: pull falls back to MemoryCache when not in hosts file") {
-  write_hosts_file("127.0.0.1 localhost\n");
+  write_temp_file("127.0.0.1 localhost\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -98,12 +63,12 @@ TEST_CASE("Cache: pull falls back to MemoryCache when not in hosts file") {
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }
 
 TEST_CASE("Cache: pull returns zero when hostname in neither cache") {
-  write_hosts_file("127.0.0.1 localhost\n");
+  write_temp_file("127.0.0.1 localhost\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -117,12 +82,12 @@ TEST_CASE("Cache: pull returns zero when hostname in neither cache") {
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }
 
 TEST_CASE("Cache: HostsFileCache takes priority over MemoryCache") {
-  write_hosts_file("192.168.1.200 priority.example.com\n");
+  write_temp_file("192.168.1.200 priority.example.com\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -146,12 +111,12 @@ TEST_CASE("Cache: HostsFileCache takes priority over MemoryCache") {
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }
 
 TEST_CASE("Cache: IPv6 pull works correctly") {
-  write_hosts_file("2001:db8::1 ipv6hosts.example.com\n");
+  write_temp_file("2001:db8::1 ipv6hosts.example.com\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -166,12 +131,12 @@ TEST_CASE("Cache: IPv6 pull works correctly") {
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }
 
 TEST_CASE("Cache: push delegates to MemoryCache") {
-  write_hosts_file("# Empty hosts file\n");
+  write_temp_file("# Empty hosts file\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -200,12 +165,12 @@ TEST_CASE("Cache: push delegates to MemoryCache") {
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }
 
 TEST_CASE("Cache: prune delegates to MemoryCache") {
-  write_hosts_file("# Empty hosts file\n");
+  write_temp_file("# Empty hosts file\n");
 
   run_in_sighandler([](Reactor &reactor) {
     auto foo = [](Reactor &r,
@@ -234,6 +199,6 @@ TEST_CASE("Cache: prune delegates to MemoryCache") {
 
       co_return Ok{};
     };
-    COROSIG_REQUIRE(foo(reactor, g_test_hosts_file).block_on().is_ok());
+    COROSIG_REQUIRE(foo(reactor, g_temp_test_file).block_on().is_ok());
   });
 }

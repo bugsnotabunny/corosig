@@ -25,4 +25,4 @@ jobs:
 
       - run: devenv shell "xmake config --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --root -y"
       - run: devenv shell "xmake build -y"
-      - run: devenv shell "xmake test -y"
+      - run: devenv shell "xmake test -y '*/default'"

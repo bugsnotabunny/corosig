@@ -1,22 +1,21 @@
 Checks: >
-    performance-*,
     bugprone-*,
     -bugprone-easily-swappable-parameters,
     -bugprone-suspicious-stringview-data-usage,
+
     modernize-*,
     -modernize-use-trailing-return-type,
     -modernize-use-integer-sign-comparison,
     -modernize-use-std-array,
-    -modernize-use-nodiscard
-    portability-*,
+    -modernize-use-nodiscard,
+
     misc-*,
     -misc-const-correctness,
     -misc-use-anonymous-namespace,
+    -misc-new-delete-overloads,
     -misc-non-private-member-variables-in-classes,
+
     readability-*,
-    concurrency-*,
-    clang-analyzer-*,
-    clang-diagnostic-*,
     -readability-redundant-member-init,
     -readability-identifier-length,
     -readability-uppercase-literal-suffix,
@@ -26,6 +25,12 @@ Checks: >
     -readability-named-parameter,
     -readability-magic-numbers,
     -readability-math-missing-parentheses,
+
+    performance-*,
+    portability-*,
+    concurrency-*,
+    clang-analyzer-*,
+    clang-diagnostic-*,
 
 
 # Turn all the warnings from the checks above into errors.

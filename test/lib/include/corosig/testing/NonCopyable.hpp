@@ -10,10 +10,11 @@ struct NonCopyable {
   NonCopyable(int v = -1234444)
       : value{v} {
   }
+
   NonCopyable(const NonCopyable &) = delete;
-  NonCopyable(NonCopyable &&) = default;
+  NonCopyable(NonCopyable &&) noexcept = default;
   NonCopyable &operator=(const NonCopyable &) = delete;
-  NonCopyable &operator=(NonCopyable &&) = default;
+  NonCopyable &operator=(NonCopyable &&) noexcept = default;
 
   constexpr auto operator<=>(NonCopyable const &) const noexcept = default;
 

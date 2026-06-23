@@ -1,64 +1,48 @@
 #include "corosig/container/StdAllocator.hpp"
 
+#include "corosig/testing/MockAllocator.hpp"
+
 #include <catch2/catch_test_macros.hpp>
-#include <cstddef>
-#include <new>
 #include <string>
 #include <vector>
 
+namespace {
+
 using namespace corosig;
+using namespace corosig::testing;
 
-struct DummyAlloc {
-  size_t allocate_call_count = 0;
-  size_t deallocate_call_count = 0;
-  size_t alloc_n = 0;
-
-  void *allocate(size_t n, size_t) noexcept {
-    return allocate(n);
-  }
-
-  void *allocate(size_t n) noexcept {
-    allocate_call_count++;
-    alloc_n += n;
-    return ::operator new(n * sizeof(std::max_align_t));
-  }
-
-  void deallocate(void *p) noexcept {
-    deallocate_call_count++;
-    ::operator delete(p);
-  }
-};
+} // namespace
 
 TEST_CASE("StdAllocator allocates and deallocates properly", "[StdAllocator]") {
-  DummyAlloc da;
-  StdAllocator<int, DummyAlloc &> alloc((da));
+  MockAllocator ma;
+  StdAllocator<int, MockAllocator &> alloc((ma));
 
   int *p = alloc.allocate(1);
   REQUIRE(p != nullptr);
 
   alloc.deallocate(p, 1);
 
-  REQUIRE(da.allocate_call_count == 1);
-  REQUIRE(da.deallocate_call_count == 1);
+  REQUIRE(ma.allocate_calls == 1);
+  REQUIRE(ma.deallocate_calls == 1);
 }
 
 TEST_CASE("StdAllocator works with non-POD/complex types", "[StdAllocator]") {
-  DummyAlloc tracker;
-  StdAllocator<std::string, DummyAlloc &> alloc(tracker);
+  MockAllocator tracker;
+  StdAllocator<std::string, MockAllocator &> alloc(tracker);
 
   std::string *p = alloc.allocate(3);
   REQUIRE(p != nullptr);
-  REQUIRE(tracker.alloc_n == 3 * sizeof(std::string));
+  REQUIRE(tracker.allocated_bytes == 3 * sizeof(std::string));
 
   alloc.deallocate(p, 3);
 }
 
 TEST_CASE("StdAllocator works inside std::vector", "[StdAllocator]") {
-  DummyAlloc tracker;
-  using StdAllocator = StdAllocator<int, DummyAlloc &>;
-  StdAllocator alloc(tracker);
+  MockAllocator tracker;
+  using StdAllocator = StdAllocator<int, MockAllocator &>;
+  StdAllocator alloc{tracker};
 
-  std::vector<int, StdAllocator> vec(alloc);
+  std::vector<int, StdAllocator> vec{alloc};
   vec.push_back(1);
   vec.push_back(2);
   vec.push_back(3);

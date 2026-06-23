@@ -1,5 +1,17 @@
 add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release", "mode.minsizerel")
 
+option("tests")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Build tests")
+option_end()
+
+option("examples")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Build examples")
+option_end()
+
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
@@ -9,12 +21,10 @@ if is_mode("release") then
     set_optimize("fastest")
     add_defines("NDEBUG")
     set_strip("debug")
-    set_policy("build.optimization.lto", toolchain ~= "gcc")
 elseif is_mode("minsizerel") then
     set_optimize("smallest")
     add_defines("NDEBUG")
     set_strip("debug")
-    set_policy("build.optimization.lto", toolchain ~= "gcc")
 else
     set_optimize("fast")
 end
@@ -30,10 +40,12 @@ end
 
 add_requires("boost 1.86.0", { configs = { filesystem = false } })
 
+
 target("corosig")
     set_kind("static")
     add_includedirs("include", { public = true })
     add_files("src/**.cpp")
+    add_headerfiles("include/(**.hpp)")
     set_default(true)
     add_packages("boost", { external = true, public = true })
 
@@ -45,32 +57,43 @@ target("corosig")
 target_end()
 
 
-add_requires("catch2 v3.10.0", { configs = { lto = false, main = false, gmock = false } })
+if has_config("tests") then
+    add_requires("catch2 v3.10.0", { optional = true, configs = { lto = false, main = false, gmock = false } })
+end
 
 
 target("corosig-testing")
+    set_enabled(has_config("tests"))
     set_kind("shared")
     add_includedirs("test/lib/include", { public = true })
     add_files("test/lib/src/**.cpp")
+    add_headerfiles("test/lib/include/(**.hpp)")
     add_deps("corosig", { public = true })
     add_packages("catch2", { external = true, public = true })
+    add_cxflags("-fvisibility=default")
 target_end()
 
 
 for _, file in ipairs(os.files("test/cases/**.cpp")) do
-    local name = "Test" .. path.basename(file)
+    local rel_path = path.relative(file, "test/cases")
+    local name = "test." .. rel_path:gsub("/", "."):sub(1, -5)
     target(name)
+        set_enabled(has_config("tests"))
         set_kind("binary")
         add_deps("corosig-testing")
         add_files(file)
-    add_tests("default")
+        add_tests("default", { runargs = { "--skip-benchmarks" } })
+        add_tests("norandord", { runargs = { "--skip-benchmarks", "--order=decl" } })
+    target_end()
 end
 
 
 for _, file in ipairs(os.files("example/**.cpp")) do
-    local name = "Example" .. path.basename(file)
+    local name = "example." .. path.basename(file)
     target(name)
+        set_enabled(has_config("examples"))
         set_kind("binary")
         add_deps("corosig")
         add_files(file)
+    target_end()
 end
