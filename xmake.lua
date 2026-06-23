@@ -70,6 +70,7 @@ target("corosig-testing")
     add_headerfiles("test/lib/include/(**.hpp)")
     add_deps("corosig", { public = true })
     add_packages("catch2", { external = true, public = true })
+    add_cxflags("-fvisibility=default")
 target_end()
 
 
