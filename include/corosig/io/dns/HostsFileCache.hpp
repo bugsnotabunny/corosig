@@ -13,6 +13,7 @@ namespace corosig::dns {
 
 constexpr static char const *HOSTS_FILE_PATH = "/etc/hosts";
 
+/// @brief DNS cache using system hosts file
 struct HostsFileCache {
   HostsFileCache(Reactor &, char const *path) noexcept;
 

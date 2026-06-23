@@ -9,7 +9,8 @@
 
 namespace corosig {
 
-/// @brief Result which always holds value. Usefull to mimic regular Result
+/// @brief Result which always holds value. Useful to mimic regular Result
+/// @tparam R Type of value contained
 template <typename R>
 struct AlwaysOkResult {
 private:

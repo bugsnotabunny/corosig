@@ -41,6 +41,7 @@ struct [[nodiscard("Check if task was spawned successfully")]] BackgroundTask
 
 namespace detail {
 
+/// @brief Promise type for background coroutines
 struct BackgroundCoroutinePromiseType : CoroListNode {
   BackgroundCoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
       : m_reactor{reactor} {
@@ -57,6 +58,8 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   BackgroundCoroutinePromiseType &operator=(const BackgroundCoroutinePromiseType &) = delete;
   BackgroundCoroutinePromiseType &operator=(BackgroundCoroutinePromiseType &&) = delete;
 
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
 
     return reactor.allocator().allocate(n, alignof(std::max_align_t));
@@ -99,7 +102,7 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
     m_reactor.schedule_when_time_passes(node);
   }
 
-  /// @brief Add this PollListNode into reactor to be executed later, when event becomes awailable
+  /// @brief Add this PollListNode into reactor to be executed later, when event becomes available
   void poll_to_reactor(PollListNode &node) noexcept {
     m_reactor.schedule_when_ready(node);
   }
@@ -160,16 +163,19 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   static void return_void() noexcept {
   }
 
-private:
+  /// @brief Cast this object to a resumable coroutine handle
   std::coroutine_handle<> coro_from_this() noexcept override {
     return std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this);
   }
 
+private:
   Reactor &m_reactor;
 };
 
 } // namespace detail
 
+/// @brief Run an awaitable as a background task
+/// @returns Background task which shall be checked for allocation errors
 template <typename AWAITABLE>
 BackgroundTask run_in_background(Reactor &, AWAITABLE awaitable) noexcept {
   (void)co_await std::move(awaitable);

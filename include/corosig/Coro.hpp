@@ -125,6 +125,9 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   Fut<T, E> get_return_object() noexcept;
+
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static Fut<T, E> get_return_object_on_allocation_failure() noexcept;
 
   /// @note C++20 coroutine's required method. For more detailed explanation check
@@ -185,6 +188,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   using promise_type = detail::CoroutinePromiseType<T, E>;
 
+  /// @brief Create a future representing allocation failure
   static Fut make_failed_to_allocate() noexcept {
     return Fut<T, E>{nullptr};
   }

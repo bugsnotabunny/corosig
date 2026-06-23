@@ -8,17 +8,18 @@
 
 namespace corosig {
 
-/// @brief Tell if an object has .clone() method
+/// @brief Concept to check if object has .clone() method
 template <typename T>
 concept WithClone = requires(T const &object) {
   { object.clone() } -> AResult;
 };
 
-/// @brief Tell if an object is Copyable in some way
+/// @brief Concept to check if object is copyable via copy ctor or clone()
 template <typename T>
 concept Copyable = WithClone<T> != std::is_nothrow_copy_constructible_v<T>;
 
-/// @brief Clone value with it's copy ctor, if it is noexcept, or, via .clone() method
+/// @brief Function object to clone values via copy constructor or clone() method
+/// @details Uses copy constructor for noexcept copyable types, otherwise uses .clone() method
 struct CloneFn {
   template <Copyable T>
   auto operator()(T const &value) const noexcept {

@@ -211,8 +211,12 @@ AlwaysOkResult<size_t> memory_cache_pull_impl(
 
 } // namespace detail
 
+/// @brief In-memory DNS cache with TTL support
+/// @tparam ALLOCATOR Allocator type for internal memory management
 template <AnAllocator ALLOCATOR = AllocatorRef<Allocator>>
 struct MemoryCache {
+  /// @brief Construct memory cache with given allocator
+  /// @param alloc Allocator to use for memory management
   MemoryCache(ALLOCATOR alloc) noexcept
       : m_alloc{std::forward<ALLOCATOR>(alloc)} {
   }

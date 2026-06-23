@@ -36,6 +36,7 @@ namespace corosig::dns {
 
 constexpr uint16_t STANDARD_PORT = 53;
 
+/// @brief DNS resolution error codes
 struct ResolveErrorCode {
   enum Value : uint8_t {
     RESOLVE_ABORTED,
@@ -62,9 +63,17 @@ struct ResolveError
   using Error::Error;
 };
 
+/// @brief DNS resolver without caching functionality
 struct CachelessResolver {
+  /// @brief Construct resolver with random generator and UDP socket
+  /// @param rand_gen Random generator for request IDs
+  /// @param socket UDP socket for DNS communication
   CachelessResolver(ChaCha20RandomGenerator rand_gen, UdpSocket socket) noexcept;
 
+  /// @brief Create resolver from random seed and local address
+  /// @param rand_seed 256-bit seed for random generator
+  /// @param local Local address to bind socket to
+  /// @returns Resolver or allocation/syscall error
   static Result<CachelessResolver, Error<AllocationError, SyscallError>>
   make(std::array<uint8_t, 32> rand_seed, SockaddrStorage const &local) noexcept;
 
@@ -181,6 +190,8 @@ private:
   pending_requests_map_type m_pending_requests;
 };
 
+/// @brief DNS resolver with caching support
+/// @tparam CACHE Cache type to use (defaults to combined hosts+memory cache)
 template <ACache CACHE = Cache<>>
 struct Resolver {
   Resolver(CACHE cache, CachelessResolver resolver) noexcept
@@ -188,6 +199,12 @@ struct Resolver {
         m_resolver{std::move(resolver)} {
   }
 
+  /// @brief Resolve DNS name to IPv4 addresses using cache
+  /// @param r Reactor for async operations
+  /// @param dns_server_addrs DNS servers to query
+  /// @param ascii_name Domain name to resolve
+  /// @param out Output buffer for resolved addresses
+  /// @returns Future resolving to count of addresses or error
   Fut<size_t, Error<AllocationError, SyscallError, ResolveError>>
   resolve_name(Reactor &r,
                std::span<SockaddrStorage const> dns_server_addrs,
@@ -196,6 +213,12 @@ struct Resolver {
     return resolve_name_impl(r, dns_server_addrs, ascii_name, out);
   }
 
+  /// @brief Resolve DNS name to IPv6 addresses using cache
+  /// @param r Reactor for async operations
+  /// @param dns_server_addrs DNS servers to query
+  /// @param ascii_name Domain name to resolve
+  /// @param out Output buffer for resolved addresses
+  /// @returns Future resolving to count of addresses or error
   Fut<size_t, Error<AllocationError, SyscallError, ResolveError>>
   resolve_name(Reactor &r,
                std::span<SockaddrStorage const> dns_server_addrs,
@@ -204,6 +227,11 @@ struct Resolver {
     return resolve_name_impl(r, dns_server_addrs, ascii_name, out);
   }
 
+  /// @brief Resolve single DNS name to one address
+  /// @param r Reactor for async operations
+  /// @param dns_server_addrs DNS servers to query
+  /// @param ascii_name Domain name to resolve
+  /// @returns Future resolving to address or error
   template <typename IP>
   Fut<ResolvedAddress<IP>, Error<AllocationError, SyscallError, ResolveError>>
   resolve_name1(Reactor &r,

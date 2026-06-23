@@ -16,7 +16,7 @@ struct SockaddrStorage {
   sockaddr_storage native_storage = {};
 };
 
-/// @brief Ipv4 address type
+/// @brief IPv4 address type
 struct Ipv4Addr {
   /// @brief Make an Ipv4Addr pointing to local machine
   static Ipv4Addr loopback() noexcept;

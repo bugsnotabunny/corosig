@@ -12,7 +12,8 @@
 
 namespace corosig {
 
-/// @brief A thing which does scheduling for stopped coroutines
+/// @brief A reactor which schedules and resumes coroutines
+/// @details Manages ready coroutines, sleeping coroutines, and coroutines waiting for I/O events
 struct Reactor {
   Reactor(const Reactor &) = delete;
   Reactor(Reactor &&) = delete;

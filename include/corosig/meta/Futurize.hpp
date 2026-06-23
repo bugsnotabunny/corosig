@@ -10,6 +10,7 @@ namespace corosig {
 
 namespace detail {
 
+/// @brief Immediately ready awaitable wrapper
 template <typename VALUE>
 struct ReadyAwaitable {
   explicit constexpr ReadyAwaitable(VALUE v) noexcept
@@ -37,6 +38,11 @@ struct ReadyAwaitable {
 
 } // namespace detail
 
+/// @brief Convert value to awaitable
+/// @details Returns awaitable value if already awaitable, otherwise wraps in ReadyAwaitable
+/// @tparam T Type of value to convert
+/// @param value Value to convert
+/// @returns Awaitable version of value
 template <typename T>
 [[nodiscard]] constexpr decltype(auto) futurize(T &&value) {
   if constexpr (AnAwaitable<T>) {

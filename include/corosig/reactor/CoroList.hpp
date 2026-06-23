@@ -9,6 +9,8 @@
 namespace corosig {
 
 /// @brief A node type for CoroList
+/// @details Types that should be managed by CoroList must inherit from this and implement
+///          coro_from_this() method
 struct CoroListNode
     : boost::intrusive::list_base_hook<
           boost::intrusive::link_mode<boost::intrusive::link_mode_type::auto_unlink>> {

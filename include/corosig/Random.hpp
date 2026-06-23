@@ -14,6 +14,8 @@
 
 namespace corosig {
 
+/// @brief Read random bytes from /dev/urandom
+/// @returns Number of bytes read or an error
 Fut<size_t, Error<AllocationError, SyscallError>> read_dev_urandom(Reactor &,
                                                                    std::span<char> out) noexcept;
 
@@ -22,11 +24,13 @@ concept ARandomGenerator = requires(T gen) {
   { gen.generate_bytes(std::span<std::byte>{}) } noexcept -> std::same_as<void>;
 };
 
+/// @brief ChaCha20 random number generator from RFC-7539
 struct ChaCha20RandomGenerator {
   ChaCha20RandomGenerator(std::array<uint8_t, 32> seed,
                           std::array<uint32_t, 3> nonce = {},
                           uint32_t block_counter = 0) noexcept;
 
+  /// @brief Fill buffer with random bytes
   void generate_bytes(std::span<std::byte> out) noexcept;
 
 private:

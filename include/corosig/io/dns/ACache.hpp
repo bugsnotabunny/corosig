@@ -24,6 +24,7 @@ constexpr bool debug_is_ascii(std::string_view str) noexcept {
 
 } // namespace detail
 
+/// @brief Resolved DNS address with expiration time
 template <typename IP>
 struct ResolvedAddress {
   IP address;

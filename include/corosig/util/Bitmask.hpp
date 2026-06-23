@@ -7,6 +7,9 @@ namespace corosig {
 
 namespace detail {
 
+/// @brief Convert enum to its underlying type
+/// @param x Enum value to convert
+/// @returns Underlying integer value
 template <typename E>
 constexpr auto to_underlying(E x) noexcept {
   return std::underlying_type_t<E>(x);
@@ -14,8 +17,9 @@ constexpr auto to_underlying(E x) noexcept {
 
 } // namespace detail
 
-/// @brief Define an overload to this struct as std::true_type to enable bitwise operations for
+/// @brief Define specialization of this template as std::true_type to enable bitwise operations for
 ///         your enum type
+/// @tparam E Enum type to enable bitmask operations for
 template <typename E>
   requires(std::is_enum_v<E>)
 struct IsBitmask : std::false_type {};

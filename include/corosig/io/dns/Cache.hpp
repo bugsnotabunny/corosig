@@ -18,6 +18,8 @@
 
 namespace corosig::dns {
 
+/// @brief Combined DNS cache using hosts file and memory
+/// @tparam ALLOCATOR Allocator for memory cache
 template <AnAllocator ALLOCATOR = AllocatorRef<Allocator>>
 struct Cache {
   Cache(Reactor &reactor, char const *hosts_path, ALLOCATOR alloc) noexcept
