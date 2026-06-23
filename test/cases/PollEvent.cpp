@@ -4,7 +4,6 @@
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Sleep.hpp"
-#include "corosig/Yield.hpp"
 #include "corosig/io/Pipe.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"

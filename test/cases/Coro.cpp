@@ -6,14 +6,10 @@
 #include "corosig/Yield.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/LifetimeCounter.hpp"
-#include "corosig/testing/NonCopyable.hpp"
-#include "corosig/testing/NonMovable.hpp"
 #include "corosig/testing/Signals.hpp"
 #include "corosig/util/SetDefaultOnMove.hpp"
 
-#include <array>
 #include <catch2/catch_test_macros.hpp>
-#include <chrono>
 
 namespace {
 
@@ -112,6 +108,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut discarding before coroutine finishes") {
   COROSIG_REQUIRE(!reactor.has_active_tasks());
 }
 
+// NOLINTNEXTLINE (falsereport)
 COROSIG_SIGHANDLER_TEST_CASE("Fut discarding at sleep suspension point") {
   using namespace std::chrono_literals;
 
