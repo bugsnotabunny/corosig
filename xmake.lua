@@ -15,8 +15,6 @@ option_end()
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
-local toolchain = get_config("toolchain") or ""
-
 if is_mode("release") then
     set_optimize("fastest")
     add_defines("NDEBUG")
@@ -50,7 +48,7 @@ target("corosig")
     add_packages("boost", { external = true, public = true })
 
     before_build(function (target)
-        if is_mode("tsan") then
+        if is_mode("asan") then
             target:add("defines", "COROSIG_ASAN_ENABLED=1")
         end
     end)
