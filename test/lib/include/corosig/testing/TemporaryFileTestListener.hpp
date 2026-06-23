@@ -6,7 +6,7 @@
 
 namespace corosig::testing {
 
-inline char const *g_temp_test_file = nullptr;
+extern char const *g_temp_test_file;
 
 struct TemporaryFileTestListener : Catch::EventListenerBase {
   using Catch::EventListenerBase::EventListenerBase;

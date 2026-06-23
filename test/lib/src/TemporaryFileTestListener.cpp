@@ -2,8 +2,9 @@
 
 #include "corosig/testing/FileHelpers.hpp"
 
-
 namespace corosig::testing {
+
+char const *g_temp_test_file = nullptr;
 
 void write_temp_file(std::string_view content) {
   return write_file(g_temp_test_file, content);
