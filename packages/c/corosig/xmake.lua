@@ -10,7 +10,7 @@ package("corosig")
     add_deps("boost 1.86.0", { configs = { filesystem = false } })
 
     on_install(function (package)
-        import("package.tools.xmake").install(package, { tests = false, examples = false })
+        import("package.tools.xmake").install(package, { tests = false, examples = false, benchmarks = false })
     end)
 
     on_test(function (package)
