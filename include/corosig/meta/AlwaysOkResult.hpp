@@ -19,6 +19,9 @@ private:
   using WrapVoidR = std::conditional_t<std::same_as<R, void>, Void, R>;
 
 public:
+  using ok_type = R;
+  using failure_type = NoError;
+
   /// @brief Construct a result holding a value
   template <typename T>
     requires(!std::same_as<T, void>)

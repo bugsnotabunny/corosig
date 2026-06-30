@@ -66,6 +66,9 @@ struct [[nodiscard]] Result {
                                       RWrapVoid>;
 
 public:
+  using ok_type = R;
+  using failure_type = E;
+
   constexpr Result() noexcept = default;
 
   /// @brief Construct a result holding a value
