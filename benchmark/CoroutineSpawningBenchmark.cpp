@@ -1,37 +1,63 @@
 #include "corosig/Background.hpp"
 #include "corosig/Coro.hpp"
+#include "corosig/Result.hpp"
 #include "corosig/Yield.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <cstddef>
 #include <iostream>
 #include <memory>
+#include <ostream>
 
 namespace {
 
 using namespace corosig;
 
-BackgroundTask simple_task(Reactor &) noexcept {
+Fut<void> synchronous_task(Reactor &) noexcept {
+  co_return Ok{};
+}
+
+Fut<void> simple_task(Reactor &) noexcept {
   for (size_t i = 0; i < 3; ++i) {
     co_await Yield{};
   }
+  co_return Ok{};
 }
 
-} // namespace
+Fut<void> recursive_task(Reactor &r) noexcept {
+  COROSIG_CO_TRYV(co_await simple_task(r));
+  COROSIG_CO_TRYV(co_await simple_task(r));
+  co_return Ok{};
+}
 
-TEST_CASE("Benchmark spawning coroutines") {
-  constexpr auto REACTOR_MEMORY = size_t(1024) * 1024 * 100;
-  auto mem = std::make_unique<Allocator::Memory<REACTOR_MEMORY>>();
-  Reactor reactor{*mem};
+constexpr auto REACTOR_MEMORY = size_t(1024) * 1024 * 400;
+constexpr size_t ITERATIONS = 1000000;
 
-  constexpr size_t ITERATIONS = 1000000;
-  BENCHMARK("Spawn and execute 1 million coroutines") {
-    for (size_t i = 0; i < ITERATIONS; ++i) {
-      auto task = simple_task(reactor);
+auto g_mem = std::make_unique<Allocator::Memory<REACTOR_MEMORY>>();
+
+template <typename F>
+void generic_benchmark(char const *description, F &&coro_factory) {
+  Reactor reactor{*g_mem};
+
+  BENCHMARK(description) {
+    for (size_t i = 0; i < ITERATIONS / 2; ++i) {
+      auto task = run_in_background(reactor, coro_factory(reactor));
+
       REQUIRE(task);
     }
+
+    for (size_t i = 0; i < 3; ++i) {
+      REQUIRE(reactor.do_event_loop_iteration());
+    }
+
+    for (size_t i = 0; i < ITERATIONS / 2; ++i) {
+      auto task = run_in_background(reactor, coro_factory(reactor));
+      REQUIRE(task);
+    }
+
     while (reactor.has_active_tasks()) {
       REQUIRE(reactor.do_event_loop_iteration());
     }
@@ -39,5 +65,19 @@ TEST_CASE("Benchmark spawning coroutines") {
 
   std::cout << "\nReactor peak memory is " << reactor.peak_memory() << '\n';
   std::cout << "Which means " << reactor.peak_memory() / ITERATIONS
-            << " bytes per coroutine on average\n";
+            << " bytes per iteration on average\n";
+}
+
+} // namespace
+
+TEST_CASE("Benchmark spawning coroutines") {
+  generic_benchmark("Spawn and execute 1 million coroutines", simple_task);
+}
+
+TEST_CASE("Benchmark spawning synchronous coroutines") {
+  generic_benchmark("Spawn and execute 1 million synchronous coroutines", synchronous_task);
+}
+
+TEST_CASE("Benchmark spawning recursive coroutines") {
+  generic_benchmark("Spawn and execute 1 million recursive coroutines", recursive_task);
 }
