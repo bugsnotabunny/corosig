@@ -1,6 +1,7 @@
 #ifndef COROSIG_PARALLEL_HPP
 #define COROSIG_PARALLEL_HPP
 
+#include "corosig/Background.hpp"
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
@@ -28,10 +29,6 @@ struct WrapVoidAwaitable;
 
 template <AnAwaiter AWAITABLE>
 struct WrapVoidAwaitable<AWAITABLE> {
-  WrapVoidAwaitable(AWAITABLE &&awaitable) noexcept
-      : awaitable{std::forward<AWAITABLE>(awaitable)} {
-  }
-
   bool await_ready() const noexcept {
     return awaitable.await_ready();
   }
@@ -53,22 +50,6 @@ struct WrapVoidAwaitable<AWAITABLE> {
   AWAITABLE &&awaitable;
 };
 
-template <HasMemberCoAwait AWAITABLE>
-struct WrapVoidAwaitable<AWAITABLE>
-    : WrapVoidAwaitable<decltype(std::declval<AWAITABLE>().operator co_await())> {
-  WrapVoidAwaitable(AWAITABLE &&awaitable) noexcept
-      : WrapVoidAwaitable<decltype(std::declval<AWAITABLE>().operator co_await())>{
-            std::forward<AWAITABLE>(awaitable).operator co_await()} {};
-};
-
-template <HasNonMemberCoAwait AWAITABLE>
-struct WrapVoidAwaitable<AWAITABLE>
-    : WrapVoidAwaitable<decltype(std::declval<AWAITABLE>().operator co_await())> {
-  WrapVoidAwaitable(AWAITABLE &&awaitable) noexcept
-      : WrapVoidAwaitable<decltype(operator co_await(std::declval<AWAITABLE>()))>{operator co_await(
-            std::forward<AWAITABLE>(awaitable))} {};
-};
-
 } // namespace detail
 
 /// @brief Wait when all futures are ready. Return all of their results
@@ -76,7 +57,8 @@ template <AnAwaitable... AWAITABLE>
 Fut<std::tuple<detail::WrapVoid<AwaitResult<AWAITABLE>>...>>
 when_all(Reactor &, AWAITABLE &&...awaitables) noexcept {
   co_return std::tuple<detail::WrapVoid<AwaitResult<AWAITABLE>>...>{
-      co_await detail::WrapVoidAwaitable<AWAITABLE>{std::forward<AWAITABLE>(awaitables)}...,
+      co_await detail::WrapVoidAwaitable<AWAITABLE>{
+          resolve_to_awaiter(std::forward<AWAITABLE>(awaitables))}...,
   };
 }
 

@@ -33,27 +33,44 @@ concept AnAwaitable = AnAwaiter<T> || HasMemberCoAwait<T> || HasNonMemberCoAwait
 namespace detail {
 
 template <AnAwaitable AWAITABLE>
-struct AwaitResult;
+struct ResolveAwaiterType;
 
 template <AnAwaiter AWAITABLE>
-struct AwaitResult<AWAITABLE> {
-  using type = decltype(std::declval<AWAITABLE>().await_resume());
+struct ResolveAwaiterType<AWAITABLE> {
+  using type = AWAITABLE;
 };
 
 template <HasMemberCoAwait AWAITABLE>
-struct AwaitResult<AWAITABLE> {
-  using type = typename AwaitResult<decltype(std::declval<AWAITABLE>().operator co_await())>::type;
+struct ResolveAwaiterType<AWAITABLE> {
+  using type =
+      typename ResolveAwaiterType<decltype(std::declval<AWAITABLE>().operator co_await())>::type;
 };
 
 template <HasNonMemberCoAwait AWAITABLE>
-struct AwaitResult<AWAITABLE> {
-  using type = typename AwaitResult<decltype(operator co_await(std::declval<AWAITABLE>()))>::type;
+struct ResolveAwaiterType<AWAITABLE> {
+  using type =
+      typename ResolveAwaiterType<decltype(operator co_await(std::declval<AWAITABLE>()))>::type;
 };
 
 } // namespace detail
 
+template <AnAwaiter AWAITABLE>
+detail::ResolveAwaiterType<AWAITABLE>::type resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
+  return std::forward<AWAITABLE>(awaitable);
+}
+
+template <HasMemberCoAwait AWAITABLE>
+detail::ResolveAwaiterType<AWAITABLE>::type resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
+  return resolve_to_awaiter(std::forward<AWAITABLE>(awaitable).operator co_await());
+}
+
+template <HasNonMemberCoAwait AWAITABLE>
+detail::ResolveAwaiterType<AWAITABLE>::type resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
+  return resolve_to_awaiter(std::forward<AWAITABLE>(awaitable));
+}
+
 template <AnAwaitable AWAITABLE>
-using AwaitResult = detail::AwaitResult<AWAITABLE>::type;
+using AwaitResult = decltype(resolve_to_awaiter(std::declval<AWAITABLE>()).await_resume());
 
 } // namespace corosig
 
