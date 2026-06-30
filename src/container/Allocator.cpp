@@ -3,11 +3,13 @@
 #include "corosig/meta/AnAllocator.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits> // IWYU pragma: keep
+#include <new>
 #include <span>
 
 #if COROSIG_ASAN_ENABLED
@@ -27,16 +29,11 @@ struct AllocationHeader {
   uint32_t padding;
 };
 
-char *align_left(char *p, size_t align) noexcept {
-  return p - (size_t(p) % align);
+char *align_right(char *p, size_t align) noexcept {                           // NOLINT
+  return reinterpret_cast<char *>((uintptr_t(p) + align - 1) & ~(align - 1)); // NOLINT
 }
 
-char *align_right(char *p, size_t align) noexcept {
-  return size_t(p) % align == 0 ? p : align_left(p + align, align);
-}
-
-template <std::unsigned_integral T>
-T sub_sat(T a, T b) noexcept {
+size_t sub_sat(size_t a, size_t b) noexcept {
   if (a < b) {
     return 0;
   }
@@ -90,7 +87,6 @@ size_t Allocator::current_memory() const noexcept {
 void Allocator::link(FreeNode &node) noexcept {
   assert(size_t(&node) % alignof(FreeNode) == 0);
   m_nodes_by_addr.insert(node);
-  m_nodes_by_size.insert(node);
 }
 
 void Allocator::unlink_and_destroy(FreeNode &node) noexcept {
@@ -109,9 +105,7 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
 
   char *allocated_block = nullptr;
 
-  for (auto it = m_nodes_by_size.lower_bound(FreeNode{.block_size = size});
-       it != m_nodes_by_size.end();
-       ++it) {
+  for (auto it = m_nodes_by_addr.begin(); it != m_nodes_by_addr.end(); ++it) {
     char *const node_addr = reinterpret_cast<char *>(&*it);
     assert(size_t(node_addr) % alignof(FreeNode) == 0);
 
@@ -119,11 +113,9 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
     char *const allocated_block_addr = allocation_header_addr + sizeof(AllocationHeader);
     char *const aligned_allocated_block_addr = align_right(allocated_block_addr, alignment);
     size_t const padding = aligned_allocated_block_addr - allocated_block_addr;
-    if (padding > 0) {
-      // make header lie right before allocated block. required to access it during deallocation
-      allocation_header_addr += padding;
-      assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
-    }
+    // make header lie right before allocated block. required to access it during deallocation
+    allocation_header_addr += padding;
+    assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
 
     size_t const aligned_allocated_block_size =
         sub_sat(reinterpret_cast<FreeNode *>(node_addr)->block_size, padding);
