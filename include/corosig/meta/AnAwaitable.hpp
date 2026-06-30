@@ -6,8 +6,6 @@
 
 namespace corosig {
 
-namespace detail {
-
 /// @brief Concept for awaiter types
 template <typename T>
 concept AnAwaiter = requires(T awaiter) {
@@ -19,21 +17,43 @@ concept AnAwaiter = requires(T awaiter) {
 /// @brief Concept for types with member co_await operator
 template <typename T>
 concept HasMemberCoAwait = requires(T t) {
-  { std::move(t).operator co_await() } noexcept -> AnAwaiter;
+  { std::move(t).operator co_await() } noexcept;
 };
 
 /// @brief Concept for types with non-member co_await operator
 template <typename T>
 concept HasNonMemberCoAwait = requires(T t) {
-  { operator co_await(std::move(t)) } noexcept -> AnAwaiter;
+  { operator co_await(std::move(t)) } noexcept;
+};
+
+/// @brief Concept for awaitable types
+template <typename T>
+concept AnAwaitable = AnAwaiter<T> || HasMemberCoAwait<T> || HasNonMemberCoAwait<T>;
+
+namespace detail {
+
+template <AnAwaitable AWAITABLE>
+struct AwaitResult;
+
+template <AnAwaiter AWAITABLE>
+struct AwaitResult<AWAITABLE> {
+  using type = decltype(std::declval<AWAITABLE>().await_resume());
+};
+
+template <HasMemberCoAwait AWAITABLE>
+struct AwaitResult<AWAITABLE> {
+  using type = typename AwaitResult<decltype(std::declval<AWAITABLE>().operator co_await())>::type;
+};
+
+template <HasNonMemberCoAwait AWAITABLE>
+struct AwaitResult<AWAITABLE> {
+  using type = typename AwaitResult<decltype(operator co_await(std::declval<AWAITABLE>()))>::type;
 };
 
 } // namespace detail
 
-/// @brief Concept for awaitable types
-template <typename T>
-concept AnAwaitable =
-    detail::AnAwaiter<T> || detail::HasMemberCoAwait<T> || detail::HasNonMemberCoAwait<T>;
+template <AnAwaitable AWAITABLE>
+using AwaitResult = detail::AwaitResult<AWAITABLE>::type;
 
 } // namespace corosig
 
