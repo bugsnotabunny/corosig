@@ -151,4 +151,8 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   return poll_and_resume(m_polled, poll_timeout);
 }
 
+bool &Reactor::ref_current_coro_was_allocated() noexcept {
+  return m_current_coro_was_allocated;
+}
+
 } // namespace corosig

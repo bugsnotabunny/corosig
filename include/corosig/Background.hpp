@@ -44,13 +44,14 @@ namespace detail {
 /// @brief Promise type for background coroutines
 struct BackgroundCoroutinePromiseType : CoroListNode {
   BackgroundCoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
-      : m_reactor{reactor} {
+      : m_reactor{reactor},
+        m_needs_dealloc{std::exchange(reactor.ref_current_coro_was_allocated(), false)} {
   }
 
   BackgroundCoroutinePromiseType(NotReactor auto const &,
                                  Reactor &reactor,
                                  NotReactor auto const &...) noexcept
-      : m_reactor{reactor} {
+      : BackgroundCoroutinePromiseType{reactor} {
   }
 
   BackgroundCoroutinePromiseType(const BackgroundCoroutinePromiseType &) = delete;
@@ -58,38 +59,56 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   BackgroundCoroutinePromiseType &operator=(const BackgroundCoroutinePromiseType &) = delete;
   BackgroundCoroutinePromiseType &operator=(BackgroundCoroutinePromiseType &&) = delete;
 
+  /// @brief Allocate new coroutine frame using allocator from reactor
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    assert(reactor.ref_current_coro_was_allocated() == false);
+    reactor.ref_current_coro_was_allocated() = true;
+    return reactor.allocator().allocate(n, size_t(align));
+  }
+
+  /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
+  ///         some object's method is declared as coroutine
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            NotReactor auto const &,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    return BackgroundCoroutinePromiseType::operator new(n, std::align_val_t{align}, reactor);
+  }
+
+  /// @brief Allocate new coroutine frame using allocator from reactor
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
-
-    return reactor.allocator().allocate(n, alignof(std::max_align_t));
+    return BackgroundCoroutinePromiseType::operator new(
+        n, std::align_val_t{alignof(std::max_align_t)}, reactor);
   }
 
+  /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
+  ///         some object's method is declared as coroutine
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n,
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, alignof(std::max_align_t));
+    return BackgroundCoroutinePromiseType::operator new(
+        n, std::align_val_t{alignof(std::max_align_t)}, reactor);
   }
 
-  static void *operator new(size_t n,
-                            std::align_val_t align,
-                            Reactor &reactor,
-                            NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, size_t(align));
-  }
-
-  static void *operator new(size_t n,
-                            std::align_val_t align,
-                            NotReactor auto const &,
-                            Reactor &reactor,
-                            NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, size_t(align));
-  }
-
+  /// @brief Noop
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void operator delete(void *) noexcept {
-    // Should forward to the reactor's allocator, but we don't have reactor context here
-    // This is problematic - consider alternative design
+    // nothing to do in here since reactor is not accessible. instead, a coro frame is released when
+    // future is destroyed
   }
 
   /// @brief Add this as a CoroListNode into reactor to be executed later
@@ -132,7 +151,7 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   static auto initial_suspend() noexcept {
     // all background tasks are not executed right away to make in impossible for their lifetime to
     // be strictly nested within caller's and thus break allocator on final_suspend
-    return Yield{};
+    return std::suspend_never{};
   }
 
   /// @note C++20 coroutine's required method. For more detailed explanation check
@@ -147,8 +166,11 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
       await_suspend(std::coroutine_handle<BackgroundCoroutinePromiseType> self) noexcept {
         Reactor &reactor = self.promise().m_reactor;
         void *addr = self.address();
+        bool needs_dealloc = self.promise().m_needs_dealloc;
         self.destroy();
-        reactor.allocator().deallocate(addr);
+        if (needs_dealloc) {
+          reactor.allocator().deallocate(addr);
+        }
       }
 
       static void await_resume() noexcept {
@@ -170,6 +192,7 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
 
 private:
   Reactor &m_reactor;
+  [[no_unique_address]] bool m_needs_dealloc;
 };
 
 } // namespace detail

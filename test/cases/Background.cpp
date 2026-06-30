@@ -79,7 +79,10 @@ COROSIG_SIGHANDLER_TEST_CASE("run_in_background basic behavior") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask allocation failure") {
-  constexpr static auto FOO = [](Reactor &) -> BackgroundTask { co_return; };
+  constexpr static auto FOO = [](Reactor &) -> BackgroundTask {
+    co_await Yield{};
+    co_return;
+  };
 
   Allocator::Memory<0> mem;
   Reactor limited_reactor{mem};

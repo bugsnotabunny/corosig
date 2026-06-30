@@ -48,11 +48,14 @@ struct Reactor {
   /// @brief A shorthand for calling .allocator().current_memory()
   [[nodiscard]] size_t current_memory() const noexcept;
 
+  bool &ref_current_coro_was_allocated() noexcept;
+
 private:
   PollList m_polled;
   CoroList m_ready;
   SleepList m_sleeping;
   Allocator m_alloc;
+  bool m_current_coro_was_allocated = false;
 };
 
 } // namespace corosig
