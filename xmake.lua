@@ -96,7 +96,7 @@ for _, file in ipairs(os.files("benchmark/**.cpp")) do
     local name = "benchmark." .. path.basename(file)
     target(name)
         set_enabled(has_config("benchmarks"))
-        add_tests("benchmark", { runargs = {} })
+        add_tests("benchmark", { runargs = {  "--order=decl" } })
         set_kind("binary")
         add_deps("corosig")
         add_packages("catch2", { external = true, public = true })
