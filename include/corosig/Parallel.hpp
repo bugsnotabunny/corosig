@@ -1,13 +1,15 @@
 #ifndef COROSIG_PARALLEL_HPP
 #define COROSIG_PARALLEL_HPP
 
-#include "corosig/Background.hpp"
+#include "corosig/Clock.hpp"
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/Sleep.hpp"
 #include "corosig/meta/AResult.hpp"
 #include "corosig/meta/AnAwaitable.hpp"
 #include "corosig/reactor/Reactor.hpp"
+#include "corosig/util/Variant.hpp"
 
 #include <boost/mp11/algorithm.hpp>
 #include <concepts>
@@ -108,6 +110,97 @@ when_all_succeed(Reactor &, AWAITABLE &&...awaitables) noexcept {
         }(std::forward<RESULT>(current_result))...};
       },
       std::move(results));
+}
+
+/// @brief Error type raised when a timeout is encountered
+struct TimedOutError {
+  auto operator<=>(const TimedOutError &) const noexcept = default;
+
+  [[nodiscard]] static std::string_view description() noexcept {
+    return "Timed out";
+  }
+};
+
+/// @brief Wait when one of the futures becomes ready. Cancel all other tasks after
+template <AnAwaitable AWAITABLE>
+auto with_deadline(Reactor &r, AWAITABLE &&awaitable, SteadyClock::time_point deadline) noexcept {
+  struct WithDeadlineAwaiter {
+    WithDeadlineAwaiter(Reactor &r, AWAITABLE &&awaitable, SteadyClock::time_point deadline)
+        : m_futs{
+              [](Reactor &,
+                 AWAITABLE &&awaitable,
+                 WithDeadlineAwaiter &promise) -> Fut<void, AllocationError> {
+                if constexpr (!std::same_as<void, AwaitResult<AWAITABLE>>) {
+                  promise.m_result = co_await std::forward<AWAITABLE>(awaitable);
+                } else {
+                  co_await std::forward<AWAITABLE>(awaitable);
+                  promise.m_result = std::monostate{};
+                }
+                promise.m_waiting_coro.resume();
+                co_return Ok{};
+              }(r, std::forward<AWAITABLE>(awaitable), *this),
+
+              [](Reactor &,
+                 SteadyClock::time_point deadline,
+                 WithDeadlineAwaiter &promise) -> Fut<void, AllocationError> {
+                co_await Sleep{deadline};
+                if (promise.m_result.template holds<WithDeadlineAwaiter::NotReady>()) {
+                  promise.m_result = TimedOutError{};
+                  promise.m_waiting_coro.resume();
+                }
+                co_return Ok{};
+              }(r, deadline, *this),
+          } {
+    }
+
+    WithDeadlineAwaiter(const WithDeadlineAwaiter &) = delete;
+    WithDeadlineAwaiter(WithDeadlineAwaiter &&) = delete;
+    WithDeadlineAwaiter &operator=(const WithDeadlineAwaiter &) = delete;
+    WithDeadlineAwaiter &operator=(WithDeadlineAwaiter &&) = delete;
+
+    bool await_ready() const noexcept {
+      return !m_result.template holds<WithDeadlineAwaiter::NotReady>();
+    }
+
+    void await_suspend(std::coroutine_handle<> h) noexcept {
+      m_waiting_coro = h;
+    }
+
+    Result<AwaitResult<AWAITABLE>, Error<AllocationError, TimedOutError>> await_resume() noexcept {
+      assert(!m_result.template holds<WithDeadlineAwaiter::NotReady>());
+      if (m_result.template holds<TimedOutError>()) {
+        return Failure{TimedOutError{}};
+      }
+
+      if constexpr (!std::same_as<void, AwaitResult<AWAITABLE>>) {
+        return Ok{std::move(m_result.template as<AwaitResult<AWAITABLE>>())};
+      } else {
+        return Ok{};
+      }
+    }
+
+  private:
+    struct NotReady {};
+
+    Variant<NotReady,
+            TimedOutError,
+            std::conditional_t<std::same_as<void, AwaitResult<AWAITABLE>>,
+                               std::monostate,
+                               AwaitResult<AWAITABLE>>>
+        m_result;
+    std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
+    std::array<Fut<void, AllocationError>, 2> m_futs;
+  };
+
+  return WithDeadlineAwaiter{r, std::forward<AWAITABLE>(awaitable), deadline};
+}
+
+/// @brief Wait when one of the futures becomes ready. Cancel all other tasks after
+template <AnAwaitable AWAITABLE, typename PERIOD, typename REP>
+auto with_deadline(Reactor &r,
+                   AWAITABLE &&awaitable,
+                   std::chrono::duration<PERIOD, REP> duration) noexcept {
+  return with_deadline(r, std::forward<AWAITABLE>(awaitable), SteadyClock::now() + duration);
 }
 
 } // namespace corosig

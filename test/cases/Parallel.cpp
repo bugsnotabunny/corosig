@@ -342,3 +342,165 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: handle large number of awaitable
   COROSIG_REQUIRE(v4 == 4);
   COROSIG_REQUIRE(v5 == 5);
 }
+
+namespace {
+
+using namespace corosig;
+using namespace std::chrono_literals;
+
+struct ImmediateIntAwaiter {
+  int value;
+  bool await_ready() const noexcept {
+    return true;
+  }
+  void await_suspend(std::coroutine_handle<>) const noexcept {
+  }
+  int await_resume() const noexcept {
+    return value;
+  }
+};
+
+struct ImmediateVoidAwaiter {
+  bool await_ready() const noexcept {
+    return true;
+  }
+  void await_suspend(std::coroutine_handle<>) const noexcept {
+  }
+  void await_resume() const noexcept {
+  }
+};
+
+struct ImmediateResultAwaiter {
+  Result<int, AllocationError> value;
+  bool await_ready() const noexcept {
+    return true;
+  }
+  void await_suspend(std::coroutine_handle<>) const noexcept {
+  }
+  Result<int, AllocationError> await_resume() const noexcept {
+    return value;
+  }
+};
+
+template <AnAwaitable AWAITABLE>
+Fut<typename AwaitResult<AWAITABLE>::ok_type,
+    extend_error<AllocationError, typename AwaitResult<AWAITABLE>::failure_type>>
+as_future(Reactor &, AWAITABLE &&awaitable) noexcept {
+  co_return co_await std::forward<AWAITABLE>(awaitable);
+}
+
+} // namespace
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion before deadline with int") {
+  ImmediateIntAwaiter awaiter{42};
+  auto deadline = 1s;
+
+  auto result = as_future(reactor, with_deadline(reactor, std::move(awaiter), deadline)).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result.value() == 42);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion before deadline with void") {
+  ImmediateVoidAwaiter awaiter;
+  auto deadline = 1s;
+
+  auto result = as_future(reactor, with_deadline(reactor, std::move(awaiter), deadline)).block_on();
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion returns Result") {
+  ImmediateResultAwaiter awaiter{Ok{99}};
+  auto deadline = 1s;
+
+  auto result = as_future(reactor, with_deadline(reactor, std::move(awaiter), deadline)).block_on();
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result.value().value() == 99);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion with Result error") {
+  ImmediateResultAwaiter awaiter{Failure{AllocationError{}}};
+  auto deadline = 1s;
+
+  auto result = as_future(reactor, with_deadline(reactor, std::move(awaiter), deadline)).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+
+  COROSIG_REQUIRE(!result.value().is_ok());
+  COROSIG_REQUIRE(result.value().error() == AllocationError{});
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: sleeping awaitable completes before deadline") {
+  auto sleeping_coro = [](Reactor &) -> Fut<int> {
+    co_await Sleep{5ms};
+    co_return 100;
+  };
+
+  auto deadline = 20ms;
+
+  auto result =
+      as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result.value().value() == 100);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: sleeping awaitable completes exactly at deadline") {
+  auto sleeping_coro = [](Reactor &) -> Fut<int> {
+    co_await Sleep{10ms};
+    co_return 200;
+  };
+
+  auto deadline = 10ms;
+
+  auto result =
+      as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result.value().value() == 200);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: sleeping awaitable times out") {
+  auto sleeping_coro = [](Reactor &) -> Fut<int> {
+    co_await Sleep{50ms};
+    co_return 300;
+  };
+
+  auto deadline = 10ms;
+
+  auto result =
+      as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
+  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(result.error().holds<TimedOutError>());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: very short deadline times out immediately") {
+  auto sleeping_coro = [](Reactor &) -> Fut<int> {
+    co_await Sleep{100ms};
+    co_return 600;
+  };
+
+  auto deadline = SteadyClock::now();
+
+  auto result =
+      as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
+  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(result.error().holds<TimedOutError>());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("with_deadline: very long deadline allows completion") {
+  auto sleeping_coro = [](Reactor &) -> Fut<int> {
+    co_await Sleep{10ms};
+    co_return 700;
+  };
+
+  auto deadline = 1h;
+
+  auto result =
+      as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result.value().value() == 700);
+}

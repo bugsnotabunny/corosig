@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits> // IWYU pragma: keep
@@ -105,8 +104,8 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
 
   char *allocated_block = nullptr;
 
-  for (auto it = m_nodes_by_addr.begin(); it != m_nodes_by_addr.end(); ++it) {
-    char *const node_addr = reinterpret_cast<char *>(&*it);
+  for (auto & it : m_nodes_by_addr) {
+    char *const node_addr = reinterpret_cast<char *>(&it);
     assert(size_t(node_addr) % alignof(FreeNode) == 0);
 
     char *allocation_header_addr = node_addr;
