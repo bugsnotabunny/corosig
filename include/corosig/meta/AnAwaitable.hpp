@@ -55,18 +55,18 @@ struct ResolveAwaiterType<AWAITABLE> {
 } // namespace detail
 
 template <AnAwaiter AWAITABLE>
-detail::ResolveAwaiterType<AWAITABLE>::type resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
+decltype(auto) resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
   return std::forward<AWAITABLE>(awaitable);
 }
 
 template <HasMemberCoAwait AWAITABLE>
-detail::ResolveAwaiterType<AWAITABLE>::type resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
+decltype(auto) resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
   return resolve_to_awaiter(std::forward<AWAITABLE>(awaitable).operator co_await());
 }
 
 template <HasNonMemberCoAwait AWAITABLE>
-detail::ResolveAwaiterType<AWAITABLE>::type resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
-  return resolve_to_awaiter(std::forward<AWAITABLE>(awaitable));
+decltype(auto) resolve_to_awaiter(AWAITABLE &&awaitable) noexcept {
+  return resolve_to_awaiter(operator co_await(std::forward<AWAITABLE>(awaitable)));
 }
 
 template <AnAwaitable AWAITABLE>
