@@ -6,6 +6,7 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <catch2/catch_all.hpp>
+#include <list>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -130,7 +131,7 @@ struct ErrorVoidResultAwaiter {
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all: single awaiter returns correct result") {
   IntAwaiter awaiter{42};
-  auto result = when_all(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto result = when_all(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [value] = result.value();
   COROSIG_REQUIRE(value == 42);
@@ -141,8 +142,8 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: multiple awaiters return correct results
   IntAwaiter awaiter2{2};
   IntAwaiter awaiter3{3};
 
-  auto result = when_all(reactor, std::move(awaiter1), std::move(awaiter2), std::move(awaiter3))
-                    .block_on_with_reactor_drain();
+  auto result =
+      when_all(reactor, std::move(awaiter1), std::move(awaiter2), std::move(awaiter3)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [a, b, c] = result.value();
   COROSIG_REQUIRE(a == 1);
@@ -154,8 +155,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: mixed types return correct results") {
   IntAwaiter int_awaiter{42};
   VoidAwaiter void_awaiter;
 
-  auto result = when_all(reactor, std::move(int_awaiter), std::move(void_awaiter))
-                    .block_on_with_reactor_drain();
+  auto result = when_all(reactor, std::move(int_awaiter), std::move(void_awaiter)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [int_val, void_val] = result.value();
   COROSIG_REQUIRE(int_val == 42);
@@ -165,7 +165,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: mixed types return correct results") {
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all: void awaiter returns monostate") {
   VoidAwaiter awaiter;
-  auto result = when_all(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto result = when_all(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [value] = result.value();
   COROSIG_REQUIRE(value == std::monostate{});
@@ -175,8 +175,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: handles async awaiters") {
   AsyncIntAwaiter awaiter1{10, 1};
   AsyncIntAwaiter awaiter2{20, 1};
 
-  auto result =
-      when_all(reactor, std::move(awaiter1), std::move(awaiter2)).block_on_with_reactor_drain();
+  auto result = when_all(reactor, std::move(awaiter1), std::move(awaiter2)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [a, b] = result.value();
   COROSIG_REQUIRE(a == 10);
@@ -185,7 +184,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: handles async awaiters") {
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: single successful result") {
   OkIntResultAwaiter awaiter{42};
-  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [value] = result.value();
   COROSIG_REQUIRE(value == 42);
@@ -193,7 +192,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: single successful result") {
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: single error result returns error") {
   ErrorIntResultAwaiter awaiter{AllocationError{}};
-  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(!result.is_ok());
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
@@ -205,7 +204,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: multiple successful results retu
 
   auto result =
       when_all_succeed(reactor, std::move(awaiter1), std::move(awaiter2), std::move(awaiter3))
-          .block_on_with_reactor_drain();
+          .block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [v1, v2, v3] = result.value();
   COROSIG_REQUIRE(v1 == 1);
@@ -220,7 +219,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: first error in sequence is retur
 
   auto result =
       when_all_succeed(reactor, std::move(awaiter1), std::move(awaiter2), std::move(awaiter3))
-          .block_on_with_reactor_drain();
+          .block_on();
   COROSIG_REQUIRE(!result.is_ok());
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
@@ -232,7 +231,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: error at beginning is returned f
 
   auto result =
       when_all_succeed(reactor, std::move(awaiter1), std::move(awaiter2), std::move(awaiter3))
-          .block_on_with_reactor_drain();
+          .block_on();
   COROSIG_REQUIRE(!result.is_ok());
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
@@ -244,14 +243,14 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: multiple errors return first enc
 
   auto result =
       when_all_succeed(reactor, std::move(awaiter1), std::move(awaiter2), std::move(awaiter3))
-          .block_on_with_reactor_drain();
+          .block_on();
   COROSIG_REQUIRE(!result.is_ok());
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: void result returns monostate in tuple") {
   OkVoidResultAwaiter awaiter;
-  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [value] = result.value();
   COROSIG_REQUIRE(value == std::monostate{});
@@ -259,7 +258,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: void result returns monostate in
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: void error returns error") {
   ErrorVoidResultAwaiter awaiter{AllocationError{}};
-  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto result = when_all_succeed(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(!result.is_ok());
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
@@ -272,7 +271,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: mixed void and non-void results"
   auto result =
       when_all_succeed(
           reactor, std::move(void_awaiter), std::move(int_awaiter), std::move(string_awaiter))
-          .block_on_with_reactor_drain();
+          .block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [void_val, int_val, str_val] = result.value();
   COROSIG_REQUIRE(void_val == std::monostate{});
@@ -288,7 +287,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: error in mixed void/non-void seq
   auto result =
       when_all_succeed(
           reactor, std::move(void_awaiter), std::move(int_awaiter), std::move(string_awaiter))
-          .block_on_with_reactor_drain();
+          .block_on();
   COROSIG_REQUIRE(!result.is_ok());
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
@@ -297,8 +296,8 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: properly unwraps Result types") 
   OkIntResultAwaiter int_awaiter{100};
   OkStringResultAwaiter string_awaiter{"success"};
 
-  auto result = when_all_succeed(reactor, std::move(int_awaiter), std::move(string_awaiter))
-                    .block_on_with_reactor_drain();
+  auto result =
+      when_all_succeed(reactor, std::move(int_awaiter), std::move(string_awaiter)).block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [int_val, str_val] = result.value();
   COROSIG_REQUIRE(int_val == 100);
@@ -311,7 +310,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: properly unwraps Result types") 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_vs_when_all_succeed: when_all preserves Result types") {
   OkIntResultAwaiter awaiter{50};
 
-  auto when_all_result = when_all(reactor, std::move(awaiter)).block_on_with_reactor_drain();
+  auto when_all_result = when_all(reactor, std::move(awaiter)).block_on();
   COROSIG_REQUIRE(when_all_result.is_ok());
   auto [value] = when_all_result.value();
   COROSIG_REQUIRE(value.is_ok());
@@ -333,7 +332,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: handle large number of awaitable
                                  std::move(awaiter3),
                                  std::move(awaiter4),
                                  std::move(awaiter5))
-                    .block_on_with_reactor_drain();
+                    .block_on();
   COROSIG_REQUIRE(result.is_ok());
   auto [v1, v2, v3, v4, v5] = result.value();
   COROSIG_REQUIRE(v1 == 1);
@@ -503,4 +502,230 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: very long deadline allows completio
   COROSIG_REQUIRE(result.is_ok());
   COROSIG_REQUIRE(result.value().is_ok());
   COROSIG_REQUIRE(result.value().value() == 700);
+}
+
+namespace {
+
+using namespace corosig;
+using namespace std::chrono_literals;
+
+struct ImmediateVoidResultAwaiter {
+  Result<void, AllocationError> value;
+  bool await_ready() const noexcept {
+    return true;
+  }
+  void await_suspend(std::coroutine_handle<>) const noexcept {
+  }
+  Result<void, AllocationError> await_resume() const noexcept {
+    return value;
+  }
+};
+
+Fut<void, AllocationError> trivial_void_task(Reactor &) {
+  co_return Ok{};
+}
+
+} // namespace
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: empty range succeeds") {
+  std::vector<int> empty;
+
+  auto result = parallel_foreach(reactor, empty, [](Reactor &, int) -> Fut<void, AllocationError> {
+                  co_return Ok{};
+                }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: single element range succeeds") {
+  std::array<int, 1> values{1};
+
+  auto result = parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
+                  co_return Ok{};
+                }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: multiple elements range succeeds") {
+  std::array<int, 5> values{1, 2, 3, 4, 5};
+
+  auto result = parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
+                  co_return Ok{};
+                }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: uses provided tasks") {
+  std::array<int, 3> values{1, 2, 3};
+
+  auto result =
+      parallel_foreach(reactor,
+                       values,
+                       [&, i = 0](Reactor &r, int val) mutable -> Fut<void, AllocationError> {
+                         COROSIG_REQUIRE(values[i] == val);
+                         ++i;
+                         return trivial_void_task(r);
+                       })
+          .block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: works with sized range") {
+  auto result =
+      parallel_foreach(reactor,
+                       std::to_array({1, 2, 3}),
+                       [](Reactor &, int) -> Fut<void, AllocationError> { co_return Ok{}; })
+          .block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+TEST_CASE("parallel_foreach: works with unsized range") {
+  static std::list<int> values{1, 2, 3};
+
+  run_in_sighandler([](Reactor &reactor) {
+    auto result =
+        parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
+          co_return Ok{};
+        }).block_on();
+    COROSIG_REQUIRE(result.is_ok());
+  });
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks execute concurrently") {
+  auto start = SteadyClock::now();
+  std::array<int, 3> values{1, 2, 3};
+
+  auto result =
+      parallel_foreach(reactor, values, [](Reactor &r, int) -> Fut<void, AllocationError> {
+        co_await Sleep{10ms};
+        co_return Ok{};
+      }).block_on();
+
+  auto duration = SteadyClock::now() - start;
+
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(duration >= 10ms);
+  COROSIG_REQUIRE(duration < 20ms);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks with different completion times") {
+  auto start = SteadyClock::now();
+  std::array<int, 3> delays{5, 15, 10};
+
+  auto result =
+      parallel_foreach(reactor, delays, [](Reactor &r, int delay) -> Fut<void, AllocationError> {
+        co_await Sleep{std::chrono::milliseconds(delay)};
+        co_return Ok{};
+      }).block_on();
+
+  auto duration = SteadyClock::now() - start;
+
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(duration >= 15ms);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: fails when single task fails") {
+  std::array<int, 3> values{1, 2, 3};
+
+  int call_count = 0;
+  auto result =
+      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+        call_count++;
+        if (idx == 2) {
+          co_return Failure{AllocationError{}};
+        }
+        co_return Ok{};
+      }).block_on();
+
+  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(result.error().holds<AllocationError>());
+  COROSIG_REQUIRE(call_count == 3);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: fails when first task fails") {
+  std::array<int, 3> values{1, 2, 3};
+
+  int call_count = 0;
+  auto result =
+      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+        call_count++;
+        if (idx == 1) {
+          co_return Failure{AllocationError{}};
+        }
+        co_return Ok{};
+      }).block_on();
+
+  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(result.error().holds<AllocationError>());
+  COROSIG_REQUIRE(call_count == 3);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: preserves value references") {
+  std::array<int, 3> values{1, 2, 3};
+
+  auto result =
+      parallel_foreach(reactor, values, [](Reactor &r, int &val) -> Fut<void, AllocationError> {
+        val *= 2;
+        co_return Ok{};
+      }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(values[0] == 2);
+  COROSIG_REQUIRE(values[1] == 4);
+  COROSIG_REQUIRE(values[2] == 6);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: large range works if there is enough memory") {
+  std::array<int, 100> values{};
+
+  auto result = parallel_foreach(reactor, values, [](Reactor &, int) {
+                  return Fut<void, AllocationError>::make_ready(Ok{});
+                }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: sized range uses reserve") {
+  std::array<int, 50> values;
+  std::fill(values.begin(), values.end(), 1);
+
+  auto result = parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
+                  co_return Ok{};
+                }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: with constant ref range") {
+  const std::array<int, 3> values{1, 2, 3};
+
+  auto result = parallel_foreach(reactor,
+                                 values,
+                                 [](Reactor &, const int &val) -> Fut<void, AllocationError> {
+                                   COROSIG_REQUIRE(val > 0);
+                                   co_return Ok{};
+                                 })
+                    .block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: nested parallel_foreach ") {
+  std::array<std::array<int, 3>, 2> matrix{{{1, 2, 3}, {4, 5, 6}}};
+
+  int total = 0;
+  auto result =
+      parallel_foreach(reactor, matrix, [&](Reactor &r, const std::array<int, 3> &row) {
+        return parallel_foreach(r, row, [&](Reactor &, int val) -> Fut<void, AllocationError> {
+          total += val;
+          co_return Ok{};
+        });
+      }).block_on();
+
+  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(total == 21);
 }

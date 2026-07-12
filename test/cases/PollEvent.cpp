@@ -40,7 +40,7 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_READ awaits until data available") {
     co_return Ok(42);
   };
 
-  auto res = foo(reactor).block_on_with_reactor_drain();
+  auto res = foo(reactor).block_on();
   COROSIG_REQUIRE(res);
   COROSIG_REQUIRE(res.value() == 42);
 }
@@ -60,7 +60,7 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_WRITE awaits until writable") {
     co_return Ok(99);
   };
 
-  auto res = foo(reactor).block_on_with_reactor_drain();
+  auto res = foo(reactor).block_on();
   COROSIG_REQUIRE(res);
   COROSIG_REQUIRE(res.value() == 99);
 }

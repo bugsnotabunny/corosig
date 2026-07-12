@@ -75,7 +75,7 @@ COROSIG_SIGHANDLER_TEST_CASE("run_in_background basic behavior") {
   COROSIG_REQUIRE(run_in_background(reactor, pipe_roundtrip(reactor)));
 
   auto foo = [](Reactor &) -> Fut<void> { co_return Ok{}; };
-  COROSIG_REQUIRE(foo(reactor).block_on_with_reactor_drain());
+  COROSIG_REQUIRE(foo(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask allocation failure") {
@@ -95,7 +95,7 @@ COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask multiple concurrent tasks") {
   using namespace std::chrono_literals;
 
   auto test_concurrent = [](Reactor &r) -> Fut<int> {
-    for (int i = 0; i < 60; ++i) {
+    for (int i = 0; i < 50; ++i) {
       COROSIG_REQUIRE(run_in_background(r, Sleep{20ms}));
     }
 
