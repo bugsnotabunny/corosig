@@ -155,4 +155,11 @@ bool &Reactor::ref_current_coro_was_allocated() noexcept {
   return m_current_coro_was_allocated;
 }
 
+Result<void, SyscallError> Reactor::drain_remaining_tasks() noexcept {
+  while (has_active_tasks()) {
+    COROSIG_TRYV(do_event_loop_iteration());
+  }
+  return Ok{};
+}
+
 } // namespace corosig

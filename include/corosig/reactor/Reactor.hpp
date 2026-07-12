@@ -39,8 +39,11 @@ struct Reactor {
   /// @brief Tell if there are any tasks scheduled
   [[nodiscard]] bool has_active_tasks() const noexcept;
 
-  /// @note It is better to use Fut<...>.block_on() method instead of calling this method directly
+  /// @brief Do an event loop iteration possibly making some tasks ready
   Result<void, SyscallError> do_event_loop_iteration() noexcept;
+
+  /// @brief Do an event loop iterations until there are no tasks left
+  Result<void, SyscallError> drain_remaining_tasks() noexcept;
 
   /// @brief A shorthand for calling .allocator().peak_memory()
   [[nodiscard]] size_t peak_memory() const noexcept;

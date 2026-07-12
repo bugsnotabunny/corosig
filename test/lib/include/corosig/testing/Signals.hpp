@@ -41,6 +41,7 @@ void run_in_sighandler(F &&f) {
     Allocator::Memory<size_t(1024 * 8)> mem;
     Reactor reactor{mem};
     (*g_foo)(reactor);
+    COROSIG_REQUIRE(reactor.drain_remaining_tasks());
   };
 
   constexpr auto SIGNAL = SIGILL;
