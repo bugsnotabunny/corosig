@@ -16,16 +16,15 @@
 #include "corosig/io/Stdio.hpp"
 #include "corosig/io/TcpSocket.hpp"
 #include "corosig/io/UdpSocket.hpp"
+#include "corosig/io/dns/HostsFileCache.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
 #include <csignal>
 #include <cstddef>
-#include <cstdint>
 #include <cstdlib>
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <netinet/in.h>
 #include <string_view>
 #include <system_error>
 #include <thread>
@@ -35,17 +34,8 @@ namespace {
 
 using namespace corosig;
 
-SockaddrStorage localhost(uint16_t port) noexcept {
-  SockaddrStorage addr;
-  auto *addr4 = (::sockaddr_in *)&addr;
-  addr4->sin_family = AF_INET;
-  addr4->sin_port = htons(port);
-  addr4->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  return addr;
-}
-
-SockaddrStorage const TCP_SERVER_ADDR = localhost(8080);
-SockaddrStorage const UDP_SERVER_ADDR = localhost(9090);
+SockaddrStorage const TCP_SERVER_ADDR = Ipv4Addr::loopback().to_sockaddr(8080);
+SockaddrStorage const UDP_SERVER_ADDR = Ipv4Addr::loopback().to_sockaddr(9090);
 
 constexpr std::string_view FILE1 = "file1.log";
 constexpr std::string_view FILE2 = "file2.log";
@@ -111,6 +101,12 @@ namespace sighandling {
 
 using namespace corosig;
 
+SockaddrStorage const TCP_SERVER_ADDR = Ipv4Addr::loopback().to_sockaddr(8080);
+SockaddrStorage const UDP_SERVER_ADDR = Ipv4Addr::loopback().to_sockaddr(9090);
+
+constexpr std::string_view FILE1 = "file1.log";
+constexpr std::string_view FILE2 = "file2.log";
+
 Fut<void, Error<AllocationError, SyscallError>> write_to_file(Reactor &r,
                                                               char const *path) noexcept {
   using enum File::OpenFlags;
@@ -119,7 +115,7 @@ Fut<void, Error<AllocationError, SyscallError>> write_to_file(Reactor &r,
     COROSIG_CO_TRYV(co_await file.write(r, log));
   }
   co_return Ok{};
-};
+}
 
 Fut<void, Error<AllocationError, SyscallError>> write_to_stdout(Reactor &r) {
 
@@ -148,6 +144,7 @@ Fut<void, Error<AllocationError, SyscallError>> send_via_udp(Reactor &r) {
 };
 
 Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noexcept {
+  dns::HostsFileCache hosts_file{r, "/etc/hosts"};
 
   Result res = co_await when_all_succeed(r,
                                          write_to_file(r, FILE1.data()),
@@ -155,7 +152,6 @@ Fut<void, Error<AllocationError, SyscallError>> sighandler(Reactor &r, int) noex
                                          send_via_tcp(r),
                                          send_via_udp(r),
                                          write_to_stdout(r));
-
   if (!res.is_ok()) {
     COROSIG_CO_TRYV(co_await STDERR.write(r, "One of transmissions has produced an error:"));
     COROSIG_CO_TRYV(co_await STDERR.write(r, res.error().description()));
@@ -222,9 +218,9 @@ int main() {
     remote_udp_server_thread.join();
     std::cout << "Remote UDP server received\n" << remote_tcp_server_data << '\n';
 
-    return 0;
+    return EXIT_SUCCESS;
   } catch (const std::exception &e) {
     std::cout << e.what() << '\n';
-    return 1;
+    return EXIT_FAILURE;
   }
 }
