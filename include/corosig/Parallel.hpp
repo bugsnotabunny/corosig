@@ -6,15 +6,17 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/Sleep.hpp"
+#include "corosig/container/Vector.hpp"
 #include "corosig/meta/AResult.hpp"
 #include "corosig/meta/AnAwaitable.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/util/Variant.hpp"
 
-#include <boost/mp11/algorithm.hpp>
+#include <algorithm>
 #include <concepts>
 #include <coroutine>
 #include <optional>
+#include <ranges>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -201,6 +203,44 @@ auto with_deadline(Reactor &r,
                    AWAITABLE &&awaitable,
                    std::chrono::duration<PERIOD, REP> duration) noexcept {
   return with_deadline(r, std::forward<AWAITABLE>(awaitable), SteadyClock::now() + duration);
+}
+
+namespace detail {
+
+template <std::ranges::range RANGE, typename LOOP_BODY>
+using parallel_foreach_return_type =
+    std::invoke_result_t<LOOP_BODY,
+                         Reactor &,
+                         std::add_lvalue_reference_t<std::ranges::range_value_t<RANGE>>>;
+
+}
+
+/// @brief Launch user-provided loop body for each value in range in parallel fashion. Returned
+///        future's result is void or an error, if some of the spawned tasks have returned an error
+template <std::ranges::range RANGE, typename LOOP_BODY>
+detail::parallel_foreach_return_type<RANGE, LOOP_BODY>
+parallel_foreach(Reactor &r, RANGE &&range, LOOP_BODY &&loop_body) noexcept {
+  using Future = detail::parallel_foreach_return_type<RANGE, LOOP_BODY>;
+  Vector<Future> tasks{r.allocator()};
+  if constexpr (std::ranges::sized_range<RANGE>) {
+    COROSIG_CO_TRYV(tasks.reserve(std::ranges::size(range)));
+  }
+
+  for (auto &&value : std::forward<RANGE>(range)) {
+    COROSIG_CO_TRYV(tasks.push_back(loop_body(r, std::forward<decltype(value)>(value))));
+  }
+
+  using AwaitResult = AwaitResult<Future>;
+  AwaitResult result = Ok{};
+
+  for (auto &&task : tasks) {
+    AwaitResult temp_result = co_await std::move(task);
+    if (result.is_ok() && !temp_result.is_ok()) {
+      result = std::move(temp_result);
+    }
+  }
+
+  co_return result;
 }
 
 } // namespace corosig
