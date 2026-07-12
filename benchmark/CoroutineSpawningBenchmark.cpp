@@ -20,6 +20,10 @@ Fut<void> synchronous_task(Reactor &) noexcept {
   co_return Ok{};
 }
 
+auto optimized_synchronous_task(Reactor &) noexcept {
+  return Fut<void>::make_ready(Ok{});
+}
+
 Fut<void> simple_task(Reactor &) noexcept {
   for (size_t i = 0; i < 3; ++i) {
     co_await Yield{};
@@ -30,6 +34,18 @@ Fut<void> simple_task(Reactor &) noexcept {
 Fut<void> recursive_task(Reactor &r) noexcept {
   COROSIG_CO_TRYV(co_await simple_task(r));
   COROSIG_CO_TRYV(co_await simple_task(r));
+  co_return Ok{};
+}
+
+Fut<void> recursive_synchronous_task(Reactor &r) noexcept {
+  COROSIG_CO_TRYV(co_await synchronous_task(r));
+  COROSIG_CO_TRYV(co_await synchronous_task(r));
+  co_return Ok{};
+}
+
+Fut<void> optimized_recursive_synchronous_task(Reactor &r) noexcept {
+  COROSIG_CO_TRYV(co_await optimized_synchronous_task(r));
+  COROSIG_CO_TRYV(co_await optimized_synchronous_task(r));
   co_return Ok{};
 }
 
@@ -78,6 +94,21 @@ TEST_CASE("Benchmark spawning synchronous coroutines") {
   generic_benchmark("Spawn and execute 1 million synchronous coroutines", synchronous_task);
 }
 
+TEST_CASE("Benchmark spawning optimized synchronous coroutines") {
+  generic_benchmark("Spawn and execute 1 million optimized synchronous coroutines",
+                    optimized_synchronous_task);
+}
+
 TEST_CASE("Benchmark spawning recursive coroutines") {
   generic_benchmark("Spawn and execute 1 million recursive coroutines", recursive_task);
+}
+
+TEST_CASE("Benchmark spawning recursive synchronous coroutines") {
+  generic_benchmark("Spawn and execute 1 million recursive synchronous coroutines",
+                    recursive_synchronous_task);
+}
+
+TEST_CASE("Benchmark spawning optimized recursive synchronous coroutines") {
+  generic_benchmark("Spawn and execute 1 million optimized recursive synchronous coroutines",
+                    optimized_recursive_synchronous_task);
 }
