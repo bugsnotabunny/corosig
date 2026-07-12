@@ -42,7 +42,7 @@ elseif is_mode("tsan") then
 end
 
 
-add_requires("boost 1.86.0", { configs = { filesystem = false } })
+add_requires("boost 1.90.0", { configs = { filesystem = false } })
 
 
 target("corosig")
