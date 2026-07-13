@@ -28,10 +28,6 @@ struct SleepListNode
   SteadyClock::time_point awake_time;
 };
 
-/// @brief A list of sleep tasks sorted by wake time
-using SleepList =
-    boost::intrusive::avl_multiset<SleepListNode, boost::intrusive::constant_time_size<false>>;
-
 } // namespace corosig
 
 #endif

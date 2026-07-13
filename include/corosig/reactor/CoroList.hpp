@@ -20,12 +20,6 @@ struct CoroListNode
   virtual ~CoroListNode() = default;
 };
 
-/// @brief A list of objects which are castable to coroutines via coro_from_this virtual method
-using CoroList = boost::intrusive::list<CoroListNode,
-                                        boost::intrusive::constant_time_size<false>,
-                                        boost::intrusive::cache_last<true>,
-                                        boost::intrusive::linear<true>>;
-
 } // namespace corosig
 
 #endif

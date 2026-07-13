@@ -4,11 +4,14 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/container/Allocator.hpp"
+#include "corosig/container/Vector.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
+#include <boost/intrusive/options.hpp>
 #include <cstddef>
+#include <span>
 
 namespace corosig {
 
@@ -54,10 +57,40 @@ struct Reactor {
   bool &ref_current_coro_was_allocated() noexcept;
 
 private:
+  using int_milliseconds_type = std::chrono::duration<int, std::milli>;
+
+  using PollList = boost::intrusive::list<PollListNode,
+                                          boost::intrusive::cache_last<true>,
+                                          boost::intrusive::constant_time_size<false>,
+                                          boost::intrusive::linear<true>>;
+
+  using CoroList = boost::intrusive::list<CoroListNode,
+                                          boost::intrusive::cache_last<true>,
+                                          boost::intrusive::constant_time_size<false>,
+                                          boost::intrusive::linear<true>>;
+
+  using SleepList = boost::intrusive::avl_multiset<SleepListNode,
+                                                   boost::intrusive::cache_begin<true>,
+                                                   boost::intrusive::cache_last<false>,
+                                                   boost::intrusive::constant_time_size<false>>;
+
+  void resume_ready_sleepers() noexcept;
+  void resume_ready() noexcept;
+
+  Result<void, SyscallError> poll_and_resume_fallback(int_milliseconds_type timeout) noexcept;
+  Result<void, SyscallError> poll_and_resume_normal(int_milliseconds_type timeout) noexcept;
+  Result<void, SyscallError> poll_and_resume_impl(std::span<::pollfd> poll_fds,
+                                                  int_milliseconds_type timeout) noexcept;
+
+  static int_milliseconds_type ceil_to_millis(std::chrono::nanoseconds nanos) noexcept;
+
   PollList m_polled;
   CoroList m_ready;
   SleepList m_sleeping;
   Allocator m_alloc;
+  size_t m_previous_iteration_buffer;
+  Vector<::pollfd> m_poll_buf{m_alloc};
+  Result<void, SyscallError> (Reactor::*m_poll_and_resume_method)(int_milliseconds_type);
   bool m_current_coro_was_allocated = false;
 };
 
