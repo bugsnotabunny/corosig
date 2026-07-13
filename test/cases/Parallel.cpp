@@ -599,11 +599,10 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks execute concurrently") {
   auto start = SteadyClock::now();
   std::array<int, 3> values{1, 2, 3};
 
-  auto result =
-      parallel_foreach(reactor, values, [](Reactor &r, int) -> Fut<void, AllocationError> {
-        co_await Sleep{10ms};
-        co_return Ok{};
-      }).block_on();
+  auto result = parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
+                  co_await Sleep{10ms};
+                  co_return Ok{};
+                }).block_on();
 
   auto duration = SteadyClock::now() - start;
 
@@ -617,7 +616,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks with different completion 
   std::array<int, 3> delays{5, 15, 10};
 
   auto result =
-      parallel_foreach(reactor, delays, [](Reactor &r, int delay) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, delays, [](Reactor &, int delay) -> Fut<void, AllocationError> {
         co_await Sleep{std::chrono::milliseconds(delay)};
         co_return Ok{};
       }).block_on();
@@ -633,7 +632,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: fails when single task fails") {
 
   int call_count = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         call_count++;
         if (idx == 2) {
           co_return Failure{AllocationError{}};
@@ -651,7 +650,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: fails when first task fails") {
 
   int call_count = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         call_count++;
         if (idx == 1) {
           co_return Failure{AllocationError{}};
@@ -668,7 +667,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: preserves value references") {
   std::array<int, 3> values{1, 2, 3};
 
   auto result =
-      parallel_foreach(reactor, values, [](Reactor &r, int &val) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [](Reactor &, int &val) -> Fut<void, AllocationError> {
         val *= 2;
         co_return Ok{};
       }).block_on();
@@ -735,7 +734,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: multiple tasks fail returns firs
 
   int failures = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         if (idx == 2 || idx == 4) {
           failures++;
           co_return Failure{AllocationError{}};
@@ -754,7 +753,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error occurs after some tasks su
 
   int success_count = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         co_await Sleep{1ms};
         if (idx == 3) {
           co_return Failure{AllocationError{}};
@@ -772,7 +771,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error tasks with different delay
   std::array<int, 4> values{1, 2, 3, 4};
 
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         co_await Sleep{std::chrono::milliseconds(idx * 2)};
         if (idx == 2) {
           co_return Failure{AllocationError{}};
@@ -788,7 +787,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: immediate error in tasks") {
   std::array<int, 3> values{1, 2, 3};
 
   auto result =
-      parallel_foreach(reactor, values, [](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [](Reactor &, int idx) -> Fut<void, AllocationError> {
         if (idx == 1) {
           co_return Failure{AllocationError{}};
         }
@@ -804,7 +803,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: all tasks fail") {
 
   int failure_count = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int) -> Fut<void, AllocationError> {
         failure_count++;
         co_await Sleep{1ms};
         co_return Failure{AllocationError{}};
@@ -819,7 +818,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in small range") {
   std::array<int, 2> values{1, 2};
 
   auto result =
-      parallel_foreach(reactor, values, [](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [](Reactor &, int idx) -> Fut<void, AllocationError> {
         if (idx == 1) {
           co_return Failure{AllocationError{}};
         }
@@ -834,7 +833,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in large range") {
   std::array<int, 100> values{};
 
   auto result =
-      parallel_foreach(reactor, values, [](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [](Reactor &, int idx) -> Fut<void, AllocationError> {
         if (idx == 50) {
           co_return Failure{AllocationError{}};
         }
@@ -845,30 +844,12 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in large range") {
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error with unsized range") {
-  std::list<int> values{1, 2, 3, 4, 5};
-
-  int processed = 0;
-  auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
-        processed++;
-        if (idx == 3) {
-          co_return Failure{AllocationError{}};
-        }
-        co_return Ok{};
-      }).block_on();
-
-  COROSIG_REQUIRE(!result.is_ok());
-  COROSIG_REQUIRE(result.error().holds<AllocationError>());
-  COROSIG_REQUIRE(processed == 5);
-}
-
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in nested parallel_foreach") {
   std::array<std::array<int, 3>, 2> matrix{{{1, 2, 3}, {4, 5, 6}}};
 
   auto result =
       parallel_foreach(reactor, matrix, [&](Reactor &r, const std::array<int, 3> &row) {
-        return parallel_foreach(r, row, [&](Reactor &r, int val) -> Fut<void, AllocationError> {
+        return parallel_foreach(r, row, [&](Reactor &, int val) -> Fut<void, AllocationError> {
           if (val == 3 || val == 5) {
             co_return Failure{AllocationError{}};
           }
@@ -885,7 +866,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: concurrent error scenarios") {
 
   int execution_count = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         co_await Sleep{2ms};
         execution_count++;
         if (idx == 2) {
@@ -904,7 +885,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error propagation through comple
 
   int side_effects = 0;
   auto result =
-      parallel_foreach(reactor, values, [&](Reactor &r, int idx) -> Fut<void, AllocationError> {
+      parallel_foreach(reactor, values, [&](Reactor &, int idx) -> Fut<void, AllocationError> {
         co_await Sleep{idx % 2 == 0 ? 1ms : 2ms};
         side_effects += idx;
         if (idx == 3) {

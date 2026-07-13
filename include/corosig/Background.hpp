@@ -163,13 +163,7 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
 
       static void
       await_suspend(std::coroutine_handle<BackgroundCoroutinePromiseType> self) noexcept {
-        Reactor &reactor = self.promise().m_reactor;
-        void *addr = self.address();
-        bool needs_dealloc = self.promise().m_needs_dealloc;
-        self.destroy();
-        if (needs_dealloc) {
-          reactor.allocator().deallocate(addr);
-        }
+        self.promise().destroy_and_deallocate();
       }
 
       static void await_resume() noexcept {
@@ -190,6 +184,17 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   }
 
 private:
+  void destroy_and_deallocate() {
+    Reactor &reactor = m_reactor;
+    auto handle = std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this);
+    void *addr = handle.address();
+    bool needs_dealloc = m_needs_dealloc;
+    handle.destroy();
+    if (needs_dealloc) {
+      reactor.allocator().deallocate(addr);
+    }
+  }
+
   Reactor &m_reactor;
   [[no_unique_address]] bool m_needs_dealloc;
 };

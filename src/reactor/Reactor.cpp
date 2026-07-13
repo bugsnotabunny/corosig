@@ -98,9 +98,11 @@ Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type
   for (PollListNode const &node : m_polled) {
     assert(node.handle != -1);
 
-    ::pollfd poll_fd;
-    poll_fd.fd = node.handle;
-    poll_fd.events = short(node.event);
+    auto poll_fd = ::pollfd{
+        .fd = node.handle,
+        .events = short(node.event),
+        .revents = {},
+    };
     if (auto res = m_poll_buf.push_back(poll_fd); !res) {
       break;
     }

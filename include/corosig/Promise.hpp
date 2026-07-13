@@ -43,6 +43,8 @@ private:
     State &operator=(const State &) = delete;
     State &operator=(State &&) = delete;
 
+    ~State() override = default;
+
     std::coroutine_handle<> coro_from_this() noexcept override {
       return waiting_coro;
     }
@@ -50,8 +52,9 @@ private:
     void downref() noexcept {
       --refcount;
       if (refcount == 0) {
+        Reactor &local_reactor = reactor;
         this->~State();
-        reactor.allocator().deallocate(this);
+        local_reactor.allocator().deallocate(this);
       }
     }
 
