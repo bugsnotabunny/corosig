@@ -42,7 +42,7 @@ elseif is_mode("tsan") then
 end
 
 
-add_requires("boost 1.90.0", { configs = { filesystem = false } })
+add_requires("boost 1.90.0", { external = true, configs = { filesystem = false } })
 
 
 target("corosig")
@@ -62,7 +62,7 @@ target_end()
 
 
 if has_config("tests") or has_config("benchmarks") then
-    add_requires("catch2 v3.10.0", { optional = true, configs = { lto = false, main = false, gmock = false } })
+    add_requires("catch2 v3.10.0", { external = true, configs = { main = false, gmock = false } })
 end
 
 
