@@ -23,9 +23,9 @@ struct Semaphore {
 
   /// @brief Releases acquired units from semaphore when destroyed
   struct Holder {
-    Holder(const Holder &) = delete;
+    Holder(Holder const &) = delete;
     Holder(Holder &&) = default;
-    Holder &operator=(const Holder &) = delete;
+    Holder &operator=(Holder const &) = delete;
     Holder &operator=(Holder &&rhs) noexcept {
       if (this != &rhs) {
         this->~Holder();
@@ -51,9 +51,9 @@ struct Semaphore {
   /// @warning Methods within this type are not really intended to be called directly in user code.
   ///          Prefer sticking to just operator co_await
   struct [[nodiscard("forgot to await?")]] HolderAwaiter : CoroListNode {
-    HolderAwaiter(const HolderAwaiter &) = delete;
+    HolderAwaiter(HolderAwaiter const &) = delete;
     HolderAwaiter(HolderAwaiter &&) = delete;
-    HolderAwaiter &operator=(const HolderAwaiter &) = delete;
+    HolderAwaiter &operator=(HolderAwaiter const &) = delete;
     HolderAwaiter &operator=(HolderAwaiter &&) = delete;
 
     ~HolderAwaiter() override = default;
@@ -77,9 +77,9 @@ struct Semaphore {
   ///        maximum units amount
   Semaphore(Reactor &, size_t max_parallelism) noexcept;
 
-  Semaphore(const Semaphore &) = delete;
+  Semaphore(Semaphore const &) = delete;
   Semaphore(Semaphore &&) = delete;
-  Semaphore &operator=(const Semaphore &) = delete;
+  Semaphore &operator=(Semaphore const &) = delete;
   Semaphore &operator=(Semaphore &&) = delete;
 
   ~Semaphore();

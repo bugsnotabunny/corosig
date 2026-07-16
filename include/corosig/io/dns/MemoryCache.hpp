@@ -41,9 +41,9 @@ struct AddrStorageHeader
           boost::intrusive::link_mode<boost::intrusive::auto_unlink>,
           boost::intrusive::optimize_size<true>> {
 
-  AddrStorageHeader(const AddrStorageHeader &) = delete;
+  AddrStorageHeader(AddrStorageHeader const &) = delete;
   AddrStorageHeader(AddrStorageHeader &&) = delete;
-  AddrStorageHeader &operator=(const AddrStorageHeader &) = delete;
+  AddrStorageHeader &operator=(AddrStorageHeader const &) = delete;
   AddrStorageHeader &operator=(AddrStorageHeader &&) = delete;
 
   template <AnAllocator ALLOC, typename IPV4S, typename IPV6S>
@@ -151,9 +151,9 @@ struct NameStorageHeader : boost::intrusive::avl_set_base_hook<
     return UniquePtr<NameStorageHeader, ALLOC>{header, std::forward<ALLOC>(alloc)};
   }
 
-  NameStorageHeader(const NameStorageHeader &) = delete;
+  NameStorageHeader(NameStorageHeader const &) = delete;
   NameStorageHeader(NameStorageHeader &&) = delete;
-  NameStorageHeader &operator=(const NameStorageHeader &) = delete;
+  NameStorageHeader &operator=(NameStorageHeader const &) = delete;
   NameStorageHeader &operator=(NameStorageHeader &&) = delete;
 
   ~NameStorageHeader() = default;
@@ -221,9 +221,9 @@ struct MemoryCache {
       : m_alloc{std::forward<ALLOCATOR>(alloc)} {
   }
 
-  MemoryCache(const MemoryCache &) noexcept = delete;
+  MemoryCache(MemoryCache const &) noexcept = delete;
   MemoryCache(MemoryCache &&) noexcept = default;
-  MemoryCache &operator=(const MemoryCache &) noexcept = delete;
+  MemoryCache &operator=(MemoryCache const &) noexcept = delete;
   MemoryCache &operator=(MemoryCache &&) noexcept = default;
 
   ~MemoryCache() {

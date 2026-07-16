@@ -116,7 +116,7 @@ when_all_succeed(Reactor &, AWAITABLE &&...awaitables) noexcept {
 
 /// @brief Error type raised when a timeout is encountered
 struct TimedOutError {
-  auto operator<=>(const TimedOutError &) const noexcept = default;
+  auto operator<=>(TimedOutError const &) const noexcept = default;
 
   [[nodiscard]] static std::string_view description() noexcept {
     return "Timed out";
@@ -155,9 +155,9 @@ auto with_deadline(Reactor &r, AWAITABLE &&awaitable, SteadyClock::time_point de
           } {
     }
 
-    WithDeadlineAwaiter(const WithDeadlineAwaiter &) = delete;
+    WithDeadlineAwaiter(WithDeadlineAwaiter const &) = delete;
     WithDeadlineAwaiter(WithDeadlineAwaiter &&) = delete;
-    WithDeadlineAwaiter &operator=(const WithDeadlineAwaiter &) = delete;
+    WithDeadlineAwaiter &operator=(WithDeadlineAwaiter const &) = delete;
     WithDeadlineAwaiter &operator=(WithDeadlineAwaiter &&) = delete;
 
     bool await_ready() const noexcept {

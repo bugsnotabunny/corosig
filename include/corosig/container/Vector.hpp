@@ -60,8 +60,8 @@ public:
       : m_alloc{alloc} {
   }
 
-  Vector(const Vector &) noexcept = delete;
-  Vector &operator=(const Vector &) = delete;
+  Vector(Vector const &) noexcept = delete;
+  Vector &operator=(Vector const &) = delete;
 
   Vector(Vector &&rhs) noexcept
       : m_data{std::exchange(rhs.m_data, nullptr)},
@@ -152,7 +152,7 @@ public:
     return Ok{};
   }
 
-  constexpr auto resize(size_type count, const value_type &value = value_type{}) noexcept
+  constexpr auto resize(size_type count, value_type const &value = value_type{}) noexcept
     requires(Copyable<value_type>)
   {
     using Result = detail::result_extended_with_clone_errors<value_type, void, AllocationError>;

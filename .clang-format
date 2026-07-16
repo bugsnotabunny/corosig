@@ -7,3 +7,4 @@ BinPackArguments: No
 BinPackLongBracedList: No
 BinPackParameters: OnePerLine
 PackConstructorInitializers: Never
+QualifierAlignment: Right

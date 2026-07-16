@@ -53,7 +53,7 @@ struct ResolveErrorCode {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const ResolveErrorCode &) const noexcept = default;
+  constexpr auto operator<=>(ResolveErrorCode const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
@@ -129,7 +129,7 @@ private:
       return this->question.id <=> id;
     }
 
-    constexpr auto operator<=>(const PendingRequestBase &rhs) const noexcept {
+    constexpr auto operator<=>(PendingRequestBase const &rhs) const noexcept {
       return *this <=> rhs.question.id;
     }
 

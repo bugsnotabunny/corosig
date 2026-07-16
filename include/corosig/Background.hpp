@@ -28,11 +28,11 @@ struct [[nodiscard("Check if task was spawned successfully")]] BackgroundTask
 
   /// @note even though technically copying here works fine, some users may think that copying task
   /// creates a new coroutine which is wrong. If you need copy, then cast this object to Result
-  BackgroundTask(const BackgroundTask &) = delete;
+  BackgroundTask(BackgroundTask const &) = delete;
 
   /// @note even though technically copying here works fine, some users may think that copying task
   /// creates a new coroutine which is wrong. If you need copy, then cast this object to Result
-  BackgroundTask &operator=(const BackgroundTask &) = delete;
+  BackgroundTask &operator=(BackgroundTask const &) = delete;
 
   BackgroundTask(BackgroundTask &&) = default;
   BackgroundTask &operator=(BackgroundTask &&) = default;
@@ -53,9 +53,9 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
       : BackgroundCoroutinePromiseType{reactor} {
   }
 
-  BackgroundCoroutinePromiseType(const BackgroundCoroutinePromiseType &) = delete;
+  BackgroundCoroutinePromiseType(BackgroundCoroutinePromiseType const &) = delete;
   BackgroundCoroutinePromiseType(BackgroundCoroutinePromiseType &&) = delete;
-  BackgroundCoroutinePromiseType &operator=(const BackgroundCoroutinePromiseType &) = delete;
+  BackgroundCoroutinePromiseType &operator=(BackgroundCoroutinePromiseType const &) = delete;
   BackgroundCoroutinePromiseType &operator=(BackgroundCoroutinePromiseType &&) = delete;
 
   ~BackgroundCoroutinePromiseType() override = default;

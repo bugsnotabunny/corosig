@@ -46,9 +46,9 @@ public:
        OpenFlags = OpenFlags::UNSPECIFIED,
        OpenPerms = OpenPerms::UNSPECIFIED) noexcept;
 
-  File(const File &) = delete;
+  File(File const &) = delete;
   File(File &&) noexcept = default;
-  File &operator=(const File &) = delete;
+  File &operator=(File const &) = delete;
   File &operator=(File &&rhs) noexcept {
     if (this != &rhs) {
       this->~File();

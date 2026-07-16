@@ -35,7 +35,7 @@ struct QuestionEncodeError {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const QuestionEncodeError &) const noexcept = default;
+  constexpr auto operator<=>(QuestionEncodeError const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
@@ -75,7 +75,7 @@ struct ResponseDecodeError {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const ResponseDecodeError &) const noexcept = default;
+  constexpr auto operator<=>(ResponseDecodeError const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
@@ -95,7 +95,7 @@ struct ServerResponseCode {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const ServerResponseCode &) const noexcept = default;
+  constexpr auto operator<=>(ServerResponseCode const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
@@ -450,7 +450,7 @@ struct CompressionPointer {
   constexpr static uint16_t MARKER_BITS = 0xC000;
   constexpr static uint16_t MAX_VALUE = 0x3FFF;
 
-  constexpr auto operator<=>(const CompressionPointer &) const noexcept = default;
+  constexpr auto operator<=>(CompressionPointer const &) const noexcept = default;
 
   uint16_t offset = 0;
 };

@@ -37,7 +37,7 @@ struct Ipv4Addr {
   /// @note: Always network byte order. Call to hton is not required
   [[nodiscard]] uint32_t value() const noexcept;
 
-  constexpr auto operator<=>(const Ipv4Addr &) const noexcept = default;
+  constexpr auto operator<=>(Ipv4Addr const &) const noexcept = default;
 
 private:
   uint32_t m_value = 0;
@@ -70,7 +70,7 @@ struct Ipv6Addr {
   /// @note: Always network byte order. Call to hton is not required
   [[nodiscard]] std::array<uint8_t, 16> value() const noexcept;
 
-  constexpr auto operator<=>(const Ipv6Addr &) const noexcept = default;
+  constexpr auto operator<=>(Ipv6Addr const &) const noexcept = default;
 
 private:
   std::array<uint8_t, 16> m_value = {};
@@ -86,7 +86,7 @@ struct IpvNAddr : Variant<Ipv4Addr, Ipv6Addr> {
   /// @brief Convert this to SockaddrStorage
   [[nodiscard]] SockaddrStorage to_sockaddr(uint16_t port = 0) const noexcept;
 
-  constexpr auto operator<=>(const IpvNAddr &) const noexcept = default;
+  constexpr auto operator<=>(IpvNAddr const &) const noexcept = default;
 };
 
 } // namespace corosig

@@ -17,9 +17,9 @@ struct ReadyAwaitable {
       : value{std::move(v)} {
   }
 
-  ReadyAwaitable(const ReadyAwaitable &) = delete;
+  ReadyAwaitable(ReadyAwaitable const &) = delete;
   ReadyAwaitable(ReadyAwaitable &&) = delete;
-  ReadyAwaitable &operator=(const ReadyAwaitable &) = delete;
+  ReadyAwaitable &operator=(ReadyAwaitable const &) = delete;
   ReadyAwaitable &operator=(ReadyAwaitable &&) = delete;
 
   constexpr static bool await_ready() noexcept {

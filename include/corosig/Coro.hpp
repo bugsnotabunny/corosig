@@ -44,9 +44,9 @@ struct CoroutinePromiseType : CoroListNode {
       : CoroutinePromiseType{reactor} {
   }
 
-  CoroutinePromiseType(const CoroutinePromiseType &) = delete;
+  CoroutinePromiseType(CoroutinePromiseType const &) = delete;
   CoroutinePromiseType(CoroutinePromiseType &&) = delete;
-  CoroutinePromiseType &operator=(const CoroutinePromiseType &) = delete;
+  CoroutinePromiseType &operator=(CoroutinePromiseType const &) = delete;
   CoroutinePromiseType &operator=(CoroutinePromiseType &&) = delete;
 
   ~CoroutinePromiseType() override = default;
@@ -201,7 +201,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     return make_ready(Failure{AllocationError{}});
   }
 
-  Fut(const Fut &) = delete;
+  Fut(Fut const &) = delete;
   Fut(Fut &&rhs) noexcept
       : m_handle{std::exchange(rhs.m_handle, nullptr)},
         m_result{std::move(rhs.result())} {
@@ -210,7 +210,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
     }
   }
 
-  Fut &operator=(const Fut &) = delete;
+  Fut &operator=(Fut const &) = delete;
   Fut &operator=(Fut &&rhs) noexcept {
     if (this != &rhs) {
       this->~Fut();
@@ -275,9 +275,9 @@ struct [[nodiscard("forgot to await?")]] Fut {
 private:
   template <bool PRESERVE_RESULT>
   struct Awaiter {
-    Awaiter(const Awaiter &) = delete;
+    Awaiter(Awaiter const &) = delete;
     Awaiter(Awaiter &&) = delete;
-    Awaiter &operator=(const Awaiter &) = delete;
+    Awaiter &operator=(Awaiter const &) = delete;
     Awaiter &operator=(Awaiter &&) = delete;
 
     [[nodiscard]] bool await_ready() const noexcept {

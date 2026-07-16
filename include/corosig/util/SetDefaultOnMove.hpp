@@ -26,14 +26,14 @@ struct SetDefaultOnMove {
       : value{std::exchange(rhs.value, DEFAULT)} {
   }
 
-  constexpr SetDefaultOnMove(const SetDefaultOnMove &) = delete;
+  constexpr SetDefaultOnMove(SetDefaultOnMove const &) = delete;
 
   constexpr SetDefaultOnMove &operator=(SetDefaultOnMove &&rhs) noexcept {
     value = std::exchange(rhs.value, DEFAULT);
     return *this;
   }
 
-  constexpr SetDefaultOnMove &operator=(const SetDefaultOnMove &) = delete;
+  constexpr SetDefaultOnMove &operator=(SetDefaultOnMove const &) = delete;
 
   constexpr T *operator->() noexcept {
     return std::addressof(value);

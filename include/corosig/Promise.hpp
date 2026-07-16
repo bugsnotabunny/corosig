@@ -18,7 +18,7 @@ namespace corosig {
 
 /// @brief Error type raised when a Promise is destroyed without being fulfilled
 struct BrokenPromise {
-  auto operator<=>(const BrokenPromise &) const noexcept = default;
+  auto operator<=>(BrokenPromise const &) const noexcept = default;
 
   [[nodiscard]] static std::string_view description() noexcept {
     return "Broken promise";
@@ -38,9 +38,9 @@ private:
         : reactor{r} {
     }
 
-    State(const State &) = delete;
+    State(State const &) = delete;
     State(State &&) = delete;
-    State &operator=(const State &) = delete;
+    State &operator=(State const &) = delete;
     State &operator=(State &&) = delete;
 
     ~State() override = default;
@@ -68,9 +68,9 @@ public:
   struct [[nodiscard("forgot to await?")]] Awaiter {
     Awaiter() noexcept = default;
 
-    Awaiter(const Awaiter &) = delete;
+    Awaiter(Awaiter const &) = delete;
     Awaiter(Awaiter &&rhs) noexcept = default;
-    Awaiter &operator=(const Awaiter &) = delete;
+    Awaiter &operator=(Awaiter const &) = delete;
     Awaiter &operator=(Awaiter &&rhs) noexcept {
       if (this != &rhs) {
         this->~Awaiter();
@@ -122,9 +122,9 @@ public:
     return Promise{*new (state_buf) State{r}};
   }
 
-  Promise(const Promise &) = delete;
+  Promise(Promise const &) = delete;
   Promise(Promise &&) noexcept = default;
-  Promise &operator=(const Promise &) = delete;
+  Promise &operator=(Promise const &) = delete;
   Promise &operator=(Promise &&rhs) noexcept {
     if (this != &rhs) {
       this->~Promise();
