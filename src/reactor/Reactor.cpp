@@ -4,6 +4,7 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/GcList.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
@@ -28,12 +29,15 @@ namespace corosig {
 Reactor::Reactor(std::span<char> mem) noexcept
     : m_alloc{mem},
       m_previous_iteration_buffer{MIN_REACTOR_POLL_BUFFER} {
-
   if (m_poll_buf.reserve(MIN_REACTOR_POLL_BUFFER)) {
     m_poll_and_resume_method = &Reactor::poll_and_resume_normal;
   } else {
     m_poll_and_resume_method = &Reactor::poll_and_resume_fallback;
   }
+}
+
+Reactor::~Reactor() {
+  gc();
 }
 
 Allocator &Reactor::allocator() noexcept {
@@ -42,6 +46,10 @@ Allocator &Reactor::allocator() noexcept {
 
 void Reactor::schedule(CoroListNode &node) noexcept {
   m_ready.push_back(node);
+}
+
+void Reactor::destroy_later(GcListNode &to_gc) noexcept {
+  m_gc_list.push_front(to_gc);
 }
 
 void Reactor::schedule_when_ready(PollListNode &node) noexcept {
@@ -66,6 +74,7 @@ size_t Reactor::current_memory() const noexcept {
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   assert(has_active_tasks() && "Nothing to process. Deadlock will happen");
+  gc();
   resume_ready_sleepers();
   resume_ready();
 
@@ -169,6 +178,7 @@ Result<void, SyscallError> Reactor::drain_remaining_tasks() noexcept {
   while (has_active_tasks()) {
     COROSIG_TRYV(do_event_loop_iteration());
   }
+  gc();
   return Ok{};
 }
 
@@ -185,6 +195,10 @@ void Reactor::resume_ready() noexcept {
     assert(!coro.done());
     coro.resume();
   }
+}
+
+void Reactor::gc() noexcept {
+  m_gc_list.clear_and_dispose([](GcListNode *node) { node->destroy(); });
 }
 
 void Reactor::resume_ready_sleepers() noexcept {

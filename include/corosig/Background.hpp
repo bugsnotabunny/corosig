@@ -58,6 +58,20 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   BackgroundCoroutinePromiseType &operator=(const BackgroundCoroutinePromiseType &) = delete;
   BackgroundCoroutinePromiseType &operator=(BackgroundCoroutinePromiseType &&) = delete;
 
+  ~BackgroundCoroutinePromiseType() override = default;
+
+  /// @brief Destroy and deallocate this coroutine
+  void destroy() noexcept override {
+    Reactor &reactor = m_reactor;
+    auto handle = std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this);
+    void *addr = handle.address();
+    bool needs_dealloc = m_needs_dealloc;
+    handle.destroy();
+    if (needs_dealloc) {
+      reactor.allocator().deallocate(addr);
+    }
+  }
+
   /// @brief Allocate new coroutine frame using allocator from reactor
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
@@ -156,21 +170,22 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static auto final_suspend() noexcept {
-    struct DestroySelf {
+    struct ScheduleSelfDeletion {
       static bool await_ready() noexcept {
         return false;
       }
 
       static void
-      await_suspend(std::coroutine_handle<BackgroundCoroutinePromiseType> self) noexcept {
-        self.promise().destroy_and_deallocate();
+      await_suspend(std::coroutine_handle<BackgroundCoroutinePromiseType> self_coro) noexcept {
+        BackgroundCoroutinePromiseType &self = self_coro.promise();
+        self.m_reactor.destroy_later(self);
       }
 
       static void await_resume() noexcept {
       }
     };
 
-    return DestroySelf{};
+    return ScheduleSelfDeletion{};
   }
 
   /// @note C++20 coroutine's required method. For more detailed explanation check
@@ -184,17 +199,6 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   }
 
 private:
-  void destroy_and_deallocate() {
-    Reactor &reactor = m_reactor;
-    auto handle = std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this);
-    void *addr = handle.address();
-    bool needs_dealloc = m_needs_dealloc;
-    handle.destroy();
-    if (needs_dealloc) {
-      reactor.allocator().deallocate(addr);
-    }
-  }
-
   Reactor &m_reactor;
   [[no_unique_address]] bool m_needs_dealloc;
 };

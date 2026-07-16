@@ -6,6 +6,7 @@
 #include "corosig/container/Allocator.hpp"
 #include "corosig/container/Vector.hpp"
 #include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/GcList.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
@@ -23,6 +24,8 @@ struct Reactor {
   Reactor &operator=(const Reactor &) = delete;
   Reactor &operator=(Reactor &&) = delete;
 
+  ~Reactor();
+
   /// @brief Construct a reactor which allocates memory for it's coroutines from provided buffer
   Reactor(std::span<char> mem) noexcept;
 
@@ -31,6 +34,9 @@ struct Reactor {
 
   /// @brief Schedule a coroutine to be executed
   void schedule(CoroListNode &) noexcept;
+
+  /// @brief Schedule an object to be destroyed later
+  void destroy_later(GcListNode &) noexcept;
 
   /// @brief Schedule a coroutine to be executed when handle recieves specified event
   void schedule_when_ready(PollListNode &) noexcept;
@@ -60,11 +66,19 @@ private:
   using int_milliseconds_type = std::chrono::duration<int, std::milli>;
 
   using PollList = boost::intrusive::list<PollListNode,
+                                          boost::intrusive::cache_begin<true>,
                                           boost::intrusive::cache_last<true>,
                                           boost::intrusive::constant_time_size<false>,
                                           boost::intrusive::linear<true>>;
 
+  using GcList = boost::intrusive::list<GcListNode,
+                                        boost::intrusive::cache_begin<true>,
+                                        boost::intrusive::cache_last<false>,
+                                        boost::intrusive::constant_time_size<false>,
+                                        boost::intrusive::linear<true>>;
+
   using CoroList = boost::intrusive::list<CoroListNode,
+                                          boost::intrusive::cache_begin<true>,
                                           boost::intrusive::cache_last<true>,
                                           boost::intrusive::constant_time_size<false>,
                                           boost::intrusive::linear<true>>;
@@ -76,6 +90,7 @@ private:
 
   void resume_ready_sleepers() noexcept;
   void resume_ready() noexcept;
+  void gc() noexcept;
 
   Result<void, SyscallError> poll_and_resume_fallback(int_milliseconds_type timeout) noexcept;
   Result<void, SyscallError> poll_and_resume_normal(int_milliseconds_type timeout) noexcept;
@@ -84,6 +99,7 @@ private:
 
   static int_milliseconds_type ceil_to_millis(std::chrono::nanoseconds nanos) noexcept;
 
+  GcList m_gc_list;
   PollList m_polled;
   CoroList m_ready;
   SleepList m_sleeping;

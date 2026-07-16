@@ -1,6 +1,5 @@
 #include "corosig/PollEvent.hpp"
 
-#include "corosig/Background.hpp"
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Sleep.hpp"
@@ -22,12 +21,13 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_READ awaits until data available") {
     COROSIG_CO_TRY(auto pipes, PipePair::make());
 
     // Start a background task that will write data after a delay
-    auto writer = [](Reactor &reactor, PipeWrite write_pipe) -> BackgroundTask {
+    auto writer = [](Reactor &reactor, PipeWrite write_pipe) -> Fut<void> {
       co_await Sleep{10ms};
       constexpr std::string_view MSG = "test data";
       (void)co_await write_pipe.write(reactor, MSG);
     };
-    COROSIG_REQUIRE(writer(r, std::move(pipes.write)));
+    auto fut = writer(r, std::move(pipes.write));
+    COROSIG_REQUIRE(!fut.completed() || fut.result().is_ok());
 
     // Poll for read readiness - should wait until writer writes
     co_await PollEvent{pipes.read.underlying_handle(), PollEventExpectance::CAN_READ};
