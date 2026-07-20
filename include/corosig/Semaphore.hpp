@@ -58,7 +58,7 @@ struct Semaphore {
 
     ~HolderAwaiter() override = default;
 
-    std::coroutine_handle<> coro_from_this() noexcept override;
+    void resume_coro() noexcept override;
 
     [[nodiscard]] bool await_ready() noexcept;
     void await_suspend(std::coroutine_handle<> h) noexcept;

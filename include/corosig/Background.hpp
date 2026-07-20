@@ -194,8 +194,8 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   }
 
   /// @brief Cast this object to a resumable coroutine handle
-  std::coroutine_handle<> coro_from_this() noexcept override {
-    return std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this);
+  void resume_coro() noexcept override {
+    return std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this).resume();
   }
 
 private:

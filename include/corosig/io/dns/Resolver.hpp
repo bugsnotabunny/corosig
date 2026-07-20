@@ -117,8 +117,8 @@ private:
   struct PendingRequestBase : CoroListNode {
     virtual void process_server_answer(Header, ResponseDecoder &) noexcept = 0;
 
-    std::coroutine_handle<> coro_from_this() noexcept override {
-      return waiter;
+    void resume_coro() noexcept override {
+      return waiter.resume();
     }
 
     bool await_ready() noexcept;

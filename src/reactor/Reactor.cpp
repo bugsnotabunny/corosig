@@ -19,7 +19,6 @@ namespace {
 
 using namespace corosig;
 
-constexpr auto ITERATIONS_LIMIT = 1024;
 constexpr auto MIN_REACTOR_POLL_BUFFER = 64;
 
 } // namespace
@@ -27,8 +26,8 @@ constexpr auto MIN_REACTOR_POLL_BUFFER = 64;
 namespace corosig {
 
 Reactor::Reactor(std::span<char> mem) noexcept
-    : m_alloc{mem}
-      {
+    : m_alloc{mem},
+      m_previous_iteration_buffer{MIN_REACTOR_POLL_BUFFER} {
   if (m_poll_buf.reserve(MIN_REACTOR_POLL_BUFFER)) {
     m_poll_and_resume_method = &Reactor::poll_and_resume_normal;
   } else {
@@ -74,8 +73,10 @@ size_t Reactor::current_memory() const noexcept {
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   assert(has_active_tasks() && "Nothing to process. Deadlock will happen");
+
   gc();
   resume_ready_sleepers();
+
   resume_ready();
 
   using namespace std::chrono_literals;
@@ -187,13 +188,13 @@ Reactor::int_milliseconds_type Reactor::ceil_to_millis(std::chrono::nanoseconds 
 }
 
 void Reactor::resume_ready() noexcept {
-  for (size_t i = 0; !m_ready.empty() && i < ITERATIONS_LIMIT; ++i) {
-    auto &node = m_ready.front();
-    m_ready.pop_front();
-    auto coro = node.coro_from_this();
-    assert(coro != nullptr);
-    assert(!coro.done());
-    coro.resume();
+  // snapshot of all ready coros is taken to prevent deadlocks in case when the only one yield task
+  // is pushed in a loop
+  auto &ready = m_ready;
+  while (!ready.empty()) {
+    auto &node = ready.front();
+    ready.pop_front();
+    node.resume_coro();
   }
 }
 
@@ -207,7 +208,7 @@ void Reactor::resume_ready_sleepers() noexcept {
   }
 
   auto now = SteadyClock::now();
-  for (size_t i = 0; !m_sleeping.empty() && i < ITERATIONS_LIMIT; ++i) {
+  while (!m_sleeping.empty()) {
     SleepListNode &node = *m_sleeping.begin();
     if (node.awake_time > now) {
       break;

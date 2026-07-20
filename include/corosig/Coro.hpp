@@ -100,8 +100,8 @@ struct CoroutinePromiseType : CoroListNode {
   }
 
   // NOLINTNEXTLINE (false-report)
-  std::coroutine_handle<> coro_from_this() noexcept override {
-    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
+  void resume_coro() noexcept override {
+    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this).resume();
   }
 
   /// @brief Add this as a CoroListNode into reactor to be executed later

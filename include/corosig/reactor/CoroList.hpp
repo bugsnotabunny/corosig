@@ -12,10 +12,10 @@ namespace corosig {
 
 /// @brief A node type for CoroList
 /// @details Types that should be managed by CoroList must inherit from this and implement
-///          coro_from_this() method
+///          resume_coro() method
 struct CoroListNode : GcListNode {
   /// @brief Cast this object to a resumable coroutine handle
-  virtual std::coroutine_handle<> coro_from_this() noexcept = 0;
+  virtual void resume_coro() noexcept = 0;
 
   ~CoroListNode() override = default;
 };

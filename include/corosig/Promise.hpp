@@ -45,8 +45,8 @@ private:
 
     ~State() override = default;
 
-    std::coroutine_handle<> coro_from_this() noexcept override {
-      return waiting_coro;
+    void resume_coro() noexcept override {
+      return waiting_coro.resume();
     }
 
     void downref() noexcept {
