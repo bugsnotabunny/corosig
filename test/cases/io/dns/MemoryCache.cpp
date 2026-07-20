@@ -267,19 +267,19 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: returns allocation failure on OOM") {
 COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: handles long hostnames") {
   dns::MemoryCache<> cache{reactor.allocator()};
 
-  constexpr std::string_view long_name =
+  constexpr std::string_view LONG_NAME =
       "a.very.long.hostname.that.goes.on.and.on.subdomain.example.com";
 
   COROSIG_REQUIRE(
       cache
-          .push(long_name,
+          .push(LONG_NAME,
                 std::array<dns::ResolvedAddress<Ipv4Addr>, 1>{dns::ResolvedAddress<Ipv4Addr>{
                     .address = Ipv4Addr::parse("192.168.1.1").value(),
                     .expires_at = SteadyClock::now() + std::chrono::seconds{3600}}})
           .is_ok());
 
   std::array<dns::ResolvedAddress<Ipv4Addr>, 4> out_addrs{};
-  auto pull_result = cache.pull(long_name, out_addrs);
+  auto pull_result = cache.pull(LONG_NAME, out_addrs);
   COROSIG_REQUIRE(pull_result.value() == 1);
   COROSIG_REQUIRE(out_addrs[0].address == Ipv4Addr::parse("192.168.1.1").value());
 }

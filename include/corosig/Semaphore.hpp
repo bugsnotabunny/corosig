@@ -58,6 +58,8 @@ struct Semaphore {
 
     ~HolderAwaiter() override = default;
 
+    std::coroutine_handle<> coro_from_this() noexcept override;
+
     [[nodiscard]] bool await_ready() noexcept;
     void await_suspend(std::coroutine_handle<> h) noexcept;
     [[nodiscard]] Holder await_resume() const noexcept;
@@ -65,8 +67,6 @@ struct Semaphore {
   private:
     friend Semaphore;
     HolderAwaiter(Semaphore &semaphore, size_t units) noexcept;
-
-    std::coroutine_handle<> coro_from_this() noexcept override;
 
     Semaphore &m_semaphore;
     size_t m_units;

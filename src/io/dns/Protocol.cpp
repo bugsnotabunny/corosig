@@ -72,7 +72,7 @@ decode_label(std::span<uint8_t const> input) noexcept {
     return Failure{ResponseDecodeError::LABEL_LEN_TOO_BIG};
   }
 
-  if (input.size() < uint8_t(len + 1)) { // +1 to count len octet itself
+  if (input.size() < static_cast<uint8_t>(len + 1)) { // +1 to count len octet itself
     return Failure{ResponseDecodeError::LABEL_LEN_OOB};
   }
 
@@ -135,7 +135,7 @@ parse_domain_name(std::span<uint8_t const> original_message,
   uint8_t bytes_to_consume = 0;
   size_t domain_name_len = 0;
   while (!label_position.empty()) {
-    CompressionPointer first{.offset = uint16_t(-1)};
+    CompressionPointer first{.offset = static_cast<uint16_t>(-1)};
     while (std::optional ptr = decode_compression_ptr(label_position)) {
       if (ptr->offset > original_message.size() - 1) {
         return Failure{ResponseDecodeError::COMPRESSION_PTR_OOB};
@@ -525,12 +525,12 @@ Result<ResourceRecord, ResponseDecodeError> ResponseDecoder::consume_resource_re
 }
 
 Header::Flags &Header::Flags::set_response(bool v) noexcept {
-  value = set_bitfield<QR>(value, uint8_t(v));
+  value = set_bitfield<QR>(value, static_cast<uint8_t>(v));
   return *this;
 }
 
 Header::Flags &Header::Flags::set_opcode(QueryOpcode opcode) noexcept {
-  value = set_bitfield<OPCODE>(value, uint8_t(opcode));
+  value = set_bitfield<OPCODE>(value, static_cast<uint8_t>(opcode));
   return *this;
 }
 
@@ -539,7 +539,7 @@ Header::Flags &Header::Flags::set_opcode(QueryOpcode opcode) noexcept {
 }
 
 Header::Flags &Header::Flags::set_authoritative_answer(bool v) noexcept {
-  value = set_bitfield<AA>(value, uint8_t(v));
+  value = set_bitfield<AA>(value, static_cast<uint8_t>(v));
   return *this;
 }
 
@@ -548,7 +548,7 @@ Header::Flags &Header::Flags::set_authoritative_answer(bool v) noexcept {
 }
 
 Header::Flags &Header::Flags::set_truncated(bool v) noexcept {
-  value = set_bitfield<TC>(value, uint8_t(v));
+  value = set_bitfield<TC>(value, static_cast<uint8_t>(v));
   return *this;
 }
 
@@ -557,7 +557,7 @@ Header::Flags &Header::Flags::set_truncated(bool v) noexcept {
 }
 
 Header::Flags &Header::Flags::set_recursion_desired(bool v) noexcept {
-  value = set_bitfield<RD>(value, uint8_t(v));
+  value = set_bitfield<RD>(value, static_cast<uint8_t>(v));
   return *this;
 }
 
@@ -566,7 +566,7 @@ Header::Flags &Header::Flags::set_recursion_desired(bool v) noexcept {
 }
 
 Header::Flags &Header::Flags::set_recursion_available(bool v) noexcept {
-  value = set_bitfield<RA>(value, uint8_t(v));
+  value = set_bitfield<RA>(value, static_cast<uint8_t>(v));
   return *this;
 }
 
@@ -717,7 +717,7 @@ std::string_view ResponseDecodeError::description() const noexcept {
   }
 
   constexpr uint8_t OPCODE_MAX = 16;
-  if (std::underlying_type_t<Value>(value) < OPCODE_MAX) {
+  if (static_cast<std::underlying_type_t<Value>>(value) < OPCODE_MAX) {
     return "Got one of extended error codes";
   }
 

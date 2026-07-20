@@ -3,20 +3,19 @@
 
 #include "corosig/Clock.hpp"
 
-#include <boost/intrusive/avl_set.hpp>
-#include <boost/intrusive/avl_set_hook.hpp>
 #include <boost/intrusive/intrusive_fwd.hpp>
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/options.hpp>
+#include <boost/intrusive/rbtree.hpp>
+#include <boost/intrusive/set_hook.hpp>
 #include <coroutine>
 
 namespace corosig {
 
 /// @brief A node type for sleep task which may be pending or ready
 struct SleepListNode
-    : boost::intrusive::avl_set_base_hook<
-          boost::intrusive::link_mode<boost::intrusive::link_mode_type::auto_unlink>,
-          boost::intrusive::optimize_size<true>> {
+    : boost::intrusive::set_base_hook<
+          boost::intrusive::link_mode<boost::intrusive::link_mode_type::auto_unlink>> {
   auto operator<=>(SleepListNode const &rhs) const noexcept {
     return awake_time <=> rhs.awake_time;
   }

@@ -3,7 +3,6 @@
 #include "corosig/meta/AnAllocator.hpp"
 
 #include <algorithm>
-#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -55,7 +54,7 @@ Allocator::Allocator(std::span<char> mem) noexcept
 
   char *aligned_mem_start = align_right(mem.data(), alignof(FreeNode));
 
-  size_t mem_size = mem.size() - size_t(aligned_mem_start - mem.data());
+  size_t mem_size = mem.size() - static_cast<size_t>(aligned_mem_start - mem.data());
 
   if (mem_size >= sizeof(FreeNode)) {
 #if COROSIG_ASAN_ENABLED
@@ -154,8 +153,8 @@ void *Allocator::allocate(size_t size, size_t alignment) noexcept {
     ASAN_UNPOISON_MEMORY_REGION(allocation_header_addr, sizeof(AllocationHeader) + original_size);
 #endif
     new (allocation_header_addr) AllocationHeader{
-        .block_size = uint32_t(actually_allocated_size),
-        .padding = uint32_t(padding),
+        .block_size = static_cast<uint32_t>(actually_allocated_size),
+        .padding = static_cast<uint32_t>(padding),
     };
 #if COROSIG_ASAN_ENABLED
     ASAN_POISON_MEMORY_REGION(allocation_header_addr - padding, padding + sizeof(AllocationHeader));

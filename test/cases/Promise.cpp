@@ -4,7 +4,6 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/Reactor.hpp"
-#include "corosig/testing/LifetimeCounter.hpp"
 #include "corosig/testing/NonCopyable.hpp"
 #include "corosig/testing/Signals.hpp"
 
@@ -20,7 +19,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise creation succeeds") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise creation can fail allocation") {
-  Allocator::Memory<size_t(16)> small_mem;
+  Allocator::Memory<static_cast<size_t>(16)> small_mem;
   Reactor small_reactor{small_mem};
 
   auto result = Promise<int>::make(small_reactor);

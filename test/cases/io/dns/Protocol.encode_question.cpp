@@ -10,7 +10,7 @@ namespace {
 
 using namespace corosig;
 
-std::string const LONG_NAME(256, 'a');
+std::string const LONG_NAME(256, 'a'); // NOLINT(bugprone-throwing-static-initialization)
 
 } // namespace
 
@@ -25,7 +25,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_compression_ptr: encodes pointer correctly"
   char *end = dns::detail::encode_compression_ptr(
       buffer.begin(), dns::detail::CompressionPointer{.offset = offset});
   COROSIG_REQUIRE(end == buffer.end());
-  uint16_t encoded = (uint8_t(buffer[0]) << 8) | uint8_t(buffer[1]);
+  uint16_t encoded = (static_cast<uint8_t>(buffer[0]) << 8) | static_cast<uint8_t>(buffer[1]);
   COROSIG_REQUIRE((encoded & 0xC000) == 0xC000);
   COROSIG_REQUIRE((encoded & 0x3FFF) == offset);
 }
@@ -101,7 +101,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_label: uses compression pointer when suffix 
 
 COROSIG_SIGHANDLER_TEST_CASE("write_label: does not insert if offset exceeds compression limit",
                              "[write_label]") {
-  std::array<char, size_t(1024 * 1024)> buffer;
+  std::array<char, static_cast<size_t>(1024 * 1024)> buffer;
   size_t written_count = 0;
   dns::detail::CountingOutputIterator out{buffer.begin(), written_count};
   dns::detail::CompressionMap map{reactor.allocator()};
@@ -191,7 +191,8 @@ COROSIG_SIGHANDLER_TEST_CASE("write_name: compression short-circuits remaining l
   COROSIG_REQUIRE(out2.written() == 2);
 
   size_t written_total = out.written() + out2.written();
-  uint16_t last = (uint8_t(buffer[written_total - 2]) << 8) | uint8_t(buffer[written_total - 1]);
+  uint16_t last = (static_cast<uint8_t>(buffer[written_total - 2]) << 8) |
+                  static_cast<uint8_t>(buffer[written_total - 1]);
   COROSIG_REQUIRE((last & 0xC000) == 0xC000);
 }
 
@@ -247,7 +248,7 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_question: writes qtype and qclass", "[encod
   // find end of name (walk it)
   size_t pos = sizeof(dns::Header);
   while (buffer[pos] != 0) {
-    pos += uint8_t(buffer[pos]) + 1;
+    pos += static_cast<uint8_t>(buffer[pos]) + 1;
   }
   pos++; // skip terminator
 

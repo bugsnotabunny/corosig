@@ -76,7 +76,7 @@ struct CoroutinePromiseType : CoroListNode {
                             std::align_val_t align,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, size_t(align));
+    return reactor.allocator().allocate(n, static_cast<size_t>(align));
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
@@ -88,7 +88,7 @@ struct CoroutinePromiseType : CoroListNode {
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, size_t(align));
+    return reactor.allocator().allocate(n, static_cast<size_t>(align));
   }
 
   /// @brief Noop
@@ -97,6 +97,11 @@ struct CoroutinePromiseType : CoroListNode {
   static void operator delete(void *) noexcept {
     // nothing to do in here since reactor is not accessible. instead, a coro frame is released when
     // future is destroyed
+  }
+
+  // NOLINTNEXTLINE (false-report)
+  std::coroutine_handle<> coro_from_this() noexcept override {
+    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
   }
 
   /// @brief Add this as a CoroListNode into reactor to be executed later
@@ -161,18 +166,16 @@ struct CoroutinePromiseType : CoroListNode {
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   template <std::convertible_to<Result<T, E>> U>
   void return_value(U &&value) noexcept {
+    // NOLINTBEGIN (false-report)
     assert(m_future != nullptr);
     assert(!m_future->completed());
     assert(!m_waiting_coro.done());
     m_future->m_result.~Result();
     new (&m_future->m_result) Result<T, E>{std::forward<U>(value)};
+    // NOLINTEND (false-report)
   }
 
 private:
-  std::coroutine_handle<> coro_from_this() noexcept override {
-    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
-  }
-
   friend struct Fut<T, E>;
 
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
@@ -296,7 +299,7 @@ private:
     }
 
     void await_resume() const noexcept
-      requires(PRESERVE_RESULT)
+      requires PRESERVE_RESULT
     {
     }
 

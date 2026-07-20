@@ -19,7 +19,8 @@ void print_num(size_t value) noexcept;
 
 #define COROSIG_REQUIRE(...)                                                                       \
   do {                                                                                             \
-    if (!(__VA_ARGS__)) {                                                                          \
+    bool success = (__VA_ARGS__);                                                                  \
+    if (!success) {                                                                                \
       auto loc = ::std::source_location::current();                                                \
       ::corosig::print(loc.file_name());                                                           \
       ::corosig::print(":");                                                                       \
@@ -38,7 +39,7 @@ void run_in_sighandler(F &&f) {
   constexpr auto SIGHANDLER = [](int sig) noexcept {
     std::signal(sig, SIG_DFL);
 
-    Allocator::Memory<size_t(1024 * 8)> mem;
+    Allocator::Memory<static_cast<size_t>(1024 * 8)> mem;
     Reactor reactor{mem};
     (*g_foo)(reactor);
     COROSIG_REQUIRE(reactor.drain_remaining_tasks());

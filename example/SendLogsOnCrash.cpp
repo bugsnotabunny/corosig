@@ -54,7 +54,7 @@ void run_background_tcp_server(std::string &out) {
   }
 
   auto addr = TCP_SERVER_ADDR;
-  if (::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)) == -1) {
+  if (::bind(srv_fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == -1) {
     throw std::system_error{errno, std::system_category(), "bind"};
   }
 
@@ -69,7 +69,7 @@ void run_background_tcp_server(std::string &out) {
     if (n <= 0) {
       break;
     }
-    out += std::string_view{buf.begin(), size_t(n)};
+    out += std::string_view{buf.begin(), static_cast<size_t>(n)};
   }
   ::close(client);
   ::close(srv_fd);
@@ -82,7 +82,7 @@ void run_background_udp_server(std::string &out) {
   }
 
   auto addr = UDP_SERVER_ADDR;
-  if (bind(srv_fd, (sockaddr *)&addr, sizeof(addr)) == -1) {
+  if (bind(srv_fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == -1) {
     throw std::system_error{errno, std::system_category(), "bind"};
   }
 
@@ -92,7 +92,7 @@ void run_background_udp_server(std::string &out) {
     if (n <= 0) {
       break;
     }
-    out += std::string_view{buf.data(), size_t(n)};
+    out += std::string_view{buf.data(), static_cast<size_t>(n)};
   }
   ::close(srv_fd);
 }

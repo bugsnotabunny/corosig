@@ -12,7 +12,7 @@ void print(std::string_view msg) noexcept {
     if (written_now == -1) {
       return;
     }
-    written += size_t(written_now);
+    written += static_cast<size_t>(written_now);
   }
 }
 

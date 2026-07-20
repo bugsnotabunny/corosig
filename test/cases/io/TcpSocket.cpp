@@ -117,7 +117,7 @@ TEST_CASE("TcpSocket move semantics") {
 
       TcpSocket sock2(std::move(sock1));
 
-      COROSIG_REQUIRE(sock1.underlying_handle() == -1);
+      COROSIG_REQUIRE(sock1.underlying_handle() == -1); // NOLINT (bugprone-use-after-move)
       COROSIG_REQUIRE(sock2.underlying_handle() >= 0);
       COROSIG_REQUIRE(sock2.underlying_handle() == fd_before);
 
@@ -145,7 +145,7 @@ TEST_CASE("TcpSocket move assignment") {
       TcpSocket sock2;
       sock2 = std::move(sock1);
 
-      COROSIG_REQUIRE(sock1.underlying_handle() == -1);
+      COROSIG_REQUIRE(sock1.underlying_handle() == -1); // NOLINT (bugprone-use-after-move)
       COROSIG_REQUIRE(sock2.underlying_handle() >= 0);
 
       constexpr static std::string_view MSG = "move_assign_test";

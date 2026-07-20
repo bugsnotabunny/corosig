@@ -11,13 +11,13 @@
 #include "corosig/reactor/SleepList.hpp"
 
 #include <boost/intrusive/options.hpp>
+#include <boost/intrusive/set.hpp>
 #include <cstddef>
 #include <span>
 
 namespace corosig {
 
 /// @brief A reactor which schedules and resumes coroutines
-/// @details Manages ready coroutines, sleeping coroutines, and coroutines waiting for I/O events
 struct Reactor {
   Reactor(Reactor const &) = delete;
   Reactor(Reactor &&) = delete;
@@ -42,7 +42,6 @@ struct Reactor {
   void schedule_when_ready(PollListNode &) noexcept;
 
   /// @brief Schedule a coroutine to be executed when specified amount of time passes
-  /// @warning UB if given node is ready
   void schedule_when_time_passes(SleepListNode &) noexcept;
 
   /// @brief Tell if there are any tasks scheduled
@@ -83,10 +82,10 @@ private:
                                           boost::intrusive::constant_time_size<false>,
                                           boost::intrusive::linear<true>>;
 
-  using SleepList = boost::intrusive::avl_multiset<SleepListNode,
-                                                   boost::intrusive::cache_begin<true>,
-                                                   boost::intrusive::cache_last<false>,
-                                                   boost::intrusive::constant_time_size<false>>;
+  using SleepList = boost::intrusive::multiset<SleepListNode,
+                                               boost::intrusive::cache_begin<true>,
+                                               boost::intrusive::cache_last<false>,
+                                               boost::intrusive::constant_time_size<false>>;
 
   void resume_ready_sleepers() noexcept;
   void resume_ready() noexcept;

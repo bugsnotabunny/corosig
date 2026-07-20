@@ -1,11 +1,11 @@
 #include "corosig/io/dns/Protocol.hpp"
 
-#include "catch2/generators/catch_generators.hpp"
 #include "corosig/testing/DnsHelpers.hpp"
 
 #include <algorithm>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <cstdint>
 #include <iterator>
 #include <string_view>

@@ -242,7 +242,7 @@ struct Question {
   QueryOpcode opcode = QueryOpcode::STANDARD;
   bool recursion_desired = true;
   std::string_view name;
-  QueryType qtype;
+  QueryType qtype = QueryType::ANY;
   QueryClass qclass = QueryClass::IN;
 };
 
@@ -429,8 +429,8 @@ constexpr auto FQDN_MAX_OCTET_LEN = 255;
 
 template <std::output_iterator<char> OUT>
 constexpr OUT write_hton(OUT out, uint16_t value) {
-  *out++ = char((value >> 8) & 0xFF);
-  *out++ = char(value & 0xFF);
+  *out++ = static_cast<char>((value >> 8) & 0xFF);
+  *out++ = static_cast<char>(value & 0xFF);
   return out;
 };
 
@@ -467,9 +467,9 @@ template <AnAllocator ALLOCATOR>
 struct CompressionMap {
   struct Node {
     explicit Node(std::string_view s, uint16_t offset) noexcept
-        : hash{uint16_t(std::hash<std::string_view>{}(s))},
+        : hash{static_cast<uint16_t>(std::hash<std::string_view>{}(s))},
           offset{offset},
-          strlen{uint32_t(s.size())},
+          strlen{static_cast<uint32_t>(s.size())},
           str{s.data()} {
     }
 
@@ -567,7 +567,7 @@ write_label(CountingOutputIterator<OUT> out,
             std::string_view label,
             std::string_view remaining_name,
             CompressionMap<ALLOCATOR> &compression_map) {
-  if (label.size() == 0) {
+  if (label.empty()) {
     return Failure{QuestionEncodeError::EMPTY_LABEL};
   }
   if (label.size() > 63) {
@@ -594,7 +594,7 @@ write_label(CountingOutputIterator<OUT> out,
     (void)compression_map.insert(node);
   }
 
-  *out++ = char(label.size());
+  *out++ = static_cast<char>(label.size());
   return WriteLabelSuccess{
       .out = std::ranges::copy(label, out).out,
       .all_compressed = false,
@@ -675,8 +675,8 @@ encode_question(OUT out, Question question, ALLOCATOR &&alloc) {
 
   COROSIG_TRY(counting_out,
               detail::encode_domain_name(counting_out, question.name, compression_map));
-  counting_out = detail::write_hton(counting_out, uint16_t(question.qtype));
-  counting_out = detail::write_hton(counting_out, uint16_t(question.qclass));
+  counting_out = detail::write_hton(counting_out, static_cast<uint16_t>(question.qtype));
+  counting_out = detail::write_hton(counting_out, static_cast<uint16_t>(question.qclass));
 
   return counting_out.underlying_iter();
 }

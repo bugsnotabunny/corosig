@@ -96,6 +96,8 @@ public:
     }
 
     T await_resume() noexcept {
+      assert(m_state.value != nullptr);
+      assert(m_state.value->value != std::nullopt);
       return std::forward<T>(*m_state.value->value);
     }
 

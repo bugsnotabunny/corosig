@@ -49,34 +49,22 @@ Fut<void> optimized_recursive_synchronous_task(Reactor &r) noexcept {
   co_return Ok{};
 }
 
-constexpr auto REACTOR_MEMORY = size_t(1024) * 1024 * 400;
+constexpr auto REACTOR_MEMORY = static_cast<size_t>(1024) * 1024 * 400;
 constexpr size_t ITERATIONS = 1000000;
 
-auto g_mem = std::make_unique<Allocator::Memory<REACTOR_MEMORY>>();
+auto g_mem = std::make_unique<Allocator::Memory<REACTOR_MEMORY>>(); // NOLINT
 
 template <typename F>
 void generic_benchmark(char const *description, F &&coro_factory) {
   Reactor reactor{*g_mem};
 
   BENCHMARK(description) {
-    for (size_t i = 0; i < ITERATIONS / 2; ++i) {
-      auto task = run_in_background(reactor, coro_factory(reactor));
-
-      REQUIRE(task);
-    }
-
-    for (size_t i = 0; i < 3; ++i) {
-      REQUIRE(reactor.do_event_loop_iteration());
-    }
-
-    for (size_t i = 0; i < ITERATIONS / 2; ++i) {
+    for (size_t i = 0; i < ITERATIONS; ++i) {
       auto task = run_in_background(reactor, coro_factory(reactor));
       REQUIRE(task);
     }
 
-    while (reactor.has_active_tasks()) {
-      REQUIRE(reactor.do_event_loop_iteration());
-    }
+    REQUIRE(reactor.drain_remaining_tasks());
   };
 
   std::cout << "\nReactor peak memory is " << reactor.peak_memory() << '\n';

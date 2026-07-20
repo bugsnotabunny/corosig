@@ -7,8 +7,6 @@
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_test_macros.hpp>
-
 namespace {
 
 using namespace corosig;
@@ -25,6 +23,7 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_READ awaits until data available") {
       co_await Sleep{10ms};
       constexpr std::string_view MSG = "test data";
       (void)co_await write_pipe.write(reactor, MSG);
+      co_return Ok{};
     };
     auto fut = writer(r, std::move(pipes.write));
     COROSIG_REQUIRE(!fut.completed() || fut.result().is_ok());

@@ -43,13 +43,13 @@ struct ResolveAwaiterType<AWAITABLE> {
 template <HasMemberCoAwait AWAITABLE>
 struct ResolveAwaiterType<AWAITABLE> {
   using type =
-      typename ResolveAwaiterType<decltype(std::declval<AWAITABLE>().operator co_await())>::type;
+      ResolveAwaiterType<decltype(std::declval<AWAITABLE>().operator co_await())>::type;
 };
 
 template <HasNonMemberCoAwait AWAITABLE>
 struct ResolveAwaiterType<AWAITABLE> {
   using type =
-      typename ResolveAwaiterType<decltype(operator co_await(std::declval<AWAITABLE>()))>::type;
+      ResolveAwaiterType<decltype(operator co_await(std::declval<AWAITABLE>()))>::type;
 };
 
 } // namespace detail

@@ -15,7 +15,7 @@ using namespace corosig::testing;
 
 TEST_CASE("StdAllocator allocates and deallocates properly", "[StdAllocator]") {
   MockAllocator ma;
-  StdAllocator<int, MockAllocator &> alloc((ma));
+  StdAllocator<int, MockAllocator &> alloc(ma);
 
   int *p = alloc.allocate(1);
   REQUIRE(p != nullptr);

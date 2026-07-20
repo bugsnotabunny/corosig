@@ -27,8 +27,8 @@ constexpr auto MIN_REACTOR_POLL_BUFFER = 64;
 namespace corosig {
 
 Reactor::Reactor(std::span<char> mem) noexcept
-    : m_alloc{mem},
-      m_previous_iteration_buffer{MIN_REACTOR_POLL_BUFFER} {
+    : m_alloc{mem}
+      {
   if (m_poll_buf.reserve(MIN_REACTOR_POLL_BUFFER)) {
     m_poll_and_resume_method = &Reactor::poll_and_resume_normal;
   } else {
@@ -87,7 +87,7 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
         0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
   }
 
-  return std::invoke(m_poll_and_resume_method, this, poll_timeout);
+  return std::invoke(&Reactor::poll_and_resume_fallback, this, poll_timeout);
 }
 
 Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type timeout) noexcept {
@@ -109,7 +109,7 @@ Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type
 
     auto poll_fd = ::pollfd{
         .fd = node.handle,
-        .events = short(node.event),
+        .events = static_cast<short>(node.event),
         .revents = {},
     };
     if (auto res = m_poll_buf.push_back(poll_fd); !res) {
@@ -138,7 +138,7 @@ Reactor::poll_and_resume_fallback(int_milliseconds_type timeout) noexcept {
 
     ::pollfd &poll_fd = poll_fds[fds_count];
     poll_fd.fd = node.handle;
-    poll_fd.events = short(node.event);
+    poll_fd.events = static_cast<short>(node.event);
   }
 
   return poll_and_resume_impl(std::span{poll_fds.data(), fds_count}, timeout);
@@ -153,7 +153,7 @@ Result<void, SyscallError> Reactor::poll_and_resume_impl(std::span<::pollfd> pol
 
   // polled list may become empty if some coroutine cancels execution which may trigger deletion
   // of some of list nodes
-  for (size_t i = 0; !m_polled.empty() && i < size_t(ret); ++i) {
+  for (size_t i = 0; !m_polled.empty() && i < static_cast<size_t>(ret); ++i) {
     PollListNode &node = m_polled.front();
     // list node was deleted due to coroutine cancelling
     if (poll_fds[i].fd != node.handle) {

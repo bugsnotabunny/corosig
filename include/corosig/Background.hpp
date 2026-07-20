@@ -81,7 +81,7 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
                             NotReactor auto const &...) noexcept {
     assert(reactor.ref_current_coro_was_allocated() == false);
     reactor.ref_current_coro_was_allocated() = true;
-    return reactor.allocator().allocate(n, size_t(align));
+    return reactor.allocator().allocate(n, static_cast<size_t>(align));
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when

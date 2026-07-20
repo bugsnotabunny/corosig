@@ -87,7 +87,7 @@ ipv6_parse_front_groups(std::string_view addr, std::array<uint16_t, 8> &expansio
         break;
       }
 
-      addr.remove_prefix(std::min(size_t(1), addr.size()));
+      addr.remove_prefix(std::min(static_cast<size_t>(1), addr.size()));
     }
   }
 
@@ -222,8 +222,8 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_mapped_ipv4(std::string_view addr) noexc
   uint32_t ipv4_value = ipv4->value();
   Ipv6Addr result;
 
-  result.m_value[10] = uint8_t(0xFF);
-  result.m_value[11] = uint8_t(0xFF);
+  result.m_value[10] = static_cast<uint8_t>(0xFF);
+  result.m_value[11] = static_cast<uint8_t>(0xFF);
 
   static_assert(sizeof(ipv4_value) % sizeof(uint8_t) == 0);
   std::ranges::copy(std::span{reinterpret_cast<uint8_t const *>(&ipv4_value),
@@ -268,7 +268,7 @@ std::optional<Ipv6Addr> Ipv6Addr::parse_regular(std::string_view addr) noexcept 
     size_t expanded_zero_groups = expansion_buf.size() - front_res->groups - back_groups;
     std::shift_right(expansion_buf.begin() + front_res->groups,
                      expansion_buf.end(),
-                     ptrdiff_t(expanded_zero_groups));
+                     static_cast<ptrdiff_t>(expanded_zero_groups));
     std::fill_n(expansion_buf.begin() + front_res->groups, expanded_zero_groups, 0);
 
     if (front_res->groups + back_groups >= expansion_buf.size()) {

@@ -94,14 +94,14 @@ COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
 }
 
 TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][stress]") {
-  constexpr auto BUFFER_SIZE = size_t(20) * 1024 * 1024;
+  constexpr auto BUFFER_SIZE = static_cast<size_t>(20) * 1024 * 1024;
   std::vector<char> mem;
   mem.resize(BUFFER_SIZE);
   Allocator allocator{mem};
 
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_int_distribution<size_t> size_dist(1, size_t(1024) * 1024);
+  std::uniform_int_distribution<size_t> size_dist(1, static_cast<size_t>(1024) * 1024);
   std::uniform_int_distribution<size_t> alignments_dist(0, 12);
 
   std::vector<void *> allocations;
@@ -111,7 +111,7 @@ TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][st
       std::uniform_int_distribution<size_t> idx_dist(0, allocations.size() - 1);
       size_t idx = idx_dist(gen);
       allocator.deallocate(allocations[idx]);
-      allocations.erase(allocations.begin() + long(idx));
+      allocations.erase(allocations.begin() + static_cast<long>(idx));
       continue;
     }
 

@@ -2,28 +2,26 @@
 
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_all.hpp>
 #include <concepts>
 #include <string>
-#include <type_traits>
 
-namespace test { // named to suppress compiler warnings
+namespace {
 
 struct SimpleAwaiter {
-  bool await_ready() const noexcept {
+  static bool await_ready() noexcept {
     return true;
   }
 
   void await_suspend(std::coroutine_handle<>) const noexcept {
   }
 
-  int await_resume() const noexcept {
+  static int await_resume() noexcept {
     return 42;
   }
 };
 
 struct VoidAwaiter {
-  bool await_ready() const noexcept {
+  static bool await_ready() noexcept {
     return true;
   }
 
@@ -35,27 +33,27 @@ struct VoidAwaiter {
 };
 
 struct StringAwaiter {
-  bool await_ready() const noexcept {
+  static bool await_ready() noexcept {
     return true;
   }
 
   void await_suspend(std::coroutine_handle<>) const noexcept {
   }
 
-  std::string await_resume() const noexcept {
+  static std::string await_resume() noexcept {
     return "hello";
   }
 };
 
 struct RefAwaiter {
-  bool await_ready() const noexcept {
+  static bool await_ready() noexcept {
     return true;
   }
 
   void await_suspend(std::coroutine_handle<>) const noexcept {
   }
 
-  int &await_resume() const noexcept {
+  static int &await_resume() noexcept {
     static int value = 99;
     return value;
   }
@@ -81,6 +79,16 @@ struct NonMemberAwaitable {
   bool ready = true;
 };
 
+struct NestedMemberAwaitable {
+  MemberAsyncAwaitable operator co_await() && noexcept {
+    return {};
+  }
+};
+
+struct NestedNonMemberAwaitable {
+  bool ready = true;
+};
+
 StringAwaiter operator co_await(NonMemberAwaitable &&) noexcept {
   return {};
 }
@@ -93,25 +101,14 @@ RefAwaiter operator co_await(NonMemberCustomAwaitable &&) noexcept {
   return {};
 }
 
-struct NestedMemberAwaitable {
-  MemberAsyncAwaitable operator co_await() && noexcept {
-    return {};
-  }
-};
-
-struct NestedNonMemberAwaitable {
-  bool ready = true;
-};
-
 MemberAwaitable operator co_await(NestedNonMemberAwaitable &&) noexcept {
   return {};
 }
 
-} // namespace test
+} // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("AnAwaitable metafunctions are sane") {
   using namespace corosig;
-  using namespace test;
 
   static_assert(AnAwaiter<SimpleAwaiter>);
   static_assert(AnAwaiter<VoidAwaiter>);
