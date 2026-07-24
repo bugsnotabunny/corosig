@@ -204,8 +204,8 @@ COROSIG_SIGHANDLER_TEST_CASE("encode_header: encodes flags correctly", "[encode]
   std::array<char, 1024> buffer;
   dns::detail::encode_header(buffer.begin(), h);
 
-  auto flags1 = uint8_t(buffer[2]);
-  auto flags2 = uint8_t(buffer[3]);
+  auto flags1 = static_cast<uint8_t>(buffer[2]);
+  auto flags2 = static_cast<uint8_t>(buffer[3]);
 
   COROSIG_REQUIRE((flags1 & 0x80) != 0);        // QR
   COROSIG_REQUIRE(((flags1 >> 3) & 0x0F) == 2); // opcode

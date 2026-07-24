@@ -155,7 +155,7 @@ private:
     if (it != used_buf.end()) {
       m_state = AT_IP;
     }
-    adwance(std::min(m_buffer.size(), size_t(it.base() - m_buffer.begin() + 1)));
+    adwance(std::min(m_buffer.size(), static_cast<size_t>(it.base() - m_buffer.begin() + 1)));
   }
 
   std::span<char> get_free_buffer() noexcept {

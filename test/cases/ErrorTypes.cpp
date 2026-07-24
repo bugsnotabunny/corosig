@@ -2,9 +2,7 @@
 
 #include "corosig/testing/Signals.hpp"
 
-#include <catch2/catch_test_macros.hpp>
 #include <cerrno>
-#include <unistd.h>
 
 using namespace corosig;
 

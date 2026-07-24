@@ -19,8 +19,8 @@ namespace corosig {
 struct File {
 public:
   /// @brief Flags for open operation
-  /// @note Exact values are os-specific
-  enum class OpenFlags {
+  /// @note Exact values and underlying type are os-specific
+  enum class OpenFlags : int { // NOLINT (performance-enum-size)
     UNSPECIFIED = 0,
     APPEND = O_APPEND,
     CREATE = O_CREAT,
@@ -30,8 +30,8 @@ public:
   };
 
   /// @brief Permissions to open file with
-  /// @note Exact values are os-specific
-  enum class OpenPerms : int {
+  /// @note Exact values and underlying type are os-specific
+  enum class OpenPerms : int { // NOLINT (performance-enum-size)
     UNSPECIFIED,
     // TODO
   };
@@ -46,9 +46,9 @@ public:
        OpenFlags = OpenFlags::UNSPECIFIED,
        OpenPerms = OpenPerms::UNSPECIFIED) noexcept;
 
-  File(const File &) = delete;
+  File(File const &) = delete;
   File(File &&) noexcept = default;
-  File &operator=(const File &) = delete;
+  File &operator=(File const &) = delete;
   File &operator=(File &&rhs) noexcept {
     if (this != &rhs) {
       this->~File();

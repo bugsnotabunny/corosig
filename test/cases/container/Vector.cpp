@@ -1,12 +1,12 @@
 #include "corosig/container/Vector.hpp"
 
-#include "catch2/catch_test_macros.hpp"
 #include "corosig/container/Allocator.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/LifetimeCounter.hpp"
 #include "corosig/testing/NonCopyable.hpp"
 #include "corosig/testing/Signals.hpp"
 
+#include <catch2/catch_test_macros.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <initializer_list>
 #include <list>
@@ -39,8 +39,8 @@ struct NonCopyableCloneable {
         fail_clone{fail_clone} {
   }
 
-  NonCopyableCloneable(const NonCopyableCloneable &) = delete;
-  NonCopyableCloneable &operator=(const NonCopyableCloneable &) = delete;
+  NonCopyableCloneable(NonCopyableCloneable const &) = delete;
+  NonCopyableCloneable &operator=(NonCopyableCloneable const &) = delete;
 
   NonCopyableCloneable(NonCopyableCloneable &&other) noexcept = default;
   NonCopyableCloneable &operator=(NonCopyableCloneable &&) noexcept = default;

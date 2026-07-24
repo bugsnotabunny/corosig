@@ -54,7 +54,7 @@ Result<size_t, SyscallError> try_read_some(int fd, std::span<char> buf) noexcept
   if (n == -1) {
     return Failure{SyscallError::current()};
   }
-  return size_t(n);
+  return static_cast<size_t>(n);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
@@ -87,7 +87,7 @@ Result<size_t, SyscallError> try_write_some(int fd, std::span<char const> buf) n
   if (n == -1) {
     return Failure{SyscallError::current()};
   }
-  return size_t(n);
+  return static_cast<size_t>(n);
 }
 
 void close(int &fd) noexcept {

@@ -16,6 +16,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
 #include <format>
 #include <string_view>
@@ -110,8 +111,8 @@ int main(int, char **) {
   try {
     corosig::set_sighandler<1024 * 16, sighandler>(SIGFPE);
     ::raise(SIGFPE);
-    return 0;
+    return EXIT_SUCCESS;
   } catch (std::exception const &) {
-    return 1;
+    return EXIT_FAILURE;
   }
 }

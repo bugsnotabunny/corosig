@@ -23,9 +23,9 @@ public:
   static Fut<TcpSocket, Error<AllocationError, SyscallError>>
   connect(Reactor &, SockaddrStorage const &addr) noexcept;
 
-  TcpSocket(const TcpSocket &) = delete;
+  TcpSocket(TcpSocket const &) = delete;
   TcpSocket(TcpSocket &&) noexcept = default;
-  TcpSocket &operator=(const TcpSocket &) = delete;
+  TcpSocket &operator=(TcpSocket const &) = delete;
   TcpSocket &operator=(TcpSocket &&rhs) noexcept {
     if (this != &rhs) {
       this->~TcpSocket();

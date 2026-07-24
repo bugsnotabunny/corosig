@@ -26,7 +26,7 @@ jobs:
         run: devenv shell "xmake config --toolchain=clang --mode=release -vy"
 
       - name: generate compile-commands
-        run: devenv shell "xmake project -k compile_commands -vy"
+        run: devenv shell "xmake project -k compile_commands --lsp=clangd -vy"
 
       - name: clang-tidy checks
         run: devenv shell "xmake check clang.tidy"

@@ -21,9 +21,9 @@ public:
   /// @brief Construct a PipeRead bound to invalid os::Handle
   PipeRead() noexcept = default;
 
-  PipeRead(const PipeRead &) = delete;
+  PipeRead(PipeRead const &) = delete;
   PipeRead(PipeRead &&) noexcept = default;
-  PipeRead &operator=(const PipeRead &) = delete;
+  PipeRead &operator=(PipeRead const &) = delete;
   PipeRead &operator=(PipeRead &&rhs) noexcept {
     if (this != &rhs) {
       this->~PipeRead();
@@ -66,9 +66,9 @@ public:
   /// @brief Construct a PipeWrite bound to invalid os::Handle
   PipeWrite() noexcept = default;
 
-  PipeWrite(const PipeWrite &) = delete;
+  PipeWrite(PipeWrite const &) = delete;
   PipeWrite(PipeWrite &&) noexcept = default;
-  PipeWrite &operator=(const PipeWrite &) = delete;
+  PipeWrite &operator=(PipeWrite const &) = delete;
   PipeWrite &operator=(PipeWrite &&rhs) noexcept {
     if (this != &rhs) {
       this->~PipeWrite();

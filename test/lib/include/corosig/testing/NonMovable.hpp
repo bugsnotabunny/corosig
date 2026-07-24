@@ -11,9 +11,9 @@ struct NonMovable {
       : value{v} {
   }
 
-  NonMovable(const NonMovable &) = delete;
+  NonMovable(NonMovable const &) = delete;
   NonMovable(NonMovable &&) = delete;
-  NonMovable &operator=(const NonMovable &) = delete;
+  NonMovable &operator=(NonMovable const &) = delete;
   NonMovable &operator=(NonMovable &&) = delete;
 
   constexpr auto operator<=>(NonMovable const &) const noexcept = default;

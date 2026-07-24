@@ -60,8 +60,8 @@ public:
       : m_alloc{alloc} {
   }
 
-  Vector(const Vector &) noexcept = delete;
-  Vector &operator=(const Vector &) = delete;
+  Vector(Vector const &) noexcept = delete;
+  Vector &operator=(Vector const &) = delete;
 
   Vector(Vector &&rhs) noexcept
       : m_data{std::exchange(rhs.m_data, nullptr)},
@@ -117,7 +117,7 @@ public:
   }
 
   constexpr void clear() noexcept {
-    while (size() > 0) {
+    while (!empty()) {
       pop_back();
     }
     m_alloc.deallocate(m_data);
@@ -129,7 +129,7 @@ public:
   constexpr Result<void, AllocationError> shrink_to_fit() noexcept {
     Vector new_vec{m_alloc};
     COROSIG_TRYV(new_vec.resize_uninitialized(size()));
-    for (auto i : std::views::iota(size_type(0), size())) {
+    for (auto i : std::views::iota(static_cast<size_type>(0), size())) {
       new (std::addressof(new_vec[i])) value_type{std::move((m_data)[i])};
     }
     *this = std::move(new_vec);
@@ -142,7 +142,7 @@ public:
     }
 
     COROSIG_TRY(pointer new_mem, allocate(count));
-    for (auto i : std::views::iota(size_type(0), size())) {
+    for (auto i : std::views::iota(static_cast<size_type>(0), size())) {
       new (new_mem + i) value_type{std::move(m_data[i])};
     }
 
@@ -152,7 +152,7 @@ public:
     return Ok{};
   }
 
-  constexpr auto resize(size_type count, const value_type &value = value_type{}) noexcept
+  constexpr auto resize(size_type count, value_type const &value = value_type{}) noexcept
     requires(Copyable<value_type>)
   {
     using Result = detail::result_extended_with_clone_errors<value_type, void, AllocationError>;
@@ -236,7 +236,7 @@ public:
       (*this)[i].~value_type();
     }
 
-    for (auto i : std::views::iota(size_type(0), size() - last_idx)) {
+    for (auto i : std::views::iota(static_cast<size_type>(0), size() - last_idx)) {
       new (std::addressof((*this)[first_idx + i])) value_type{std::move((*this)[last_idx + i])};
     }
 

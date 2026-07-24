@@ -11,6 +11,10 @@ namespace corosig {
 
 namespace detail {
 
+/// @brief Swap byte order of value
+/// @tparam T Type to swap (must be integral or enum)
+/// @param value Value to swap
+/// @returns Value with reversed byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 // std::byteswap did not make it into c++20
@@ -23,6 +27,10 @@ constexpr T byteswap(T value) noexcept {
 
 } // namespace detail
 
+/// @brief Convert big-endian value to host byte order
+/// @tparam T Type to convert (must be integral or enum)
+/// @param value Value in big-endian byte order
+/// @returns Value in host byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 constexpr T betoh(T value) noexcept {
@@ -35,6 +43,10 @@ constexpr T betoh(T value) noexcept {
   }
 }
 
+/// @brief Convert little-endian value to host byte order
+/// @tparam T Type to convert (must be integral or enum)
+/// @param value Value in little-endian byte order
+/// @returns Value in host byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 constexpr T letoh(T value) noexcept {
@@ -47,6 +59,10 @@ constexpr T letoh(T value) noexcept {
   }
 }
 
+/// @brief Convert host byte order value to little-endian
+/// @tparam T Type to convert (must be integral or enum)
+/// @param value Value in host byte order
+/// @returns Value in little-endian byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 constexpr T htole(T value) noexcept {
@@ -59,6 +75,10 @@ constexpr T htole(T value) noexcept {
   }
 }
 
+/// @brief Convert host byte order value to big-endian
+/// @tparam T Type to convert (must be integral or enum)
+/// @param value Value in host byte order
+/// @returns Value in big-endian byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 constexpr T htobe(T value) noexcept {
@@ -71,12 +91,20 @@ constexpr T htobe(T value) noexcept {
   }
 }
 
+/// @brief Convert host byte order value to network byte order (big-endian)
+/// @tparam T Type to convert (must be integral or enum)
+/// @param value Value in host byte order
+/// @returns Value in network byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 constexpr T hton(T value) noexcept {
   return htobe(value);
 }
 
+/// @brief Convert network byte order value to host byte order
+/// @tparam T Type to convert (must be integral or enum)
+/// @param value Value in network byte order
+/// @returns Value in host byte order
 template <typename T>
   requires(std::integral<T> || std::is_enum_v<T>)
 constexpr T ntoh(T value) noexcept {

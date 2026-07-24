@@ -72,7 +72,7 @@ AlwaysOkResult<size_t> memory_cache_pull_impl(
     std::span<ResolvedAddress<IP>> out) noexcept {
   assert(dns::detail::debug_is_ascii(ascii_name));
   if (ascii_name.size() > dns::detail::FQDN_MAX_OCTET_LEN) {
-    return size_t(0);
+    return static_cast<size_t>(0);
   }
 
   std::array<char, FQDN_MAX_OCTET_LEN> ascii_name_lowercase_buf;
@@ -84,7 +84,7 @@ AlwaysOkResult<size_t> memory_cache_pull_impl(
 
   auto name_it = names.find(lowercase_ascii_name, std::less<>{});
   if (name_it == names.end()) {
-    return size_t(0);
+    return static_cast<size_t>(0);
   }
 
   size_t pulled = 0;

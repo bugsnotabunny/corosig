@@ -6,13 +6,13 @@
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Reactor.hpp" // IWYU pragma: export
 #include "corosig/reactor/SleepList.hpp"
-#include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <cassert>
 #include <concepts>
 #include <coroutine>
 #include <cstddef>
 #include <new>
+#include <type_traits>
 #include <utility>
 
 namespace corosig {
@@ -44,9 +44,9 @@ struct CoroutinePromiseType : CoroListNode {
       : CoroutinePromiseType{reactor} {
   }
 
-  CoroutinePromiseType(const CoroutinePromiseType &) = delete;
+  CoroutinePromiseType(CoroutinePromiseType const &) = delete;
   CoroutinePromiseType(CoroutinePromiseType &&) = delete;
-  CoroutinePromiseType &operator=(const CoroutinePromiseType &) = delete;
+  CoroutinePromiseType &operator=(CoroutinePromiseType const &) = delete;
   CoroutinePromiseType &operator=(CoroutinePromiseType &&) = delete;
 
   ~CoroutinePromiseType() override = default;
@@ -76,7 +76,7 @@ struct CoroutinePromiseType : CoroListNode {
                             std::align_val_t align,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, size_t(align));
+    return reactor.allocator().allocate(n, static_cast<size_t>(align));
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
@@ -88,7 +88,7 @@ struct CoroutinePromiseType : CoroListNode {
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, size_t(align));
+    return reactor.allocator().allocate(n, static_cast<size_t>(align));
   }
 
   /// @brief Noop
@@ -97,6 +97,11 @@ struct CoroutinePromiseType : CoroListNode {
   static void operator delete(void *) noexcept {
     // nothing to do in here since reactor is not accessible. instead, a coro frame is released when
     // future is destroyed
+  }
+
+  // NOLINTNEXTLINE (false-report)
+  void resume_coro() noexcept override {
+    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this).resume();
   }
 
   /// @brief Add this as a CoroListNode into reactor to be executed later
@@ -125,6 +130,9 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   Fut<T, E> get_return_object() noexcept;
+
+  /// @note C++20 coroutine's required method. For more detailed explanation check
+  ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static Fut<T, E> get_return_object_on_allocation_failure() noexcept;
 
   /// @note C++20 coroutine's required method. For more detailed explanation check
@@ -158,22 +166,21 @@ struct CoroutinePromiseType : CoroListNode {
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   template <std::convertible_to<Result<T, E>> U>
   void return_value(U &&value) noexcept {
-    assert(m_value.is_nothing());
+    // NOLINTBEGIN (false-report)
+    assert(m_future != nullptr);
+    assert(!m_future->completed());
     assert(!m_waiting_coro.done());
-    m_value.~Result();
-    new (&m_value) Result<T, E>{std::forward<U>(value)};
+    m_future->m_result.~Result();
+    new (&m_future->m_result) Result<T, E>{std::forward<U>(value)};
+    // NOLINTEND (false-report)
   }
 
 private:
-  std::coroutine_handle<> coro_from_this() noexcept override {
-    return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this);
-  }
-
   friend struct Fut<T, E>;
 
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
   Reactor &m_reactor;
-  Result<T, E> m_value;
+  Fut<T, E> *m_future = nullptr;
 };
 
 } // namespace detail
@@ -185,13 +192,28 @@ struct [[nodiscard("forgot to await?")]] Fut {
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   using promise_type = detail::CoroutinePromiseType<T, E>;
 
-  static Fut make_failed_to_allocate() noexcept {
-    return Fut<T, E>{nullptr};
+  /// @brief Create a future which is already ready. Usefull to guarantee that no coroutine frame is
+  ///        allocated
+  template <typename U>
+  static Fut make_ready(U &&result) noexcept {
+    return Fut<T, E>{std::forward<U>(result)};
   }
 
-  Fut(const Fut &) = delete;
-  Fut(Fut &&rhs) noexcept = default;
-  Fut &operator=(const Fut &) = delete;
+  /// @brief Create a future representing an allocation failure
+  static Fut make_failed_to_allocate() noexcept {
+    return make_ready(Failure{AllocationError{}});
+  }
+
+  Fut(Fut const &) = delete;
+  Fut(Fut &&rhs) noexcept
+      : m_handle{std::exchange(rhs.m_handle, nullptr)},
+        m_result{std::move(rhs.result())} {
+    if (m_handle) {
+      promise().m_future = this;
+    }
+  }
+
+  Fut &operator=(Fut const &) = delete;
   Fut &operator=(Fut &&rhs) noexcept {
     if (this != &rhs) {
       this->~Fut();
@@ -201,10 +223,14 @@ struct [[nodiscard("forgot to await?")]] Fut {
   }
 
   ~Fut() {
-    if (m_handle.value != nullptr) {
+    drop();
+  }
+
+  void drop() noexcept {
+    if (m_handle != nullptr) {
       Reactor &reactor = promise().m_reactor;
-      void *addr = m_handle.value.address();
-      m_handle.value.destroy();
+      void *addr = m_handle.address();
+      m_handle.destroy();
       reactor.allocator().deallocate(addr);
     }
   }
@@ -212,88 +238,110 @@ struct [[nodiscard("forgot to await?")]] Fut {
   /// @brief Tell if future is already available. General-purpose code shall not use this method
   ///         and just simply co_await a future
   [[nodiscard]] bool completed() const noexcept {
-    return m_handle.value == nullptr || !promise().m_value.is_nothing();
+    return !m_result.is_nothing();
   }
 
-  /// @brief Run reactor's event loop until this future is ready
-  Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
-    while (!completed()) {
-      COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
-    }
-    if (!m_handle.value) {
-      return Failure{AllocationError{}};
-    }
-    return std::move(promise().m_value);
+  /// @brief Get underlying result
+  /// @warn  Result is nothing if call to completed() evaluates to false
+  [[nodiscard]] Result<T, E> &result() noexcept {
+    return m_result;
+  }
+
+  /// @brief Get underlying result
+  /// @warn  Result is nothing if call to completed() evaluates to false
+  [[nodiscard]] Result<T, E> const &result() const noexcept {
+    return m_result;
   }
 
   /// @brief Run reactor's event loop until this future is ready and there is no more tasks in
   ///        reactor
-  Result<T, extend_error<E, SyscallError>> block_on_with_reactor_drain() && noexcept {
-    Result result = std::move(*this).block_on();
-    while (promise().m_reactor.has_active_tasks()) {
+  Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
+    while (!completed()) {
       COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
     }
-    return result;
+    return std::move(m_result);
   }
 
   /// @brief Await for result inside this future to become available
   auto operator co_await() && noexcept {
-    struct Awaiter {
-      Awaiter(const Awaiter &) = delete;
-      Awaiter(Awaiter &&) = delete;
-      Awaiter &operator=(const Awaiter &) = delete;
-      Awaiter &operator=(Awaiter &&) = delete;
+    return Awaiter<false>{*this};
+  }
 
-      [[nodiscard]] bool await_ready() const noexcept {
-        return m_future.completed();
-      }
-
-      void await_suspend(std::coroutine_handle<> h) const noexcept {
-        m_future.promise().m_waiting_coro = h;
-      }
-
-      Result<T, E> await_resume() const noexcept {
-        if (m_future.m_handle.value == nullptr) {
-          return Failure{AllocationError{}};
-        }
-
-        assert(!m_future.promise().m_value.is_nothing());
-        return std::move(m_future.promise().m_value);
-      }
-
-    private:
-      friend Fut;
-      Awaiter(Fut &future) noexcept
-          : m_future{future} {
-      }
-
-      Fut &m_future;
-    };
-
-    return Awaiter{*this};
+  /// @brief Awaiter from this function awaits for this future to become available. Coroutine result
+  ///        is not returned from co_await expression
+  /// @warn  It is user's responsibility to extend future's lifetime until the awaiter is ready if
+  ///        it is awaited
+  auto preserving_awaiter() & noexcept {
+    return Awaiter<true>{*this};
   }
 
 private:
-  Fut(std::coroutine_handle<promise_type> handle) noexcept
+  template <bool PRESERVE_RESULT>
+  struct Awaiter {
+    Awaiter(Awaiter const &) = delete;
+    Awaiter(Awaiter &&) = delete;
+    Awaiter &operator=(Awaiter const &) = delete;
+    Awaiter &operator=(Awaiter &&) = delete;
+
+    [[nodiscard]] bool await_ready() const noexcept {
+      return m_future.completed();
+    }
+
+    void await_suspend(std::coroutine_handle<> h) const noexcept {
+      m_future.promise().m_waiting_coro = h;
+    }
+
+    Result<T, E> await_resume() const noexcept
+      requires(!PRESERVE_RESULT)
+    {
+      assert(!m_future.m_result.is_nothing());
+      return std::move(m_future.m_result);
+    }
+
+    void await_resume() const noexcept
+      requires PRESERVE_RESULT
+    {
+    }
+
+  private:
+    friend Fut;
+    Awaiter(Fut &future) noexcept
+        : m_future{future} {
+    }
+
+    Fut &m_future;
+  };
+
+  explicit Fut(std::coroutine_handle<promise_type> handle) noexcept
       : m_handle{handle} {
+    promise().m_future = this;
+  }
+
+  template <typename U>
+    requires(!std::same_as<Fut, std::decay_t<U>>)
+  explicit Fut(U &&result) noexcept
+      : m_result{std::forward<U>(result)} {
   }
 
   promise_type &promise() noexcept {
-    return m_handle.value.promise();
+    return m_handle.promise();
   }
 
   promise_type const &promise() const noexcept {
-    return m_handle.value.promise();
+    return m_handle.promise();
   }
 
   friend promise_type;
 
-  SetDefaultOnMove<std::coroutine_handle<promise_type>, nullptr> m_handle;
+  std::coroutine_handle<promise_type> m_handle = nullptr;
+  Result<T, E> m_result = {};
 };
 
 template <typename T, typename E>
 Fut<T, E> detail::CoroutinePromiseType<T, E>::get_return_object() noexcept {
-  return Fut<T, E>{std::coroutine_handle<CoroutinePromiseType>::from_promise(*this)};
+  return Fut<T, E>{
+      std::coroutine_handle<CoroutinePromiseType>::from_promise(*this),
+  };
 }
 
 template <typename T, typename E>

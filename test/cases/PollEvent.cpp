@@ -1,14 +1,11 @@
 #include "corosig/PollEvent.hpp"
 
-#include "corosig/Background.hpp"
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Sleep.hpp"
 #include "corosig/io/Pipe.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
-
-#include <catch2/catch_test_macros.hpp>
 
 namespace {
 
@@ -22,12 +19,14 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_READ awaits until data available") {
     COROSIG_CO_TRY(auto pipes, PipePair::make());
 
     // Start a background task that will write data after a delay
-    auto writer = [](Reactor &reactor, PipeWrite write_pipe) -> BackgroundTask {
+    auto writer = [](Reactor &reactor, PipeWrite write_pipe) -> Fut<void> {
       co_await Sleep{10ms};
       constexpr std::string_view MSG = "test data";
       (void)co_await write_pipe.write(reactor, MSG);
+      co_return Ok{};
     };
-    COROSIG_REQUIRE(writer(r, std::move(pipes.write)));
+    auto fut = writer(r, std::move(pipes.write));
+    COROSIG_REQUIRE(!fut.completed() || fut.result().is_ok());
 
     // Poll for read readiness - should wait until writer writes
     co_await PollEvent{pipes.read.underlying_handle(), PollEventExpectance::CAN_READ};
@@ -40,7 +39,7 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_READ awaits until data available") {
     co_return Ok(42);
   };
 
-  auto res = foo(reactor).block_on_with_reactor_drain();
+  auto res = foo(reactor).block_on();
   COROSIG_REQUIRE(res);
   COROSIG_REQUIRE(res.value() == 42);
 }
@@ -60,7 +59,7 @@ COROSIG_SIGHANDLER_TEST_CASE("PollEvent CAN_WRITE awaits until writable") {
     co_return Ok(99);
   };
 
-  auto res = foo(reactor).block_on_with_reactor_drain();
+  auto res = foo(reactor).block_on();
   COROSIG_REQUIRE(res);
   COROSIG_REQUIRE(res.value() == 99);
 }

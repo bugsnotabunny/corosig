@@ -4,10 +4,12 @@
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <array>
-#include <boost/intrusive/avl_set.hpp>
-#include <boost/intrusive/avl_set_hook.hpp>
+#include <boost/intrusive/bs_set.hpp>
+#include <boost/intrusive/bs_set_hook.hpp>
+#include <boost/intrusive/intrusive_fwd.hpp>
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/options.hpp>
+#include <boost/intrusive/splay_set.hpp>
 #include <cassert>
 #include <cstddef>
 #include <span>
@@ -28,9 +30,9 @@ public:
   /// @brief Construct an Allocator over specified memory buffer
   Allocator(std::span<char> mem) noexcept;
 
-  Allocator(const Allocator &) = delete;
+  Allocator(Allocator const &) = delete;
   Allocator(Allocator &&) noexcept = default;
-  Allocator &operator=(const Allocator &) = delete;
+  Allocator &operator=(Allocator const &) = delete;
   Allocator &operator=(Allocator &&) noexcept = default;
 
   ~Allocator();
@@ -64,12 +66,10 @@ private:
       }
     };
 
-    using hook_type = boost::intrusive::avl_set_member_hook<
-        boost::intrusive::optimize_size<true>,
+    using hook_type = boost::intrusive::bs_set_member_hook<
         boost::intrusive::link_mode<boost::intrusive::link_mode_type::auto_unlink>>;
 
     hook_type nodes_by_addr_hook = {};
-    hook_type nodes_by_size_hook = {};
     size_t block_size;
   };
 
@@ -77,19 +77,12 @@ private:
   void link(FreeNode &) noexcept;
   void maybe_merge_with_next(FreeNode &) noexcept;
 
-  using nodes_by_size_type = boost::intrusive::avl_multiset<
-      FreeNode,
-      boost::intrusive::compare<FreeNode::CompareBlockSize>,
-      boost::intrusive::constant_time_size<false>,
-      boost::intrusive::member_hook<FreeNode, FreeNode::hook_type, &FreeNode::nodes_by_size_hook>>;
-
-  using nodes_by_addr_type = boost::intrusive::avl_multiset<
+  using nodes_by_addr_type = boost::intrusive::bs_multiset<
       FreeNode,
       boost::intrusive::compare<FreeNode::CompareAddress>,
       boost::intrusive::constant_time_size<false>,
       boost::intrusive::member_hook<FreeNode, FreeNode::hook_type, &FreeNode::nodes_by_addr_hook>>;
 
-  nodes_by_size_type m_nodes_by_size;
   nodes_by_addr_type m_nodes_by_addr;
   SetDefaultOnMove<size_t> m_used;
   SetDefaultOnMove<size_t> m_peak;

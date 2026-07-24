@@ -6,13 +6,16 @@
 
 namespace corosig {
 
-/// @brief Tell if T has an interface of an allocator
+/// @brief Concept to check if type has allocator interface
+/// @tparam ALLOCATOR Type to check
 template <typename ALLOCATOR>
 concept AnAllocator = requires(ALLOCATOR alloc, size_t n, size_t align, void *p) {
   { alloc.allocate(n, align) } noexcept -> std::same_as<void *>;
   { alloc.deallocate(p) } noexcept -> std::same_as<void>;
 };
 
+/// @brief Reference wrapper for allocator types
+/// @tparam ALLOCATOR Underlying allocator type
 template <AnAllocator ALLOCATOR>
 struct AllocatorRef {
   AllocatorRef(ALLOCATOR &alloc) noexcept

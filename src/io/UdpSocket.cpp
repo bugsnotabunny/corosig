@@ -61,7 +61,7 @@ Result<size_t, SyscallError> UdpSocket::try_recv_from(std::span<char> out,
   if (result == -1) {
     return Failure{SyscallError::current()};
   }
-  return size_t(result);
+  return static_cast<size_t>(result);
 }
 
 Fut<size_t, Error<AllocationError, SyscallError>>
@@ -81,7 +81,7 @@ Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> messag
   if (result == -1) {
     return Failure{SyscallError::current()};
   }
-  return size_t(result);
+  return static_cast<size_t>(result);
 }
 
 void UdpSocket::close() noexcept {

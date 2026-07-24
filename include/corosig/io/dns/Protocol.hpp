@@ -23,6 +23,7 @@
 
 namespace corosig::dns {
 
+/// @brief Error type for DNS question encoding failures
 struct QuestionEncodeError {
   enum Value : uint8_t {
     TOO_LONG_DOMAIN_NAME,
@@ -34,11 +35,12 @@ struct QuestionEncodeError {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const QuestionEncodeError &) const noexcept = default;
+  constexpr auto operator<=>(QuestionEncodeError const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
 
+/// @brief Error type for DNS response decoding failures
 struct ResponseDecodeError {
   enum Value : uint8_t {
     WRONG_HEADER_BYTES_COUNT,
@@ -73,11 +75,12 @@ struct ResponseDecodeError {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const ResponseDecodeError &) const noexcept = default;
+  constexpr auto operator<=>(ResponseDecodeError const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
 
+/// @brief DNS server response codes
 struct ServerResponseCode {
   enum Value : uint8_t {
     NOERROR = 0,
@@ -92,11 +95,12 @@ struct ServerResponseCode {
       : value{v} {
   }
 
-  constexpr auto operator<=>(const ServerResponseCode &) const noexcept = default;
+  constexpr auto operator<=>(ServerResponseCode const &) const noexcept = default;
 
   [[nodiscard]] std::string_view description() const noexcept;
 };
 
+/// @brief DNS query resource record types
 enum class QueryType : uint8_t {
   /// @brief Requests an IPv4 address
   A = 1,
@@ -163,6 +167,7 @@ enum class QueryType : uint8_t {
   ANY = 255,
 };
 
+/// @brief DNS query classes
 enum class QueryClass : uint8_t {
   /// @brief Internet
   IN = 1,
@@ -182,6 +187,7 @@ enum class QueryClass : uint8_t {
   ANY = 255,
 };
 
+/// @brief DNS query opcodes
 enum class QueryOpcode : uint8_t {
   STANDARD = 0,
   /// OBSOLETE
@@ -189,6 +195,7 @@ enum class QueryOpcode : uint8_t {
   STATUS = 2,
 };
 
+/// @brief DNS message header
 struct Header {
   struct Flags {
     [[nodiscard]] bool is_response() const noexcept;
@@ -229,12 +236,13 @@ struct Header {
   uint16_t arcount = 0;
 };
 
+/// @brief DNS query question
 struct Question {
   uint16_t id;
   QueryOpcode opcode = QueryOpcode::STANDARD;
   bool recursion_desired = true;
   std::string_view name;
-  QueryType qtype;
+  QueryType qtype = QueryType::ANY;
   QueryClass qclass = QueryClass::IN;
 };
 
@@ -284,6 +292,9 @@ private:
   uint8_t const *m_self_start;
 };
 
+/// @brief Split domain name into labels
+/// @param sv Domain name string view
+/// @returns Range of label string views
 inline std::ranges::range auto split_into_labels(std::string_view sv) noexcept {
   if (sv.ends_with('.')) {
     sv.remove_suffix(1);
@@ -293,55 +304,67 @@ inline std::ranges::range auto split_into_labels(std::string_view sv) noexcept {
          std::views::transform([](auto &&r) { return std::string_view{r.begin(), r.size()}; });
 }
 
+/// @brief DNS character string (RFC 1035)
 struct CharacterString {
   std::span<uint8_t const> data;
 };
 
 using seconds = std::chrono::duration<uint32_t>;
 
+/// @brief DNS CNAME resource record data
 struct RDataCanonicalName {
   DomainName cname;
 };
 
+/// @brief DNS HINFO resource record data
 struct RDataHardwareInfo {
   CharacterString cpu;
   CharacterString os;
 };
 
+/// @brief DNS MB resource record data
 struct RDataMailbox {
   DomainName madname;
 };
 
+/// @brief DNS MG resource record data
 struct RDataMailGroup {
   DomainName madname;
 };
 
+/// @brief DNS MINFO resource record data
 struct RDataMailInfo {
   DomainName rmailbx;
   DomainName emailbx;
 };
 
+/// @brief DNS MR resource record data
 struct RDataMailboxRename {
   DomainName newname;
 };
 
+/// @brief DNS MX resource record data
 struct RDataMailExchange {
   DomainName exchange;
   uint16_t preference;
 };
 
+/// @brief DNS NULL resource record data
 struct RDataNull {
   std::span<uint8_t const> anything;
 };
 
+/// @brief DNS NS resource record data
 struct RDataNameServer {
   DomainName nsdname;
 };
 
+/// @brief DNS PTR resource record data
 struct RDataPtr {
   DomainName ptrdname;
 };
 
+/// @brief DNS SOA resource record data
 struct RDataStartOfAuthority {
   DomainName mname;
   DomainName rname;
@@ -352,24 +375,29 @@ struct RDataStartOfAuthority {
   seconds minimum_ttl;
 };
 
+/// @brief DNS A resource record data
 struct RDataIpv4 {
   Ipv4Addr addr;
 };
 
+/// @brief DNS AAAA resource record data
 struct RDataIpv6 {
   Ipv6Addr addr;
 };
 
+/// @brief Obsolete DNS resource record data
 struct RDataObsolete {
   uint16_t type;
   std::span<uint8_t const> raw;
 };
 
+/// @brief Not yet supported DNS resource record data
 struct RDataNotYetSupported {
   uint16_t type;
   std::span<uint8_t const> raw;
 };
 
+/// @brief DNS resource record data union
 struct RData : Variant<RDataCanonicalName,
                        RDataHardwareInfo,
                        RDataMailbox,
@@ -388,6 +416,7 @@ struct RData : Variant<RDataCanonicalName,
   using Variant::Variant;
 };
 
+/// @brief DNS resource record
 struct ResourceRecord {
   DomainName name;
   [[no_unique_address]] RData rdata;
@@ -400,8 +429,8 @@ constexpr auto FQDN_MAX_OCTET_LEN = 255;
 
 template <std::output_iterator<char> OUT>
 constexpr OUT write_hton(OUT out, uint16_t value) {
-  *out++ = char((value >> 8) & 0xFF);
-  *out++ = char(value & 0xFF);
+  *out++ = static_cast<char>((value >> 8) & 0xFF);
+  *out++ = static_cast<char>(value & 0xFF);
   return out;
 };
 
@@ -421,7 +450,7 @@ struct CompressionPointer {
   constexpr static uint16_t MARKER_BITS = 0xC000;
   constexpr static uint16_t MAX_VALUE = 0x3FFF;
 
-  constexpr auto operator<=>(const CompressionPointer &) const noexcept = default;
+  constexpr auto operator<=>(CompressionPointer const &) const noexcept = default;
 
   uint16_t offset = 0;
 };
@@ -438,9 +467,9 @@ template <AnAllocator ALLOCATOR>
 struct CompressionMap {
   struct Node {
     explicit Node(std::string_view s, uint16_t offset) noexcept
-        : hash{uint16_t(std::hash<std::string_view>{}(s))},
+        : hash{static_cast<uint16_t>(std::hash<std::string_view>{}(s))},
           offset{offset},
-          strlen{uint32_t(s.size())},
+          strlen{static_cast<uint32_t>(s.size())},
           str{s.data()} {
     }
 
@@ -538,7 +567,7 @@ write_label(CountingOutputIterator<OUT> out,
             std::string_view label,
             std::string_view remaining_name,
             CompressionMap<ALLOCATOR> &compression_map) {
-  if (label.size() == 0) {
+  if (label.empty()) {
     return Failure{QuestionEncodeError::EMPTY_LABEL};
   }
   if (label.size() > 63) {
@@ -565,7 +594,7 @@ write_label(CountingOutputIterator<OUT> out,
     (void)compression_map.insert(node);
   }
 
-  *out++ = char(label.size());
+  *out++ = static_cast<char>(label.size());
   return WriteLabelSuccess{
       .out = std::ranges::copy(label, out).out,
       .all_compressed = false,
@@ -596,6 +625,7 @@ encode_domain_name(CountingOutputIterator<OUT> out,
 
 } // namespace detail
 
+/// @brief Success result from decoding DNS question entry
 struct DecodeQuestionEntrySuccess {
 
   DomainName name;
@@ -603,6 +633,7 @@ struct DecodeQuestionEntrySuccess {
   QueryClass qclass = QueryClass::IN;
 };
 
+/// @brief DNS response message decoder
 struct ResponseDecoder {
   ResponseDecoder(std::span<uint8_t const> response) noexcept;
 
@@ -617,6 +648,13 @@ private:
   std::span<uint8_t const> m_remaining_message = m_original_message;
 };
 
+/// @brief Encode DNS question into output iterator
+/// @tparam OUT Output iterator type
+/// @tparam ALLOCATOR Allocator type for compression map
+/// @param out Output iterator to write to
+/// @param question Question to encode
+/// @param alloc Allocator to use during encoding
+/// @returns Updated output iterator or encoding error
 template <std::output_iterator<char> OUT, AnAllocator ALLOCATOR>
 constexpr Result<OUT, QuestionEncodeError>
 encode_question(OUT out, Question question, ALLOCATOR &&alloc) {
@@ -637,8 +675,8 @@ encode_question(OUT out, Question question, ALLOCATOR &&alloc) {
 
   COROSIG_TRY(counting_out,
               detail::encode_domain_name(counting_out, question.name, compression_map));
-  counting_out = detail::write_hton(counting_out, uint16_t(question.qtype));
-  counting_out = detail::write_hton(counting_out, uint16_t(question.qclass));
+  counting_out = detail::write_hton(counting_out, static_cast<uint16_t>(question.qtype));
+  counting_out = detail::write_hton(counting_out, static_cast<uint16_t>(question.qclass));
 
   return counting_out.underlying_iter();
 }

@@ -32,12 +32,6 @@ struct PollListNode
   PollEventExpectance event;
 };
 
-/// @brief A list of coroutines stopped due to await of some IO-related events
-using PollList = boost::intrusive::list<PollListNode,
-                                        boost::intrusive::constant_time_size<false>,
-                                        boost::intrusive::linear<true>,
-                                        boost::intrusive::cache_last<true>>;
-
 } // namespace corosig
 
 #endif

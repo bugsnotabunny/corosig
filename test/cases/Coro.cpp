@@ -37,7 +37,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor transfers ownership") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor with nontrivial move") {
-  using MoveType = SetDefaultOnMove<double, double(2 << 10)>;
+  using MoveType = SetDefaultOnMove<double, static_cast<double>(2 << 10)>;
 
   auto foo = [](Reactor &) -> Fut<MoveType> { co_return Ok{MoveType{123.0}}; };
 

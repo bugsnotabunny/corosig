@@ -9,9 +9,11 @@
 namespace corosig {
 
 /// @brief A variant class with more convenient interface
+/// @tparam ALTS Alternative types
 template <typename... ALTS>
 struct Variant : std::variant<ALTS...> {
 private:
+  /// @brief Check if type lists contain same types (possibly in different order)
   template <typename... ALTS_OTHER>
   struct IsSameListButShuffled {
     constexpr static bool value = // NOLINT readability-identifier-naming

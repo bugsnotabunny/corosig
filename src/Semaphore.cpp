@@ -32,8 +32,8 @@ Semaphore::HolderAwaiter::HolderAwaiter(Semaphore &semaphore, size_t units) noex
       m_units{units} {
 }
 
-std::coroutine_handle<> Semaphore::HolderAwaiter::coro_from_this() noexcept {
-  return m_waiting_coro;
+void Semaphore::HolderAwaiter::resume_coro() noexcept {
+  return m_waiting_coro.resume();
 }
 
 [[nodiscard]] bool Semaphore::HolderAwaiter::await_ready() noexcept {

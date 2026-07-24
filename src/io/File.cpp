@@ -62,7 +62,9 @@ Fut<File, Error<AllocationError, SyscallError>>
 File::open(Reactor &, char const *path, OpenFlags flags, OpenPerms perms) noexcept {
   // Actually a blocking open. Future is used as interface in order to provide capability for other
   // systems to implement nonblocking open
-  int fd = ::open(path, int(flags) | O_NONBLOCK, int(perms) | S_IRWXU | S_IRWXG | S_IRWXO);
+  int fd = ::open(path,
+                  static_cast<int>(flags) | O_NONBLOCK,
+                  static_cast<int>(perms) | S_IRWXU | S_IRWXG | S_IRWXO);
   if (fd == -1) {
     co_return Failure{SyscallError::current()};
   }

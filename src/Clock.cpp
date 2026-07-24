@@ -14,7 +14,8 @@ duration clock_gettime_ns(int clock) {
   if (::clock_gettime(clock, &ts) == -1) {
     return duration{-1};
   }
-  return duration{rep(ts.tv_sec) * period::den / period::num + rep(ts.tv_nsec)};
+  return duration{static_cast<rep>(ts.tv_sec) * period::den / period::num +
+                  static_cast<rep>(ts.tv_nsec)};
 }
 
 } // namespace

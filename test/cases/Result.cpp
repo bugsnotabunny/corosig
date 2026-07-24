@@ -61,8 +61,8 @@ COROSIG_SIGHANDLER_TEST_CASE("Result holding reference to value") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Result holding const reference") {
-  const int value = 42;
-  Result<const int &, std::string_view> r{std::cref(value)};
+  int const value = 42;
+  Result<int const &, std::string_view> r{std::cref(value)};
   COROSIG_REQUIRE(r.is_ok());
   COROSIG_REQUIRE(r.value() == 42);
 }
@@ -95,7 +95,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Access value from non-const lvalue") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Access value from const lvalue") {
-  const Result<int, std::string_view> r = Ok(42);
+  Result<int, std::string_view> const r = Ok(42);
   COROSIG_REQUIRE(r.value() == 42);
 }
 
@@ -118,7 +118,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Access error from non-const lvalue") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Access error from const lvalue") {
-  const Result<int, std::string_view> r = Failure(std::string_view("error"));
+  Result<int, std::string_view> const r = Failure(std::string_view("error"));
   COROSIG_REQUIRE(r.error() == "error");
 }
 

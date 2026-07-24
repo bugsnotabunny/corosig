@@ -1,9 +1,10 @@
 # https://devenv.sh/
 { pkgs, ... }: {
   packages = with pkgs; [
-    llvmPackages_21.clang-tools
-    llvmPackages_21.bintools
-    llvmPackages_19.libstdcxxClang
+    llvmPackages_latest.clang-tools
+    llvmPackages_latest.bintools
+    llvmPackages_latest.libstdcxxClang
+    gcc_latest
     doxygen
     xmake
     gdb

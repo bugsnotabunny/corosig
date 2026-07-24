@@ -4,6 +4,7 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/reactor/CoroList.hpp"
+#include "corosig/reactor/GcList.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
@@ -12,98 +13,21 @@
 #include <chrono>
 #include <coroutine>
 #include <cstddef>
-#include <ratio>
 #include <sys/poll.h>
-
-namespace {
-
-using namespace corosig;
-
-using int_milliseconds_type = std::chrono::duration<int, std::milli>;
-
-constexpr auto ITERATIONS_LIMIT = 1024;
-
-void resume_ready_sleepers(SleepList &sleeping) noexcept {
-  if (sleeping.empty()) {
-    return;
-  }
-
-  auto now = SteadyClock::now();
-  for (size_t i = 0; !sleeping.empty() && i < ITERATIONS_LIMIT; ++i) {
-    SleepListNode &node = *sleeping.begin();
-    if (node.awake_time > now) {
-      break;
-    }
-    sleeping.erase(node);
-    assert(node.waiting_coro != nullptr);
-    assert(!node.waiting_coro.done());
-    node.waiting_coro.resume();
-  }
-}
-
-Result<void, SyscallError> poll_and_resume(PollList &polled,
-                                           int_milliseconds_type timeout) noexcept {
-  if (polled.empty()) {
-    return Ok{};
-  }
-
-  constexpr size_t BUF_SIZE = 32;
-  std::array<::pollfd, BUF_SIZE> poll_fds;
-
-  size_t fds_count = 0;
-  for (auto it = polled.begin(); it != polled.end() && fds_count < BUF_SIZE; ++fds_count, ++it) {
-    PollListNode &node = *it;
-    assert(node.handle != -1);
-
-    ::pollfd &poll_fd = poll_fds[fds_count];
-    poll_fd.fd = node.handle;
-    poll_fd.events = short(node.event);
-  }
-
-  int ret = ::poll(poll_fds.data(), fds_count, timeout.count());
-  if (ret == -1) {
-    return Failure{SyscallError::current()};
-  }
-
-  // polled list may become empty if some coroutine cancels execution which may trigger deletion of
-  // some of list nodes
-  for (size_t i = 0; !polled.empty() && i < size_t(ret); ++i) {
-    PollListNode &node = polled.front();
-    // list node was deleted due to coroutine cancelling
-    if (poll_fds[i].fd != node.handle) {
-      continue;
-    }
-
-    polled.pop_front();
-
-    assert(node.waiting_coro != nullptr);
-    assert(!node.waiting_coro.done());
-    node.waiting_coro.resume();
-  }
-  return Ok{};
-}
-
-void resume(CoroList &ready) noexcept {
-  for (size_t i = 0; !ready.empty() && i < ITERATIONS_LIMIT; ++i) {
-    auto &node = ready.front();
-    ready.pop_front();
-    auto coro = node.coro_from_this();
-    assert(coro != nullptr);
-    assert(!coro.done());
-    coro.resume();
-  }
-}
-
-int_milliseconds_type ceil_to_millis(std::chrono::nanoseconds nanos) noexcept {
-  return std::chrono::ceil<int_milliseconds_type>(nanos);
-}
-
-} // namespace
 
 namespace corosig {
 
 Reactor::Reactor(std::span<char> mem) noexcept
     : m_alloc{mem} {
+  if (m_poll_buf.reserve(MIN_POLL_BUFFER)) {
+    m_poll_and_resume_method = &Reactor::poll_and_resume_normal;
+  } else {
+    m_poll_and_resume_method = &Reactor::poll_and_resume_fallback;
+  }
+}
+
+Reactor::~Reactor() {
+  gc();
 }
 
 Allocator &Reactor::allocator() noexcept {
@@ -112,6 +36,10 @@ Allocator &Reactor::allocator() noexcept {
 
 void Reactor::schedule(CoroListNode &node) noexcept {
   m_ready.push_back(node);
+}
+
+void Reactor::destroy_later(GcListNode &to_gc) noexcept {
+  m_gc_list.push_front(to_gc);
 }
 
 void Reactor::schedule_when_ready(PollListNode &node) noexcept {
@@ -136,8 +64,11 @@ size_t Reactor::current_memory() const noexcept {
 
 Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   assert(has_active_tasks() && "Nothing to process. Deadlock will happen");
-  resume_ready_sleepers(m_sleeping);
-  resume(m_ready);
+
+  gc();
+  resume_ready_sleepers();
+
+  resume_ready();
 
   using namespace std::chrono_literals;
   int_milliseconds_type poll_timeout = -1ms;
@@ -148,7 +79,136 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
         0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
   }
 
-  return poll_and_resume(m_polled, poll_timeout);
+  return std::invoke(&Reactor::poll_and_resume_fallback, this, poll_timeout);
+}
+
+Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type timeout) noexcept {
+  if (m_polled.empty()) {
+    return Ok{};
+  }
+
+  size_t shrink_threshold = m_poll_buf.size() / 2;
+  if (m_previous_iteration_buffer > MIN_POLL_BUFFER &&
+      m_previous_iteration_buffer < shrink_threshold) {
+    if (m_poll_buf.resize(shrink_threshold)) {
+      (void)m_poll_buf.shrink_to_fit();
+    }
+  }
+
+  m_poll_buf.clear();
+  for (PollListNode const &node : m_polled) {
+    assert(node.handle != -1);
+
+    auto poll_fd = ::pollfd{
+        .fd = node.handle,
+        .events = static_cast<short>(node.event),
+        .revents = {},
+    };
+    if (auto res = m_poll_buf.push_back(poll_fd); !res) {
+      break;
+    }
+  }
+  m_previous_iteration_buffer = m_poll_buf.size();
+
+  return poll_and_resume_impl(m_poll_buf, timeout);
+}
+
+Result<void, SyscallError>
+Reactor::poll_and_resume_fallback(int_milliseconds_type timeout) noexcept {
+  if (m_polled.empty()) {
+    return Ok{};
+  }
+
+  constexpr size_t BUF_SIZE = 64;
+  std::array<::pollfd, BUF_SIZE> poll_fds;
+
+  size_t fds_count = 0;
+  for (auto it = m_polled.begin(); it != m_polled.end() && fds_count < BUF_SIZE;
+       ++fds_count, ++it) {
+    PollListNode &node = *it;
+    assert(node.handle != -1);
+
+    ::pollfd &poll_fd = poll_fds[fds_count];
+    poll_fd.fd = node.handle;
+    poll_fd.events = static_cast<short>(node.event);
+  }
+
+  return poll_and_resume_impl(std::span{poll_fds.data(), fds_count}, timeout);
+}
+
+Result<void, SyscallError> Reactor::poll_and_resume_impl(std::span<::pollfd> poll_fds,
+                                                         int_milliseconds_type timeout) noexcept {
+  int ret = ::poll(poll_fds.data(), poll_fds.size(), timeout.count());
+  if (ret == -1) {
+    return Failure{SyscallError::current()};
+  }
+
+  // polled list may become empty if some coroutine cancels execution which may trigger deletion
+  // of some of list nodes
+  for (size_t i = 0; !m_polled.empty() && i < static_cast<size_t>(ret); ++i) {
+    PollListNode &node = m_polled.front();
+    // list node was deleted due to coroutine cancelling
+    if (poll_fds[i].fd != node.handle) {
+      continue;
+    }
+
+    m_polled.pop_front();
+
+    assert(node.waiting_coro != nullptr);
+    assert(!node.waiting_coro.done());
+    node.waiting_coro.resume();
+  }
+
+  return Ok{};
+}
+
+bool &Reactor::ref_current_coro_was_allocated() noexcept {
+  return m_current_coro_was_allocated;
+}
+
+Result<void, SyscallError> Reactor::drain_remaining_tasks() noexcept {
+  while (has_active_tasks()) {
+    COROSIG_TRYV(do_event_loop_iteration());
+  }
+  gc();
+  return Ok{};
+}
+
+Reactor::int_milliseconds_type Reactor::ceil_to_millis(std::chrono::nanoseconds nanos) noexcept {
+  return std::chrono::ceil<int_milliseconds_type>(nanos);
+}
+
+void Reactor::resume_ready() noexcept {
+  // snapshot of all ready coros is taken to prevent deadlocks in case when the only one yield task
+  // is pushed in a loop
+  auto &ready = m_ready;
+  while (!ready.empty()) {
+    auto &node = ready.front();
+    ready.pop_front();
+    node.resume_coro();
+  }
+}
+
+void Reactor::gc() noexcept {
+  m_gc_list.clear_and_dispose([](GcListNode *node) { node->destroy(); });
+}
+
+void Reactor::resume_ready_sleepers() noexcept {
+  if (m_sleeping.empty()) {
+    return;
+  }
+
+  auto now = SteadyClock::now();
+  while (!m_sleeping.empty()) {
+    SleepListNode &node = *m_sleeping.begin();
+    if (node.awake_time > now) {
+      break;
+    }
+    m_sleeping.erase(node);
+    assert(node.waiting_coro != nullptr);
+    assert(!node.waiting_coro.done());
+    node.waiting_coro.resume();
+  }
 }
 
 } // namespace corosig

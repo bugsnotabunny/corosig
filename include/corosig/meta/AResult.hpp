@@ -24,6 +24,8 @@ concept AResult = requires(R r) {
   { r.is_ok() } -> std::convertible_to<bool>;
   { r.value() };
   { r.error() };
+  typename R::failure_type;
+  typename R::ok_type;
 };
 
 } // namespace corosig

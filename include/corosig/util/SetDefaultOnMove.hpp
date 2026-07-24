@@ -7,8 +7,11 @@
 
 namespace corosig {
 
-/// @brief Write default value into moved object when it is moved. Mostly for usage with trivial
-///        types since nontrivial types often provide a reasonable enough move ctor/operator
+/// @brief Write default value into moved object when it is moved
+/// @details Mostly for usage with trivial types since nontrivial types often provide a reasonable
+///          enough move ctor/operator
+/// @tparam T Value type
+/// @param DEFAULT Default value to set on move (defaults to T{})
 template <typename T, auto DEFAULT = T{}>
 struct SetDefaultOnMove {
   constexpr SetDefaultOnMove() noexcept = default;
@@ -23,14 +26,14 @@ struct SetDefaultOnMove {
       : value{std::exchange(rhs.value, DEFAULT)} {
   }
 
-  constexpr SetDefaultOnMove(const SetDefaultOnMove &) = delete;
+  constexpr SetDefaultOnMove(SetDefaultOnMove const &) = delete;
 
   constexpr SetDefaultOnMove &operator=(SetDefaultOnMove &&rhs) noexcept {
     value = std::exchange(rhs.value, DEFAULT);
     return *this;
   }
 
-  constexpr SetDefaultOnMove &operator=(const SetDefaultOnMove &) = delete;
+  constexpr SetDefaultOnMove &operator=(SetDefaultOnMove const &) = delete;
 
   constexpr T *operator->() noexcept {
     return std::addressof(value);

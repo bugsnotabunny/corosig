@@ -66,6 +66,9 @@ struct [[nodiscard]] Result {
                                       RWrapVoid>;
 
 public:
+  using ok_type = R;
+  using failure_type = E;
+
   constexpr Result() noexcept = default;
 
   /// @brief Construct a result holding a value
@@ -219,13 +222,13 @@ private:
 #define COROSIG_TRY_UNIQUE_NAME(NAME) COROSIG_TRY_UNIQUE_NAME1(NAME, __LINE__)
 
 #define COROSIG_TRY_IMPL(NAME, TEMPORARY_NAME, RETURN, ...)                                        \
-  auto TEMPORARY_NAME = __VA_ARGS__;                                                               \
+  decltype(auto) TEMPORARY_NAME = __VA_ARGS__;                                                     \
   if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                                \
     if (!TEMPORARY_NAME.is_ok()) {                                                                 \
-      RETURN ::corosig::Failure{::std::move(TEMPORARY_NAME.error())};                              \
+      RETURN ::corosig::Failure{::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()}; \
     }                                                                                              \
   }                                                                                                \
-  NAME = ::std::move(TEMPORARY_NAME.value())
+  NAME = ::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).value();
 
 /// @brief Assign a value from __VA_ARGS__ into NAME. If error occurs, return it
 #define COROSIG_TRY(NAME, ...)                                                                     \
@@ -241,7 +244,8 @@ private:
     auto TEMPORARY_NAME = __VA_ARGS__;                                                             \
     if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                              \
       if (!TEMPORARY_NAME.is_ok()) {                                                               \
-        RETURN ::corosig::Failure{::std::move(TEMPORARY_NAME.error())};                            \
+        RETURN ::corosig::Failure{                                                                 \
+            ::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()};                     \
       }                                                                                            \
     }                                                                                              \
   } while (false)
@@ -258,10 +262,11 @@ private:
   auto TEMPORARY_NAME = __VA_ARGS__;                                                               \
   if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                                \
     if (!TEMPORARY_NAME.is_ok()) {                                                                 \
-      RETURN static_cast<TYPE>(::corosig::Failure{::std::move(TEMPORARY_NAME.error())});           \
+      RETURN static_cast<TYPE>(                                                                    \
+          ::corosig::Failure{::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()});   \
     }                                                                                              \
   }                                                                                                \
-  NAME = ::std::move(TEMPORARY_NAME.value())
+  NAME = ::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).value()
 
 /// @brief  Assign a value from __VA_ARGS__ into NAME. If error occurs, cast it to TYPE and return
 ///          it. Use this macro with functions returning auto
@@ -274,7 +279,8 @@ private:
     auto TEMPORARY_NAME = __VA_ARGS__;                                                             \
     if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                              \
       if (!TEMPORARY_NAME.is_ok()) {                                                               \
-        RETURN static_cast<TYPE>(::corosig::Failure{::std::move(TEMPORARY_NAME.error())});         \
+        RETURN static_cast<TYPE>(                                                                  \
+            ::corosig::Failure{::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()}); \
       }                                                                                            \
     }                                                                                              \
   } while (false)
