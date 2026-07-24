@@ -219,7 +219,7 @@ int main() {
     std::cout << "Remote UDP server received\n" << remote_tcp_server_data << '\n';
 
     return EXIT_SUCCESS;
-  } catch (const std::exception &e) {
+  } catch (std::exception const &e) {
     std::cout << e.what() << '\n';
     return EXIT_FAILURE;
   }

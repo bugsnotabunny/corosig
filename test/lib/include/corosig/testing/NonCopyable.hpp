@@ -11,9 +11,9 @@ struct NonCopyable {
       : value{v} {
   }
 
-  NonCopyable(const NonCopyable &) = delete;
+  NonCopyable(NonCopyable const &) = delete;
   NonCopyable(NonCopyable &&) noexcept = default;
-  NonCopyable &operator=(const NonCopyable &) = delete;
+  NonCopyable &operator=(NonCopyable const &) = delete;
   NonCopyable &operator=(NonCopyable &&) noexcept = default;
 
   constexpr auto operator<=>(NonCopyable const &) const noexcept = default;

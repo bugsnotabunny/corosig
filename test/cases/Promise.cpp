@@ -201,7 +201,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise used in coroutine producer-consumer") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Set value with const reference type") {
-  const int const_value = 777;
+  int const const_value = 777;
 
   auto result = Promise<int>::make(reactor);
   COROSIG_REQUIRE(result.is_ok());

@@ -52,7 +52,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr parse valid addresses", "[ipv4]") {
       {.input = "001.002.003.004", .expected = {1, 2, 3, 4}},
   });
 
-  for (const auto &test : tests) {
+  for (auto const &test : tests) {
     auto result = Ipv4Addr::parse(test.input);
     COROSIG_REQUIRE(result.has_value());
     COROSIG_REQUIRE(result->value() == Ipv4Addr::from_bytes(test.expected).value());
@@ -107,7 +107,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr", "[ipv4]") {
   uint16_t port = 8080;
 
   auto storage = addr.to_sockaddr(port);
-  const auto *sockaddr = reinterpret_cast<const sockaddr_in *>(&storage.native_storage);
+  auto const *sockaddr = reinterpret_cast<sockaddr_in const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin_family == AF_INET);
   COROSIG_REQUIRE(sockaddr->sin_port == htons(port));
@@ -183,7 +183,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr parse_mapped_ipv4", "[ipv6]") {
     COROSIG_REQUIRE(ipv6_bytes[1] == 0);
   };
 
-  for (const auto &test : tests) {
+  for (auto const &test : tests) {
     auto expected_ipv4 = Ipv4Addr::parse(test.expected_ipv4).value();
 
     auto result1 = Ipv6Addr::parse_mapped_ipv4(test.input);
@@ -269,7 +269,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr parse_regular valid", "[ipv6]") {
       },
   });
 
-  for (const auto &test : tests) {
+  for (auto const &test : tests) {
     auto result = Ipv6Addr::parse_regular(test.input);
     COROSIG_REQUIRE(result.has_value());
     COROSIG_REQUIRE(*result == test.expected);
@@ -299,7 +299,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr roundtrip", "[ipv4]") {
   uint16_t port = 8080;
 
   auto storage = addr.to_sockaddr(port);
-  const auto *sockaddr = reinterpret_cast<const sockaddr_in *>(&storage.native_storage);
+  auto const *sockaddr = reinterpret_cast<sockaddr_in const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin_family == AF_INET);
   COROSIG_REQUIRE(sockaddr->sin_port == htons(port));
@@ -318,7 +318,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr roundtrip", "[ipv6]") {
   uint16_t port = 8080;
 
   auto storage = addr.to_sockaddr(port);
-  const auto *sockaddr = reinterpret_cast<const sockaddr_in6 *>(&storage.native_storage);
+  auto const *sockaddr = reinterpret_cast<sockaddr_in6 const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin6_family == AF_INET6);
   COROSIG_REQUIRE(sockaddr->sin6_port == htons(port));
@@ -381,14 +381,14 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr", "[ipv6]") {
   uint16_t port = 8080;
 
   auto storage = addr.to_sockaddr(port);
-  const auto *sockaddr = reinterpret_cast<const sockaddr_in6 *>(&storage.native_storage);
+  auto const *sockaddr = reinterpret_cast<sockaddr_in6 const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin6_family == AF_INET6);
   COROSIG_REQUIRE(sockaddr->sin6_port == htons(port));
 
   // Verify address by converting back
   std::array<char, INET6_ADDRSTRLEN> buffer;
-  const char *str = inet_ntop(AF_INET6, &sockaddr->sin6_addr, buffer.data(), sizeof(buffer));
+  char const *str = inet_ntop(AF_INET6, &sockaddr->sin6_addr, buffer.data(), sizeof(buffer));
   COROSIG_REQUIRE(str != nullptr);
   COROSIG_REQUIRE(std::string(str) == "2001:db8::1");
 }
