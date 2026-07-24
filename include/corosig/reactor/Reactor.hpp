@@ -87,6 +87,8 @@ private:
                                                boost::intrusive::cache_last<false>,
                                                boost::intrusive::constant_time_size<false>>;
 
+  constexpr static auto MIN_POLL_BUFFER = 64;
+
   void resume_ready_sleepers() noexcept;
   void resume_ready() noexcept;
   void gc() noexcept;
@@ -103,7 +105,7 @@ private:
   CoroList m_ready;
   SleepList m_sleeping;
   Allocator m_alloc;
-  size_t m_previous_iteration_buffer;
+  size_t m_previous_iteration_buffer{MIN_POLL_BUFFER};
   Vector<::pollfd> m_poll_buf{m_alloc};
   Result<void, SyscallError> (Reactor::*m_poll_and_resume_method)(int_milliseconds_type);
   bool m_current_coro_was_allocated = false;

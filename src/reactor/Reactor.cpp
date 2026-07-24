@@ -15,20 +15,11 @@
 #include <cstddef>
 #include <sys/poll.h>
 
-namespace {
-
-using namespace corosig;
-
-constexpr auto MIN_REACTOR_POLL_BUFFER = 64;
-
-} // namespace
-
 namespace corosig {
 
 Reactor::Reactor(std::span<char> mem) noexcept
-    : m_alloc{mem},
-      m_previous_iteration_buffer{MIN_REACTOR_POLL_BUFFER} {
-  if (m_poll_buf.reserve(MIN_REACTOR_POLL_BUFFER)) {
+    : m_alloc{mem} {
+  if (m_poll_buf.reserve(MIN_POLL_BUFFER)) {
     m_poll_and_resume_method = &Reactor::poll_and_resume_normal;
   } else {
     m_poll_and_resume_method = &Reactor::poll_and_resume_fallback;
@@ -97,7 +88,7 @@ Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type
   }
 
   size_t shrink_threshold = m_poll_buf.size() / 2;
-  if (m_previous_iteration_buffer > MIN_REACTOR_POLL_BUFFER &&
+  if (m_previous_iteration_buffer > MIN_POLL_BUFFER &&
       m_previous_iteration_buffer < shrink_threshold) {
     if (m_poll_buf.resize(shrink_threshold)) {
       (void)m_poll_buf.shrink_to_fit();
