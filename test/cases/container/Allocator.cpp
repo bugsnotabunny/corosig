@@ -5,6 +5,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <memory>
 #include <random>
 
 namespace {
@@ -13,16 +15,23 @@ using namespace corosig;
 
 constexpr size_t DEFAULT_ALIGN = alignof(std::max_align_t);
 
+void *allocate_and_memset(Allocator &alloc, size_t size, size_t align) noexcept {
+  void *p1 = alloc.allocate(size, align);
+  assert(p1);
+  std::memset(p1, 0, size);
+  return p1;
+}
+
 } // namespace
 
 COROSIG_SIGHANDLER_TEST_CASE("Allocation and freeing within capacity") {
   Allocator::Memory<1024> mem;
   Allocator alloc{mem};
 
-  void *p1 = alloc.allocate(128, DEFAULT_ALIGN);
+  void *p1 = allocate_and_memset(alloc, 128, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p1 != nullptr);
 
-  void *p2 = alloc.allocate(256, DEFAULT_ALIGN);
+  void *p2 = allocate_and_memset(alloc, 256, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p2 != nullptr);
 
   alloc.deallocate(p1);
@@ -41,15 +50,14 @@ COROSIG_SIGHANDLER_TEST_CASE("Alignment handling") {
   Allocator::Memory<1024> mem;
   Allocator alloc{mem};
 
-  void *p = alloc.allocate(64, DEFAULT_ALIGN);
-
+  void *p = allocate_and_memset(alloc, 64, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p != nullptr);
   COROSIG_REQUIRE(reinterpret_cast<std::uintptr_t>(p) % DEFAULT_ALIGN == 0);
   alloc.deallocate(p);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Multiple allocations until exhaustion") {
-  Allocator::Memory<128> mem;
+  Allocator::Memory<256> mem;
   Allocator alloc{mem};
 
   std::array<void *, 10> blocks = {};
@@ -81,23 +89,37 @@ COROSIG_SIGHANDLER_TEST_CASE("Zero-size allocation should return non-null or nul
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Reallocation after freeing") {
-  Allocator::Memory<128> mem;
+  Allocator::Memory<256> mem;
   Allocator alloc{mem};
 
-  void *p1 = alloc.allocate(64, DEFAULT_ALIGN);
+  void *p1 = allocate_and_memset(alloc, 64, DEFAULT_ALIGN);
   COROSIG_REQUIRE(p1 != nullptr);
   alloc.deallocate(p1);
 
-  void *p2 = alloc.allocate(64, DEFAULT_ALIGN);
+  void *p2 = allocate_and_memset(alloc, 64, DEFAULT_ALIGN);
+  COROSIG_REQUIRE(p2 != nullptr);
+  alloc.deallocate(p2);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("Comically large alignments") {
+  Allocator::Memory<static_cast<size_t>(1024) * 1024> mem;
+  Allocator alloc{mem};
+
+  void *p1 =
+      allocate_and_memset(alloc, static_cast<size_t>(1024) * 4, static_cast<size_t>(1024) * 4);
+  COROSIG_REQUIRE(p1 != nullptr);
+  alloc.deallocate(p1);
+
+  void *p2 =
+      allocate_and_memset(alloc, static_cast<size_t>(1024) * 8, static_cast<size_t>(1024) * 8);
   COROSIG_REQUIRE(p2 != nullptr);
   alloc.deallocate(p2);
 }
 
 TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][stress]") {
   constexpr auto BUFFER_SIZE = static_cast<size_t>(20) * 1024 * 1024;
-  std::vector<char> mem;
-  mem.resize(BUFFER_SIZE);
-  Allocator allocator{mem};
+  std::unique_ptr mem = std::make_unique<Allocator::Memory<BUFFER_SIZE>>();
+  Allocator allocator{*mem};
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -120,8 +142,8 @@ TEST_CASE("Allocator stress test - random sizes and alignments", "[allocator][st
 
     void *ptr = allocator.allocate(size, alignment);
     if (ptr != nullptr) {
-      std::memset(ptr, 0, size);
       REQUIRE(reinterpret_cast<uintptr_t>(ptr) % alignment == 0);
+      std::memset(ptr, 0, size);
       allocations.push_back(ptr);
     }
 
