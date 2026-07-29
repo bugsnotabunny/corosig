@@ -3,15 +3,17 @@
 #include "corosig/meta/AnAllocator.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <limits> // IWYU pragma: keep
-#include <new>
+#include <cstring>
+#include <limits>
 #include <span>
 
 #if COROSIG_ASAN_ENABLED
 #include <sanitizer/asan_interface.h>
+#include <utility>
 #endif
 
 namespace {
@@ -20,23 +22,74 @@ using namespace corosig;
 
 static_assert(AnAllocator<Allocator>);
 
-struct AllocationHeader {
-  // located after header
-  uint32_t block_size;
-  // located before header
-  uint32_t padding;
-};
-
-char *align_right(char *p, size_t align) noexcept {                           // NOLINT
-  return reinterpret_cast<char *>((uintptr_t(p) + align - 1) & ~(align - 1)); // NOLINT
+uintptr_t align_right_diff(char const *p, size_t alignment) noexcept {
+  assert(std::has_single_bit(alignment));
+  auto pval = reinterpret_cast<uintptr_t>(p);
+  return ((pval + alignment - 1) & ~(alignment - 1)) - pval;
 }
 
-size_t sub_sat(size_t a, size_t b) noexcept {
-  if (a < b) {
-    return 0;
+size_t ceil_div(size_t a, size_t b) noexcept {
+  return a / b + static_cast<size_t>(a % b != 0);
+}
+
+#if COROSIG_ASAN_ENABLED
+struct AsanUnpoisonGuard {
+  AsanUnpoisonGuard(void *mem, size_t size) noexcept
+      : m_mem{mem},
+        m_size{size} {
+    if (m_mem != nullptr) {
+      ASAN_UNPOISON_MEMORY_REGION(m_mem, m_size);
+    }
   }
-  return a - b;
-}
+
+  AsanUnpoisonGuard(AsanUnpoisonGuard &&rhs) noexcept
+      : AsanUnpoisonGuard{
+            std::exchange(rhs.m_mem, nullptr),
+            std::exchange(rhs.m_size, 0),
+        } {
+  }
+
+  AsanUnpoisonGuard &operator=(AsanUnpoisonGuard &&rhs) noexcept {
+    if (this != &rhs) {
+      this->~AsanUnpoisonGuard();
+      new (this) AsanUnpoisonGuard{std::move(rhs)};
+    }
+    return *this;
+  }
+
+  AsanUnpoisonGuard(AsanUnpoisonGuard const &) = delete;
+  AsanUnpoisonGuard &operator=(AsanUnpoisonGuard const &) = delete;
+
+  void release() noexcept {
+    m_mem = nullptr;
+    m_size = 0;
+  }
+
+  ~AsanUnpoisonGuard() {
+    if (m_mem != nullptr) {
+      ASAN_POISON_MEMORY_REGION(m_mem, m_size);
+    }
+  }
+
+private:
+  void *m_mem;
+  size_t m_size;
+};
+#else
+
+struct AsanUnpoisonGuard {
+  AsanUnpoisonGuard(void *, size_t) noexcept {
+  }
+
+  AsanUnpoisonGuard(AsanUnpoisonGuard const &) = delete;
+  AsanUnpoisonGuard(AsanUnpoisonGuard &&) = default;
+  AsanUnpoisonGuard &operator=(AsanUnpoisonGuard const &) = delete;
+  AsanUnpoisonGuard &operator=(AsanUnpoisonGuard &&) = default;
+
+  void release() noexcept {
+  }
+};
+#endif
 
 } // namespace
 
@@ -44,130 +97,129 @@ namespace corosig {
 
 Allocator::Allocator(std::span<char> mem) noexcept
     : m_mem{mem} {
-#if COROSIG_ASAN_ENABLED
-  ASAN_POISON_MEMORY_REGION(mem.data(), mem.size());
+  static_assert(std::has_single_bit(BLOCK_SIZE),
+                "Block size shall be power of 2 to enable more compiler optimizations");
 
-  constexpr size_t ASAN_POISON_GUARDS = 8;
-  mem = mem.subspan(std::min(mem.size(), ASAN_POISON_GUARDS));
-  mem = mem.subspan(0, std::min(mem.size(), mem.size() - ASAN_POISON_GUARDS));
+  static_assert(sizeof(BlockMetadata) <= BLOCK_SIZE,
+                "Block shall be able to contain metadata inside");
+
+  m_mem = m_mem.subspan(align_right_diff(m_mem.data(), BLOCK_SIZE));
+  m_mem = m_mem.subspan(0, m_mem.size() - m_mem.size() % BLOCK_SIZE);
+
+  assert(m_mem.size() < BLOCK_SIZE * std::numeric_limits<uint32_t>::max());
+
+#if COROSIG_ASAN_ENABLED
+  ASAN_POISON_MEMORY_REGION(m_mem.data(), m_mem.size());
+  m_mem = m_mem.subspan(std::min(m_mem.size(), BLOCK_SIZE));
+  m_mem = m_mem.subspan(0, std::min(m_mem.size(), m_mem.size() - BLOCK_SIZE));
 #endif
 
-  char *aligned_mem_start = align_right(mem.data(), alignof(FreeNode));
+  m_mem = m_mem.subspan(
+      0, std::min<size_t>(m_mem.size(), std::numeric_limits<uint32_t>::max() * BLOCK_SIZE));
 
-  size_t mem_size = mem.size() - static_cast<size_t>(aligned_mem_start - mem.data());
+  size_t const blocks_amount = this->blocks_amount();
 
-  if (mem_size >= sizeof(FreeNode)) {
-#if COROSIG_ASAN_ENABLED
-    ASAN_UNPOISON_MEMORY_REGION(aligned_mem_start, sizeof(FreeNode));
-#endif
-    new (aligned_mem_start) FreeNode{
-        .block_size = mem_size - sizeof(AllocationHeader),
+  if (blocks_amount > 0) {
+    size_t idx = 0;
+    auto &metadata = get_block_metadata(idx);
+    AsanUnpoisonGuard guard{&metadata, sizeof(BlockMetadata)};
+    metadata = BlockMetadata{
+        .blocks_before = 0,
+        .blocks_owned = static_cast<uint32_t>(blocks_amount),
     };
-    link(*reinterpret_cast<FreeNode *>(aligned_mem_start));
+    push_free_node(idx);
   }
 }
 
 Allocator::~Allocator() {
-  assert(*m_used == 0 && "Memory leak detected");
+  assert(m_used == 0 && "Memory leak detected");
 #if COROSIG_ASAN_ENABLED
-  ASAN_UNPOISON_MEMORY_REGION(m_mem.data(), m_mem.size());
+  if (m_mem.size() != 0) {
+    m_mem = std::span{m_mem.data() - BLOCK_SIZE, m_mem.size() + BLOCK_SIZE * 2};
+    ASAN_UNPOISON_MEMORY_REGION(m_mem.data(), m_mem.size());
+  }
 #endif
 }
 
 size_t Allocator::peak_memory() const noexcept {
-  return *m_peak;
+  return m_peak;
 }
 
 size_t Allocator::current_memory() const noexcept {
-  return *m_used;
-}
-
-void Allocator::link(FreeNode &node) noexcept {
-  assert(size_t(&node) % alignof(FreeNode) == 0);
-  m_nodes_by_addr.insert(node);
-}
-
-void Allocator::unlink_and_destroy(FreeNode &node) noexcept {
-  assert(size_t(&node) % alignof(FreeNode) == 0);
-  node.~FreeNode();
+  return m_used;
 }
 
 void *Allocator::allocate(size_t size, size_t alignment) noexcept {
-  static_assert(alignof(AllocationHeader) <= alignof(FreeNode));
-  size_t const original_size = size;
   assert(std::has_single_bit(alignment) && "Alignment must be a power of 2");
 
-  // we should always be able to construct FreeNode in allocation place
-  // to make deallocate implementation more trivial
-  size = std::max(original_size, sizeof(FreeNode) - sizeof(AllocationHeader));
+  for (size_t metadata_idx = m_first_free_block_idx; metadata_idx < blocks_amount();) {
+    BlockMetadata *metadata = &get_block_metadata(metadata_idx);
+    AsanUnpoisonGuard guard{metadata, sizeof(BlockMetadata)};
 
-  char *allocated_block = nullptr;
+    assert(!metadata->is_used);
+    assert(metadata->next_free_block_idx == INVALID_IDX ||
+           metadata->next_free_block_idx != metadata_idx);
 
-  for (auto &it : m_nodes_by_addr) {
-    char *const node_addr = reinterpret_cast<char *>(&it);
-    assert(size_t(node_addr) % alignof(FreeNode) == 0);
+    size_t align_diff = align_right_diff(static_cast<char *>(metadata->get_mem()), alignment);
+    size_t actual_size = sizeof(BlockMetadata) + size + align_diff;
+    size_t blocks_needed = ceil_div(actual_size, BLOCK_SIZE);
 
-    char *allocation_header_addr = node_addr;
-    char *const allocated_block_addr = allocation_header_addr + sizeof(AllocationHeader);
-    char *const aligned_allocated_block_addr = align_right(allocated_block_addr, alignment);
-    size_t const padding = aligned_allocated_block_addr - allocated_block_addr;
-    // make header lie right before allocated block. required to access it during deallocation
-    allocation_header_addr += padding;
-    assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
-
-    size_t const aligned_allocated_block_size =
-        sub_sat(reinterpret_cast<FreeNode *>(node_addr)->block_size, padding);
-
-    if (aligned_allocated_block_size < size) {
+    if (metadata->blocks_owned < blocks_needed) {
+      metadata_idx = metadata->next_free_block_idx;
       continue;
     }
 
-    char *const new_free_node_addr =
-        align_right(aligned_allocated_block_addr + size, alignof(FreeNode));
-    size_t actually_allocated_size = new_free_node_addr - aligned_allocated_block_addr;
-    size_t const extra_free_space = sub_sat(aligned_allocated_block_size, actually_allocated_size);
+    size_t align_blocks_skip = align_diff / BLOCK_SIZE;
+    size_t blocks_needed_no_align = blocks_needed - align_blocks_skip;
+    if (align_blocks_skip != 0) {
+      size_t blocks_owned = metadata->blocks_owned - align_blocks_skip;
 
-    if (extra_free_space < sizeof(FreeNode)) {
-      // take whole block. don't divide it
-      actually_allocated_size = aligned_allocated_block_size;
-    } else {
-#if COROSIG_ASAN_ENABLED
-      ASAN_UNPOISON_MEMORY_REGION(new_free_node_addr, sizeof(FreeNode));
-#endif
-      new (new_free_node_addr) FreeNode{
-          .block_size = extra_free_space - sizeof(AllocationHeader),
-      };
-      link(*reinterpret_cast<FreeNode *>(new_free_node_addr));
+      set_blocks_owned(metadata_idx, align_blocks_skip);
+      unlink_free_node(metadata_idx);
+      push_free_node(metadata_idx);
+
+      metadata_idx += align_blocks_skip;
+      metadata = &get_block_metadata(metadata_idx);
+      guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+      metadata->default_initialize();
+      set_blocks_owned(metadata_idx, blocks_owned);
+
+      guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
     }
 
-    unlink_and_destroy(*reinterpret_cast<FreeNode *>(node_addr));
-#if COROSIG_ASAN_ENABLED
-    ASAN_POISON_MEMORY_REGION(node_addr, sizeof(FreeNode));
-#endif
+    BlockMetadata old_metadata = *metadata;
+    unlink_free_node(metadata_idx);
+    guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+    metadata->is_used = true;
+    set_blocks_owned(metadata_idx, blocks_needed_no_align);
 
-    assert(padding <= std::numeric_limits<uint32_t>::max());
-    assert(actually_allocated_size <= std::numeric_limits<uint32_t>::max());
+    if (blocks_needed_no_align < old_metadata.blocks_owned) {
+      size_t new_metadata_idx = metadata_idx + blocks_needed_no_align;
 
-    assert(size_t(allocation_header_addr) % alignof(AllocationHeader) == 0);
-#if COROSIG_ASAN_ENABLED
-    ASAN_UNPOISON_MEMORY_REGION(allocation_header_addr, sizeof(AllocationHeader) + original_size);
-#endif
-    new (allocation_header_addr) AllocationHeader{
-        .block_size = static_cast<uint32_t>(actually_allocated_size),
-        .padding = static_cast<uint32_t>(padding),
-    };
-#if COROSIG_ASAN_ENABLED
-    ASAN_POISON_MEMORY_REGION(allocation_header_addr - padding, padding + sizeof(AllocationHeader));
-#endif
+      BlockMetadata &new_metadata = get_block_metadata(new_metadata_idx);
+      AsanUnpoisonGuard guard{&new_metadata, sizeof(BlockMetadata)};
+      new_metadata.default_initialize();
+      set_blocks_owned(new_metadata_idx,
+                       static_cast<uint32_t>(old_metadata.blocks_owned - blocks_needed_no_align));
+      push_free_node(new_metadata_idx);
+    }
 
-    allocated_block = aligned_allocated_block_addr;
-    *m_used += actually_allocated_size + padding + sizeof(AllocationHeader);
-    *m_peak = std::max(*m_peak, *m_used);
-    break;
+    m_used += blocks_needed_no_align * BLOCK_SIZE;
+    m_peak = std::max(m_peak, m_used);
+
+    assert(m_used <= m_mem.size());
+
+    void *result =
+        reinterpret_cast<char *>(metadata->get_mem()) + align_diff - align_blocks_skip * BLOCK_SIZE;
+
+#if COROSIG_ASAN_ENABLED
+    ASAN_UNPOISON_MEMORY_REGION(result, size);
+#endif
+    assert(reinterpret_cast<uintptr_t>(result) % alignment == 0);
+    return result;
   }
 
-  assert(size_t(allocated_block) % alignment == 0);
-  return allocated_block;
+  return nullptr;
 }
 
 void Allocator::deallocate(void *ptr) noexcept {
@@ -175,68 +227,198 @@ void Allocator::deallocate(void *ptr) noexcept {
     return;
   }
 
-  char *const current_addr = reinterpret_cast<char *>(ptr);
-  char *const header_addr = current_addr - sizeof(AllocationHeader);
+  assert(ptr >= &*m_mem.begin() && ptr < &*m_mem.end() &&
+         "Given pointer is out of allocator's scope");
 
-  assert(size_t(header_addr) % alignof(AllocationHeader) == 0);
+  size_t metadata_idx = get_metadata_idx_from_addr(ptr);
 
-#if COROSIG_ASAN_ENABLED
-  ASAN_UNPOISON_MEMORY_REGION(header_addr, sizeof(AllocationHeader));
-#endif
+  BlockMetadata *metadata = &get_block_metadata(metadata_idx);
+  AsanUnpoisonGuard guard{metadata, sizeof(BlockMetadata)};
 
-  auto const padding = reinterpret_cast<AllocationHeader *>(header_addr)->padding;
-  auto const block_size = reinterpret_cast<AllocationHeader *>(header_addr)->block_size;
-
-  char *const node_addr = header_addr - padding;
-
-#if COROSIG_ASAN_ENABLED
-  ASAN_POISON_MEMORY_REGION(header_addr + sizeof(AllocationHeader), block_size);
-  ASAN_UNPOISON_MEMORY_REGION(node_addr, sizeof(FreeNode));
-#endif
-  new (node_addr) FreeNode{
-      .block_size = block_size + padding,
-  };
-  auto *node = reinterpret_cast<FreeNode *>(node_addr);
-  link(*node);
-
-  assert(*m_used >= block_size + padding + sizeof(AllocationHeader) &&
+  assert(metadata->is_used && "Double free detected");
+  assert(metadata->next_free_block_idx == INVALID_IDX);
+  assert(metadata->prev_free_block_idx == INVALID_IDX);
+  assert(m_used >= metadata->blocks_owned * BLOCK_SIZE &&
          "Double free detected. Also there might have been other double frees before that");
-  *m_used -= block_size + padding + sizeof(AllocationHeader);
 
-  // merge with neighbours if possible
-  auto iter = m_nodes_by_addr.iterator_to(*node);
+  m_used -= metadata->blocks_owned * BLOCK_SIZE;
 
-  do {
-    auto iter_before = iter;
-    --iter_before;
+  size_t const blocks_amount = this->blocks_amount();
 
-    if (iter_before == m_nodes_by_addr.end()) {
-      break;
+  if (metadata->blocks_before != 0) {
+    size_t previous_block_idx = metadata_idx - metadata->blocks_before;
+    BlockMetadata &previous_metadata = get_block_metadata(previous_block_idx);
+    AsanUnpoisonGuard guard1{&previous_metadata, sizeof(BlockMetadata)};
+    if (!previous_metadata.is_used) {
+      set_blocks_owned(previous_block_idx, previous_metadata.blocks_owned + metadata->blocks_owned);
+      unlink_free_node(previous_block_idx);
+
+      metadata_idx = previous_block_idx;
+
+      metadata = &previous_metadata;
+      guard = std::move(guard1);
+
+      assert(metadata->next_free_block_idx == INVALID_IDX);
+      assert(metadata->prev_free_block_idx == INVALID_IDX);
     }
+  }
 
-    if (reinterpret_cast<char *>(&*iter_before) + sizeof(AllocationHeader) +
-            iter_before->block_size ==
-        reinterpret_cast<char *>(&*iter)) {
-      iter_before->block_size += sizeof(AllocationHeader) + iter->block_size;
-      unlink_and_destroy(*iter);
-      iter = iter_before;
+  assert(metadata->prev_free_block_idx == INVALID_IDX);
+  assert(metadata->next_free_block_idx == INVALID_IDX);
+
+  size_t next_block_idx = metadata_idx + metadata->blocks_owned;
+  if (next_block_idx < blocks_amount) {
+    BlockMetadata &next_metadata = get_block_metadata(next_block_idx);
+    AsanUnpoisonGuard guard2{&next_metadata, sizeof(BlockMetadata)};
+
+    if (!next_metadata.is_used) {
+      set_blocks_owned(metadata_idx, metadata->blocks_owned + next_metadata.blocks_owned);
+      guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+      assert(metadata->prev_free_block_idx == INVALID_IDX);
+      assert(metadata->next_free_block_idx == INVALID_IDX);
+      guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+      guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+
+      unlink_free_node(next_block_idx);
+      guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+      assert(metadata->prev_free_block_idx == INVALID_IDX);
+      assert(metadata->next_free_block_idx == INVALID_IDX);
     }
-  } while (false);
+  }
+  guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
 
-  do {
-    auto iter_next = iter;
-    ++iter_next;
+  assert(metadata->prev_free_block_idx == INVALID_IDX);
+  assert(metadata->next_free_block_idx == INVALID_IDX);
 
-    if (iter_next == m_nodes_by_addr.end()) {
-      break;
-    }
+  metadata->is_used = false;
+  unlink_free_node(metadata_idx);
+  push_free_node(metadata_idx);
 
-    if (reinterpret_cast<char *>(&*iter) + sizeof(AllocationHeader) + iter->block_size ==
-        reinterpret_cast<char *>(&*iter_next)) {
-      iter->block_size += sizeof(AllocationHeader) + iter_next->block_size;
-      unlink_and_destroy(*iter_next);
-    }
-  } while (false);
+#if COROSIG_ASAN_ENABLED
+  guard = AsanUnpoisonGuard{metadata, sizeof(BlockMetadata)};
+  ASAN_POISON_MEMORY_REGION(metadata, metadata->blocks_owned * BLOCK_SIZE);
+#endif
+}
+
+void Allocator::set_blocks_owned(size_t idx, uint32_t value) noexcept {
+  BlockMetadata &metadata = get_block_metadata(idx);
+  AsanUnpoisonGuard guard1{&metadata, sizeof(BlockMetadata)};
+  metadata.blocks_owned = value;
+  if (idx + value < blocks_amount()) {
+    BlockMetadata &next_metadata = get_block_metadata(idx + value);
+    AsanUnpoisonGuard guard2{&next_metadata, sizeof(BlockMetadata)};
+    next_metadata.blocks_before = value;
+  }
+}
+
+size_t Allocator::blocks_amount() const noexcept {
+  return m_mem.size() / BLOCK_SIZE;
+}
+
+size_t Allocator::get_metadata_idx_from_addr(void *p) noexcept {
+  size_t index = (reinterpret_cast<char *>(p) - m_mem.data()) / BLOCK_SIZE;
+  if (reinterpret_cast<uintptr_t>(p) % BLOCK_SIZE == 0) {
+    index -= 1;
+  }
+  return index;
+}
+
+Allocator::BlockMetadata &Allocator::get_block_metadata(size_t idx) noexcept {
+  assert(idx < blocks_amount());
+  return reinterpret_cast<Allocator::BlockMetadata &>(m_mem[idx * BLOCK_SIZE]);
+}
+
+void Allocator::push_free_node(size_t idx) noexcept {
+  BlockMetadata &metadata = get_block_metadata(idx);
+  AsanUnpoisonGuard guard1{&metadata, sizeof(BlockMetadata)};
+
+  assert(metadata.prev_free_block_idx == INVALID_IDX);
+  assert(metadata.next_free_block_idx == INVALID_IDX);
+  assert(!metadata.is_used);
+
+  if (m_first_free_block_idx == INVALID_IDX) {
+    m_first_free_block_idx = idx;
+    m_last_free_block_idx = idx;
+    return;
+  }
+
+  // if block is big enough, push to front to prioritize it for allocations
+  // and thus ammortize linear search by a lot
+  if (metadata.blocks_owned > blocks_amount() / 4) {
+    BlockMetadata &front_metadata = get_block_metadata(m_first_free_block_idx);
+    AsanUnpoisonGuard guard2{&front_metadata, sizeof(BlockMetadata)};
+
+    assert(front_metadata.prev_free_block_idx == INVALID_IDX);
+    assert(!front_metadata.is_used);
+
+    assert(m_first_free_block_idx != idx);
+    front_metadata.prev_free_block_idx = idx;
+    metadata.next_free_block_idx = m_first_free_block_idx;
+    m_first_free_block_idx = idx;
+    return;
+  }
+
+  BlockMetadata &back_metadata = get_block_metadata(m_last_free_block_idx);
+  AsanUnpoisonGuard guard2{&back_metadata, sizeof(BlockMetadata)};
+
+  assert(back_metadata.next_free_block_idx == INVALID_IDX);
+  assert(!back_metadata.is_used);
+
+  assert(m_last_free_block_idx != idx);
+  back_metadata.next_free_block_idx = idx;
+  metadata.prev_free_block_idx = m_last_free_block_idx;
+  m_last_free_block_idx = idx;
+}
+
+void Allocator::unlink_free_node(size_t idx) noexcept {
+  BlockMetadata &metadata = get_block_metadata(idx);
+
+  AsanUnpoisonGuard guard{&metadata, sizeof(BlockMetadata)};
+  assert(!metadata.is_used);
+  assert(metadata.prev_free_block_idx != idx);
+  assert(metadata.next_free_block_idx != idx);
+
+  if (metadata.next_free_block_idx != INVALID_IDX) {
+    BlockMetadata &next_free_metadata = get_block_metadata(metadata.next_free_block_idx);
+
+    AsanUnpoisonGuard guard{&next_free_metadata, sizeof(BlockMetadata)};
+    assert(!next_free_metadata.is_used);
+    assert(next_free_metadata.prev_free_block_idx == idx);
+    next_free_metadata.prev_free_block_idx = metadata.prev_free_block_idx;
+  }
+
+  guard = AsanUnpoisonGuard{&metadata, sizeof(BlockMetadata)};
+  if (metadata.prev_free_block_idx != INVALID_IDX) {
+    BlockMetadata &prev_free_metadata = get_block_metadata(metadata.prev_free_block_idx);
+
+    AsanUnpoisonGuard guard{&prev_free_metadata, sizeof(BlockMetadata)};
+    assert(!prev_free_metadata.is_used);
+    assert(prev_free_metadata.next_free_block_idx == idx);
+    prev_free_metadata.next_free_block_idx = metadata.next_free_block_idx;
+  }
+
+  if (m_first_free_block_idx == idx) {
+    assert(metadata.prev_free_block_idx == INVALID_IDX);
+    m_first_free_block_idx = metadata.next_free_block_idx;
+  }
+
+  if (m_last_free_block_idx == idx) {
+    assert(metadata.next_free_block_idx == INVALID_IDX);
+    m_last_free_block_idx = metadata.prev_free_block_idx;
+  }
+
+  metadata.next_free_block_idx = INVALID_IDX;
+  metadata.prev_free_block_idx = INVALID_IDX;
+}
+
+void *Allocator::BlockMetadata::get_mem() noexcept {
+  return static_cast<void *>(this + 1);
+}
+
+void Allocator::BlockMetadata::default_initialize() noexcept {
+  prev_free_block_idx = INVALID_IDX;
+  next_free_block_idx = INVALID_IDX;
+  is_used = false;
 }
 
 } // namespace corosig

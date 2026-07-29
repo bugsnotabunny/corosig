@@ -1,17 +1,10 @@
 #ifndef COROSIG_ALLOC_HPP
 #define COROSIG_ALLOC_HPP
 
-#include "corosig/util/SetDefaultOnMove.hpp"
-
 #include <array>
-#include <boost/intrusive/bs_set.hpp>
-#include <boost/intrusive/bs_set_hook.hpp>
-#include <boost/intrusive/intrusive_fwd.hpp>
-#include <boost/intrusive/link_mode.hpp>
-#include <boost/intrusive/options.hpp>
-#include <boost/intrusive/splay_set.hpp>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 
 namespace corosig {
@@ -19,10 +12,13 @@ namespace corosig {
 /// @brief An allocator which allocates memory from some non-resizeable buffer. If buffer runs out
 ///        of space, allocations fail. No new memory is allocated
 struct Allocator {
+private:
+  constexpr static size_t BLOCK_SIZE = 16;
+
 public:
-  /// @brief Memory buffer type
+  /// @brief Efficiently-aligned and sized memory buffer type
   template <size_t SIZE>
-  using Memory = std::array<char, SIZE>;
+  struct alignas(BLOCK_SIZE) Memory : std::array<char, SIZE - SIZE % BLOCK_SIZE> {};
 
   /// @brief Construct an Allocator for which allocations always fail
   Allocator() noexcept = default;
@@ -31,9 +27,9 @@ public:
   Allocator(std::span<char> mem) noexcept;
 
   Allocator(Allocator const &) = delete;
-  Allocator(Allocator &&) noexcept = default;
+  Allocator(Allocator &&) noexcept = delete;
   Allocator &operator=(Allocator const &) = delete;
-  Allocator &operator=(Allocator &&) noexcept = default;
+  Allocator &operator=(Allocator &&) noexcept = delete;
 
   ~Allocator();
 
@@ -53,40 +49,31 @@ public:
   void deallocate(void *ptr) noexcept;
 
 private:
-  struct FreeNode {
-    struct CompareBlockSize {
-      bool operator()(FreeNode const &lhs, FreeNode const &rhs) const noexcept {
-        return lhs.block_size < rhs.block_size;
-      }
-    };
+  struct BlockMetadata {
+    void *get_mem() noexcept;
+    void default_initialize() noexcept;
 
-    struct CompareAddress {
-      bool operator()(FreeNode const &lhs, FreeNode const &rhs) const noexcept {
-        return &lhs < &rhs;
-      }
-    };
-
-    using hook_type = boost::intrusive::bs_set_member_hook<
-        boost::intrusive::link_mode<boost::intrusive::link_mode_type::auto_unlink>>;
-
-    hook_type nodes_by_addr_hook = {};
-    size_t block_size;
+    uint32_t blocks_before : 31;
+    bool is_used : 1 = false;
+    uint32_t blocks_owned;
+    uint32_t prev_free_block_idx = INVALID_IDX;
+    uint32_t next_free_block_idx = INVALID_IDX;
   };
 
-  static void unlink_and_destroy(FreeNode &) noexcept;
-  void link(FreeNode &) noexcept;
-  void maybe_merge_with_next(FreeNode &) noexcept;
+  void set_blocks_owned(size_t idx, uint32_t value) noexcept;
+  size_t blocks_amount() const noexcept;
+  size_t get_metadata_idx_from_addr(void *p) noexcept;
+  BlockMetadata &get_block_metadata(size_t idx) noexcept;
+  void push_free_node(size_t idx) noexcept;
+  void unlink_free_node(size_t idx) noexcept;
 
-  using nodes_by_addr_type = boost::intrusive::bs_multiset<
-      FreeNode,
-      boost::intrusive::compare<FreeNode::CompareAddress>,
-      boost::intrusive::constant_time_size<false>,
-      boost::intrusive::member_hook<FreeNode, FreeNode::hook_type, &FreeNode::nodes_by_addr_hook>>;
+  constexpr static auto INVALID_IDX = static_cast<uint32_t>((2 << 31) - 1);
 
-  nodes_by_addr_type m_nodes_by_addr;
-  SetDefaultOnMove<size_t> m_used;
-  SetDefaultOnMove<size_t> m_peak;
+  uint32_t m_first_free_block_idx = INVALID_IDX;
+  uint32_t m_last_free_block_idx = INVALID_IDX;
   std::span<char> m_mem;
+  size_t m_used = 0;
+  size_t m_peak = 0;
 };
 
 } // namespace corosig

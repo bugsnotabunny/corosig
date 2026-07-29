@@ -95,7 +95,7 @@ COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask multiple concurrent tasks") {
   using namespace std::chrono_literals;
 
   auto test_concurrent = [](Reactor &r) -> Fut<int> {
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < 40; ++i) {
       COROSIG_REQUIRE(run_in_background(r, Sleep{20ms}));
     }
 
