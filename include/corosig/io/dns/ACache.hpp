@@ -31,6 +31,8 @@ struct ResolvedAddress {
   SteadyClock::time_point expires_at;
 };
 
+/// @brief Concept for read-only DNS cache interfaces
+/// @details Types implementing this can pull cached addresses for domain names
 template <typename T>
 concept ACache = requires(T t) {
   // both methods should return result or future which resolve to size_t in case of success
@@ -38,6 +40,8 @@ concept ACache = requires(T t) {
   { t.pull(std::string_view{}, std::span<ResolvedAddress<Ipv4Addr>>{}) } noexcept;
 };
 
+/// @brief Concept for mutable (read/write) DNS cache interfaces
+/// @details Types implementing this can pull cached addresses and push new resolved addresses
 template <typename T>
 concept AMutableCache = ACache<T> && requires(T t) {
   { t.push(std::string_view{}, std::span<ResolvedAddress<Ipv4Addr> const>{}) } noexcept -> AResult;

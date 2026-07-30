@@ -99,8 +99,8 @@ struct CoroutinePromiseType : CoroListNode {
     // future is destroyed
   }
 
-  // NOLINTNEXTLINE (false-report)
-  void resume_coro() noexcept override {
+  /// @brief Resume underlying coroutine
+  void resume_coro() noexcept override { // NOLINT (false-report)
     return std::coroutine_handle<CoroutinePromiseType>::from_promise(*this).resume();
   }
 
@@ -255,6 +255,7 @@ struct [[nodiscard("forgot to await?")]] Fut {
 
   /// @brief Run reactor's event loop until this future is ready and there is no more tasks in
   ///        reactor
+  /// @returns The result value or error
   Result<T, extend_error<E, SyscallError>> block_on() && noexcept {
     while (!completed()) {
       COROSIG_TRYV(promise().m_reactor.do_event_loop_iteration());
@@ -263,12 +264,13 @@ struct [[nodiscard("forgot to await?")]] Fut {
   }
 
   /// @brief Await for result inside this future to become available
+  /// @returns Awaiter that moves result out of the future
   auto operator co_await() && noexcept {
     return Awaiter<false>{*this};
   }
 
-  /// @brief Awaiter from this function awaits for this future to become available. Coroutine result
-  ///        is not returned from co_await expression
+  /// @brief Get awaiter that preserves result in the future after completion
+  /// @returns Awaiter that keeps result in future for later access via result() method
   /// @warn  It is user's responsibility to extend future's lifetime until the awaiter is ready if
   ///        it is awaited
   auto preserving_awaiter() & noexcept {

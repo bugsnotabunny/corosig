@@ -14,7 +14,7 @@ namespace corosig {
 /// @details Types that should be managed by CoroList must inherit from this and implement
 ///          resume_coro() method
 struct CoroListNode : GcListNode {
-  /// @brief Cast this object to a resumable coroutine handle
+  /// @brief Resume underlying coroutine
   virtual void resume_coro() noexcept = 0;
 
   ~CoroListNode() override = default;

@@ -58,6 +58,7 @@ struct Semaphore {
 
     ~HolderAwaiter() override = default;
 
+    /// @brief Resume underlying coroutine
     void resume_coro() noexcept override;
 
     [[nodiscard]] bool await_ready() noexcept;

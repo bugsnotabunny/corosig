@@ -193,7 +193,7 @@ struct BackgroundCoroutinePromiseType : CoroListNode {
   static void return_void() noexcept {
   }
 
-  /// @brief Cast this object to a resumable coroutine handle
+  /// @brief Resume underlying coroutine
   void resume_coro() noexcept override {
     return std::coroutine_handle<BackgroundCoroutinePromiseType>::from_promise(*this).resume();
   }
