@@ -6,7 +6,7 @@ package("corosig")
     add_urls("https://github.com/bugsnotabunny/corosig.git")
 
     add_versions("experimental", "master")
-    add_versions("0.1.0", "v0.1.0")
+    add_versions("v0.1.0", "v0.1.0")
 
     add_deps("boost", { configs = { filesystem = false } })
 
