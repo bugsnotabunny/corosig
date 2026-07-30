@@ -9,7 +9,7 @@ Also be polite to other people and blablabla.
 Just type:
 
 ```shell
-xmake run example_NAME
+xmake run example.NAME
 ```
 
 ## One devenv to rule them all
@@ -35,7 +35,7 @@ Here is the list of commands you need to use to pass CI
 Select the config:
 
 ```shell
-xmake config --toolchain=(gcc|clang++) --mode(debug|asan|tsan|release)
+xmake config --toolchain=(gcc|clang) --mode=(asan|tsan|release|minsizerel)
 ```
 
 You will need to make tests pass in all of them. 99% of the cases passing it in tsan mode guarantees passage with all other modes and toolchains.
@@ -43,13 +43,19 @@ You will need to make tests pass in all of them. 99% of the cases passing it in 
 Run tests:
 
 ```shell
-xmake test
+xmake test "*/default"
 ```
 
-And, if you are an LSP-slave, like me
+Or, if you want tests to be run in their declaration order:
 
 ```shell
-xmake project -k compile_commands
+xmake test "*/norandord"
+```
+
+And, if you are an LSP-slave, like I am
+
+```shell
+xmake project -k compile_commands --lsp=clangd
 ```
 
 Then run codestyle-related checks:
@@ -57,4 +63,10 @@ Then run codestyle-related checks:
 ```shell
 xmake format
 xmake check clang.tidy
+```
+
+If you want to run benchmarks, there is a whole test target (just don't forget to switch into release mode before):
+
+```shell
+xmake test "*/benchmark"
 ```
