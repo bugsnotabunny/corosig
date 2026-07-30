@@ -1,0 +1,30 @@
+name: "PackageIntegrity"
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  package-integrity:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [release]
+        toolchain: [clang]
+        corosig-version: ["experimental", "v0.1.0"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v26
+      - uses: cachix/cachix-action@v14
+        with:
+          name: devenv
+
+      - name: devenv.sh install
+        run: nix profile install nixpkgs#devenv
+
+      - name: devenv.sh evaluation
+        run: devenv shell echo
+
+      - run: devenv shell "xmake config --project=.github/package_integrity --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --corosig-version=${{ matrix.corosig-version }} --root -vy"
+      - run: devenv shell "xmake run --project=.github/package_integrity test"

@@ -16,7 +16,24 @@ And as any IO operation, this is faster and fancier when you do it asynchronousl
 
 ## Installing
 
-If you are an xmake user, do that:
+If you are an xmake user, add that to your project's `xmake.lua`:
+
+```lua
+add_repositories("corosig-repo git@github.com:bugsnotabunny/corosig.git v0.1.0")
+add_requires("corosig v0.1.0", { external = true })
+
+-- override boost settings and version, if needed
+add_requireconfs("corosig.boost", { override = true, version = "1.90.0" })
+```
+
+More complete example may be found [here](./.github/package_integrity)
+
+If you are using anything other then xmake, following commands will generate you code for target build system:
+
+```shell
+xmake config --toolchain=clang --mode=release --tests=n --examples=n --benchmarks=n
+xmake project -k (cmake|make|ninja)
+```
 
 ## Accessing documentation
 
