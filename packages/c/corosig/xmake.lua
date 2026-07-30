@@ -1,5 +1,5 @@
 package("corosig")
-    set_description("CoroSig - A signal handling library for C++20")
+    set_description("corosig - A signal handling library for C++20")
     set_homepage("https://github.com/bugsnotabunny/corosig")
     set_license("MIT")
 
