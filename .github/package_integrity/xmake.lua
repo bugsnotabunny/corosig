@@ -25,7 +25,7 @@ if version == "experimental" then
     branch = "master"
 end
 
-add_repositories("corosig-repo git@github.com:bugsnotabunny/corosig.git " .. branch)
+add_repositories("corosig-repo https://github.com/bugsnotabunny/corosig.git " .. branch)
 add_requires("corosig " .. version, { external = true })
 
 -- override boost settings and version, if needed
