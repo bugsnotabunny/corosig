@@ -114,7 +114,7 @@ private:
 
 /// @brief Both ends of a pipe
 struct PipePair {
-  /// @brief Make a pipe or get a syscall error
+  /// @brief Create a new pipe with read and write ends
   static Result<PipePair, SyscallError> make() noexcept;
 
   PipeRead read;

@@ -57,6 +57,7 @@ struct WrapVoidAwaitable<AWAITABLE> {
 } // namespace detail
 
 /// @brief Wait when all futures are ready. Return all of their results
+/// @returns Future containing tuple of all awaitable results (void results are replaced with std::monostate)
 template <AnAwaitable... AWAITABLE>
 Fut<std::tuple<detail::WrapVoid<AwaitResult<AWAITABLE>>...>>
 when_all(Reactor &, AWAITABLE &&...awaitables) noexcept {
@@ -90,6 +91,8 @@ auto first_error(std::tuple<RESULTS...> &t) noexcept {
 
 /// @brief Wait when all futures are ready. Return all of values from their results or the first
 ///         error that occurred among them
+/// @returns Future containing tuple of all success values (void results are replaced with std::monostate)
+///          or error from first failed awaitable
 template <typename... AWAITABLE>
   requires((AnAwaitable<AWAITABLE> && AResult<AwaitResult<AWAITABLE>>) && ...)
 Fut<std::tuple<detail::WrapVoid<typename AwaitResult<AWAITABLE>::ok_type>...>,
@@ -123,7 +126,10 @@ struct TimedOutError {
   }
 };
 
-/// @brief Wait when one of the futures becomes ready. Cancel all other tasks after
+/// @brief Wait for awaitable to complete or deadline to expire, whichever comes first
+/// @param deadline Absolute time point for timeout
+/// @returns Awaiter that resolves to awaitable result if completed before deadline,
+///          or TimedOutError if deadline expires first
 template <AnAwaitable AWAITABLE>
 auto with_deadline(Reactor &r, AWAITABLE &&awaitable, SteadyClock::time_point deadline) noexcept {
   struct WithDeadlineAwaiter {
@@ -197,7 +203,10 @@ auto with_deadline(Reactor &r, AWAITABLE &&awaitable, SteadyClock::time_point de
   return WithDeadlineAwaiter{r, std::forward<AWAITABLE>(awaitable), deadline};
 }
 
-/// @brief Wait when one of the futures becomes ready. Cancel all other tasks after
+/// @brief Wait for awaitable to complete or timeout to expire, whichever comes first
+/// @param duration Timeout duration from current time
+/// @returns Awaiter that resolves to awaitable result if completed before timeout,
+///          or TimedOutError if timeout expires first
 template <AnAwaitable AWAITABLE, typename PERIOD, typename REP>
 auto with_deadline(Reactor &r,
                    AWAITABLE &&awaitable,
@@ -215,8 +224,11 @@ using parallel_foreach_return_type =
 
 }
 
-/// @brief Launch user-provided loop body for each value in range in parallel fashion. Returned
-///        future's result is void or an error, if some of the spawned tasks have returned an error
+/// @brief Launch user-provided loop body for each value in range in parallel fashion
+/// @param range Range of values to iterate over
+/// @param loop_body Function that returns awaitable result for each value
+/// @returns Future that resolves to void if all tasks succeed,
+///          or an error from first failed task
 template <std::ranges::range RANGE, typename LOOP_BODY>
 detail::parallel_foreach_return_type<RANGE, LOOP_BODY>
 parallel_foreach(Reactor &r, RANGE &&range, LOOP_BODY &&loop_body) noexcept {
