@@ -35,14 +35,43 @@ public:
   Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &,
                                                           std::span<char const>) const noexcept;
 
+  /// @brief Write all bytes from string literal, excluding null-terminator
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  write(Reactor &r,
+        char const (&arr)[N]) const noexcept // NOLINT(modernize-avoid-c-arrays)
+  {
+    return write(r, std::string_view{arr});
+  }
+
   /// @brief Write bytes from buffer
   /// @returns Number of bytes written or a syscall error
   Fut<size_t, Error<AllocationError, SyscallError>>
   write_some(Reactor &, std::span<char const>) const noexcept;
 
+  /// @brief Write bytes from string literal, excluding null-terminator
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  write_some(Reactor &r,
+             char const (&arr)[N]) const noexcept // NOLINT(modernize-avoid-c-arrays)
+  {
+    return write_some(r, std::string_view{arr});
+  }
+
   /// @brief Write bytes from buffer if output is write-ready
   /// @returns Number of bytes written or a syscall error
-  [[nodiscard]] Result<size_t, SyscallError> try_write_some(std::span<char const>) const noexcept;
+  Result<size_t, SyscallError> try_write_some(std::span<char const>) const noexcept;
+
+  /// @brief Try write bytes from string literal, excluding null-terminator
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Result<size_t, SyscallError>
+  try_write_some(char const (&arr)[N]) const noexcept // NOLINT(modernize-avoid-c-arrays)
+  {
+    return try_write_some(std::string_view{arr});
+  }
 
   /// @brief Get OS-specific underlying handle
   [[nodiscard]] os::Handle underlying_handle() const noexcept;
@@ -76,7 +105,7 @@ public:
   /// @brief Read bytes into buffer if input is read-ready
   /// @returns 0 bytes read if EOF was reached
   /// @returns Number of bytes read or a syscall error
-  [[nodiscard]] Result<size_t, SyscallError> try_read_some(std::span<char>) const noexcept;
+  Result<size_t, SyscallError> try_read_some(std::span<char>) const noexcept;
 
   /// @brief Get OS-specific underlying handle
   [[nodiscard]] os::Handle underlying_handle() const noexcept;
