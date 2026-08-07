@@ -1,4 +1,4 @@
-#include "corosig/io/ListenerSocket.hpp"
+#include "corosig/io/TcpListener.hpp"
 
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
@@ -16,13 +16,13 @@
 
 namespace corosig {
 
-Result<ListenerSocket, SyscallError> ListenerSocket::make(Options const &options) noexcept {
-  int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+Result<TcpListener, SyscallError> TcpListener::make(Options const &options) noexcept {
+  int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
   }
 
-  auto listener = ListenerSocket::make_from_os_specific_handle(fd);
+  auto listener = TcpListener::make_from_os_specific_handle(fd);
 
   int reuse_addr = static_cast<int>(options.reuse_addr);
   if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr)) != 0) {
@@ -30,7 +30,7 @@ Result<ListenerSocket, SyscallError> ListenerSocket::make(Options const &options
   }
 
   int reuse_port = static_cast<int>(options.reuse_port);
-  if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_port, sizeof(reuse_port)) != 0) {
+  if (::setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &reuse_port, sizeof(reuse_port)) != 0) {
     return Failure{SyscallError::current()};
   }
 
@@ -53,17 +53,17 @@ Result<ListenerSocket, SyscallError> ListenerSocket::make(Options const &options
   return listener;
 }
 
-ListenerSocket ListenerSocket::make_from_os_specific_handle(os::Handle handle) noexcept {
-  ListenerSocket sock;
+TcpListener TcpListener::make_from_os_specific_handle(os::Handle handle) noexcept {
+  TcpListener sock;
   sock.m_fd = handle;
   return sock;
 }
 
-ListenerSocket::~ListenerSocket() {
+TcpListener::~TcpListener() {
   close();
 }
 
-Fut<AcceptResult, Error<AllocationError, SyscallError>> ListenerSocket::accept(Reactor &) noexcept {
+Fut<AcceptResult, Error<AllocationError, SyscallError>> TcpListener::accept(Reactor &) noexcept {
   co_await PollEvent{m_fd.value, PollEventExpectance::CAN_READ};
 
   AcceptResult result;
@@ -94,11 +94,15 @@ Fut<AcceptResult, Error<AllocationError, SyscallError>> ListenerSocket::accept(R
   co_return result;
 }
 
-void ListenerSocket::close() noexcept {
+Result<SockaddrStorage, SyscallError> TcpListener::address() const noexcept {
+  return os::posix::socket_address(m_fd.value);
+}
+
+void TcpListener::close() noexcept {
   return os::posix::close(m_fd.value);
 }
 
-[[nodiscard]] os::Handle ListenerSocket::underlying_handle() const noexcept {
+[[nodiscard]] os::Handle TcpListener::underlying_handle() const noexcept {
   return m_fd.value;
 }
 
