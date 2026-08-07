@@ -18,6 +18,10 @@ public:
   /// @brief Construct a UDP socket which refers to invalid os::Handle
   UdpSocket() noexcept = default;
 
+  /// @brief Construct a UDP socket which owns given os::Handle
+  /// @warn This is user's responsibility to provide a handle to an actually valid UDP socket
+  static UdpSocket make_from_os_specific_handle(os::Handle handle) noexcept;
+
   /// @brief Make a UDP socket which is not bound to any addr. Or get a syscall error
   static Result<UdpSocket, SyscallError> unbound(sa_family_t family = AF_INET) noexcept;
 

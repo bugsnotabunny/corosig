@@ -16,15 +16,19 @@
 
 namespace corosig {
 
+UdpSocket UdpSocket::make_from_os_specific_handle(os::Handle handle) noexcept {
+  UdpSocket sock;
+  sock.m_fd = handle;
+  return sock;
+}
+
 Result<UdpSocket, SyscallError> UdpSocket::unbound(sa_family_t family) noexcept {
   int fd = socket(family, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
   }
 
-  UdpSocket self;
-  self.m_fd.value = fd;
-  return self;
+  return UdpSocket::make_from_os_specific_handle(fd);
 }
 
 Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) noexcept {

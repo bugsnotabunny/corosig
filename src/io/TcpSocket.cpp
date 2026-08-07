@@ -64,8 +64,7 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
     co_return Failure{SyscallError::current()};
   }
 
-  TcpSocket self;
-  self.m_fd.value = sock;
+  TcpSocket self = TcpSocket::make_from_os_specific_handle(sock);
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
@@ -91,6 +90,12 @@ TcpSocket::connect(Reactor &, SockaddrStorage const &addr) noexcept {
   }
 
   co_return self;
+}
+
+TcpSocket TcpSocket::make_from_os_specific_handle(os::Handle handle) noexcept {
+  TcpSocket sock;
+  sock.m_fd = handle;
+  return sock;
 }
 
 } // namespace corosig
