@@ -28,6 +28,10 @@ Reactor::Reactor(std::span<char> mem) noexcept
 
 Reactor::~Reactor() {
   gc();
+  assert(m_gc_list.empty());
+  assert(m_polled.empty());
+  assert(m_ready.empty());
+  assert(m_sleeping.empty());
 }
 
 Allocator &Reactor::allocator() noexcept {
@@ -142,18 +146,20 @@ Result<void, SyscallError> Reactor::poll_and_resume_impl(std::span<::pollfd> pol
   if (ret == -1) {
     return Failure{SyscallError::current()};
   }
-
   // polled list may become empty if some coroutine cancels execution which may trigger deletion
   // of some of list nodes
+
   for (size_t i = 0; !m_polled.empty() && i < static_cast<size_t>(ret); ++i) {
     PollListNode &node = m_polled.front();
-    // list node was deleted due to coroutine cancelling
-    if (poll_fds[i].fd != node.handle) {
+
+    ::pollfd pollfd = poll_fds[i];
+    if (pollfd.fd != node.handle || (pollfd.revents & short(node.event)) == 0) {
+      m_polled.pop_front();
+      m_polled.push_back(node);
       continue;
     }
 
     m_polled.pop_front();
-
     assert(node.waiting_coro != nullptr);
     assert(!node.waiting_coro.done());
     node.waiting_coro.resume();
