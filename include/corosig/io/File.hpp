@@ -83,14 +83,43 @@ public:
   Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &,
                                                           std::span<char const>) noexcept;
 
+  /// @brief Write all bytes from string literal, excluding null-terminator
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  write(Reactor &r,
+        char const (&arr)[N]) noexcept // NOLINT(modernize-avoid-c-arrays)
+  {
+    return write(r, std::string_view{arr});
+  }
+
   /// @brief Write bytes from buffer
   /// @returns Number of bytes written or a syscall error
   Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &,
                                                                std::span<char const>) noexcept;
 
+  /// @brief Write bytes from string literal, excluding null-terminator
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  write_some(Reactor &r,
+             char const (&arr)[N]) noexcept // NOLINT(modernize-avoid-c-arrays)
+  {
+    return write_some(r, std::string_view{arr});
+  }
+
   /// @brief Write bytes from buffer if output is write-ready
   /// @returns Number of bytes written or a syscall error
   Result<size_t, SyscallError> try_write_some(std::span<char const>) noexcept;
+
+  /// @brief Write bytes from string literal, excluding null-terminator
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Result<size_t, SyscallError>
+  try_write_some(char const (&arr)[N]) noexcept // NOLINT(modernize-avoid-c-arrays)
+  {
+    return try_write_some(std::string_view{arr});
+  }
 
   /// @brief Free allocated resources and invalidate underlying handle
   void close() noexcept;
