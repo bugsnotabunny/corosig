@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <optional>
 #include <source_location>
+#include <string_view>
+#include <type_traits>
 #include <unistd.h>
 #include <utility>
 
@@ -17,14 +19,25 @@ namespace corosig {
 void print(std::string_view msg) noexcept;
 void print_num(size_t value) noexcept;
 
+template <typename T>
+void print_because(T const &result) noexcept {
+  if constexpr (requires(T t) {
+                  { t.error().description() } -> std::convertible_to<std::string_view>;
+                }) {
+    ::corosig::print("   because: ");
+    ::corosig::print(result.error().description());
+  }
+}
+
 #define COROSIG_REQUIRE(...)                                                                       \
   do {                                                                                             \
-    bool success = (__VA_ARGS__);                                                                  \
-    if (!success) {                                                                                \
+    decltype(auto) __COROSIG_TESTING_TMP__ = (__VA_ARGS__);                                        \
+    if (!__COROSIG_TESTING_TMP__) {                                                                \
       auto loc = ::std::source_location::current();                                                \
       ::corosig::print(loc.file_name());                                                           \
       ::corosig::print(":");                                                                       \
       ::corosig::print_num(loc.line());                                                            \
+      ::corosig::print_because(__COROSIG_TESTING_TMP__);                                           \
       ::corosig::print("\n");                                                                      \
       ::_exit(EXIT_FAILURE);                                                                       \
     }                                                                                              \
