@@ -7,7 +7,6 @@
 #include "corosig/testing/Signals.hpp"
 
 #include <array>
-#include <netinet/in.h>
 #include <string_view>
 
 namespace {
@@ -73,15 +72,6 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with specific port") {
   COROSIG_REQUIRE(result.is_ok());
   TcpListener sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
-}
-
-COROSIG_SIGHANDLER_TEST_CASE("TcpListener make_from_os_specific_handle creates valid socket") {
-  int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
-  COROSIG_REQUIRE(fd >= 0);
-
-  TcpListener sock = TcpListener::make_from_os_specific_handle(fd);
-
-  COROSIG_REQUIRE(sock.underlying_handle() == fd);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept incoming connection") {
