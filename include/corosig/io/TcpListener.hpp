@@ -1,7 +1,8 @@
-#ifndef COROSIG_IO_LISTENER_SOCKET_HPP
-#define COROSIG_IO_LISTENER_SOCKET_HPP
+#ifndef COROSIG_IO_TCP_LISTENER_HPP
+#define COROSIG_IO_TCP_LISTENER_HPP
 
 #include "corosig/ErrorTypes.hpp"
+#include "corosig/Result.hpp"
 #include "corosig/io/Sockaddr.hpp"
 #include "corosig/io/TcpSocket.hpp"
 #include "corosig/os/Handle.hpp"
@@ -17,8 +18,8 @@ struct AcceptResult {
   SockaddrStorage incoming_connection_addr;
 };
 
-/// @brief An asynchronous listener socket
-struct ListenerSocket {
+/// @brief An asynchronous listener for incoming TCP connections
+struct TcpListener {
   struct Options {
     SockaddrStorage addr;
     size_t backlog_size = std::numeric_limits<size_t>::max();
@@ -27,31 +28,34 @@ struct ListenerSocket {
   };
 
   /// @brief Construct a ListenerSocket bound to invalid os::Handle
-  ListenerSocket() noexcept = default;
+  TcpListener() noexcept = default;
 
   /// @brief Make new listener socket with given options. If any of underlying syscalls fails, an
   ///        error is returned instead
-  static Result<ListenerSocket, SyscallError> make(Options const &options) noexcept;
+  static Result<TcpListener, SyscallError> make(Options const &options) noexcept;
 
   /// @brief Construct listener end which owns given os::Handle
   /// @warn This is user's responsibility to provide a handle to an actually valid listener socket
-  static ListenerSocket make_from_os_specific_handle(os::Handle handle) noexcept;
+  static TcpListener make_from_os_specific_handle(os::Handle handle) noexcept;
 
-  ListenerSocket(ListenerSocket const &) = delete;
-  ListenerSocket(ListenerSocket &&) noexcept = default;
-  ListenerSocket &operator=(ListenerSocket const &) = delete;
-  ListenerSocket &operator=(ListenerSocket &&rhs) noexcept {
+  TcpListener(TcpListener const &) = delete;
+  TcpListener(TcpListener &&) noexcept = default;
+  TcpListener &operator=(TcpListener const &) = delete;
+  TcpListener &operator=(TcpListener &&rhs) noexcept {
     if (this != &rhs) {
-      this->~ListenerSocket();
-      new (this) ListenerSocket{std::move(rhs)};
+      this->~TcpListener();
+      new (this) TcpListener{std::move(rhs)};
     }
     return *this;
   }
 
-  ~ListenerSocket();
+  ~TcpListener();
 
   /// @brief Accept next incoming connection
   Fut<AcceptResult, Error<AllocationError, SyscallError>> accept(Reactor &) noexcept;
+
+  /// @brief Get an address to which socket has been actually bound
+  Result<SockaddrStorage, SyscallError> address() const noexcept;
 
   /// @brief Free allocated resources and invalidate underlying handle
   void close() noexcept;

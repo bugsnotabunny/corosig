@@ -91,7 +91,7 @@ Result<size_t, SyscallError> try_write_some(int fd, std::span<char const> buf) n
 }
 
 void close(int &fd) noexcept {
-  if (fd >= 0) {
+  if (fd != -1) {
     ::close(fd);
     fd = -1;
   }
@@ -109,6 +109,16 @@ socklen_t addr_length(sockaddr_storage const &storage) noexcept {
     assert(false && "Unsupported address family");
     return std::numeric_limits<socklen_t>::max();
   }
+}
+
+Result<SockaddrStorage, SyscallError> socket_address(int fd) noexcept {
+  SockaddrStorage addr;
+  socklen_t addr_len = sizeof(SockaddrStorage);
+
+  if (getsockname(fd, (struct sockaddr *)&addr.native_storage, &addr_len) == -1) {
+    return Failure{SyscallError::current()};
+  }
+  return addr;
 }
 
 } // namespace corosig::os::posix

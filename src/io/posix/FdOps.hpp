@@ -4,6 +4,7 @@
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/io/Sockaddr.hpp"
 
 #include <cstddef>
 #include <netinet/in.h>
@@ -32,6 +33,7 @@ Result<size_t, SyscallError> try_read_some(int fd, std::span<char>) noexcept;
 void close(int &fd) noexcept;
 
 socklen_t addr_length(sockaddr_storage const &storage) noexcept;
+Result<SockaddrStorage, SyscallError> socket_address(int fd) noexcept;
 
 } // namespace corosig::os::posix
 
