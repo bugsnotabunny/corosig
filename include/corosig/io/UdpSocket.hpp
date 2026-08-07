@@ -9,6 +9,7 @@
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <span>
+#include <string_view>
 
 namespace corosig {
 
@@ -64,10 +65,28 @@ public:
   Fut<size_t, Error<AllocationError, SyscallError>>
   send_to(Reactor &, std::span<char const>, SockaddrStorage const &dest) noexcept;
 
+  /// @brief Send given literal as a package to specified dest
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Fut<size_t, Error<AllocationError, SyscallError>>
+  send_to(Reactor &r,
+          char const (&arr)[N], // NOLINT(modernize-avoid-c-arrays)
+          SockaddrStorage const &dest) noexcept {
+    return send_to(r, std::string_view{arr}, dest);
+  }
+
   /// @brief Send a package from buffer to specified dest if socket is write-ready
   /// @returns Number of bytes written or a syscall error
   Result<size_t, SyscallError> try_send_to(std::span<char const>,
                                            SockaddrStorage const &dest) noexcept;
+
+  /// @brief Send given literal as a package to specified dest if socket is write-ready
+  /// @returns Number of bytes written or a syscall error
+  template <size_t N>
+  Result<size_t, SyscallError> try_send_to(char const (&arr)[N], // NOLINT(modernize-avoid-c-arrays)
+                                           SockaddrStorage const &dest) noexcept {
+    return try_send_to(std::string_view{arr}, dest);
+  }
 
   /// @brief Free allocated resources and invalidate underlying handle
   void close() noexcept;
