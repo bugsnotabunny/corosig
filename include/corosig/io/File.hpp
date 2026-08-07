@@ -39,6 +39,10 @@ public:
   /// @brief Construct a File bound to invalid os::Handle
   File() noexcept = default;
 
+  /// @brief Construct a file end which owns given os::Handle
+  /// @warn This is user's responsibility to provide a handle to an actually valid file
+  static File make_from_os_specific_handle(os::Handle handle) noexcept;
+
   /// @brief Open a file at path with specified flags and permissions
   static Fut<File, Error<AllocationError, SyscallError>>
   open(Reactor &,

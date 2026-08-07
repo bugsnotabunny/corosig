@@ -11,12 +11,23 @@
 #include <fcntl.h>
 #include <span>
 #include <unistd.h>
-#include <utility>
 
 namespace corosig {
 
+PipeRead PipeRead::make_from_os_specific_handle(os::Handle handle) noexcept {
+  PipeRead pipe;
+  pipe.m_fd = handle;
+  return pipe;
+}
+
 PipeRead::~PipeRead() {
   close();
+}
+
+PipeWrite PipeWrite::make_from_os_specific_handle(os::Handle handle) noexcept {
+  PipeWrite pipe;
+  pipe.m_fd = handle;
+  return pipe;
 }
 
 PipeWrite::~PipeWrite() {
@@ -72,15 +83,10 @@ Result<PipePair, SyscallError> PipePair::make() noexcept {
   if (::pipe2(fds.data(), O_NONBLOCK) == -1) {
     return Failure{SyscallError::current()};
   }
-  PipeRead read;
-  PipeWrite write;
-
-  read.m_fd.value = fds[0];
-  write.m_fd.value = fds[1];
 
   return PipePair{
-      .read = std::move(read),
-      .write = std::move(write),
+      .read = PipeRead::make_from_os_specific_handle(fds[0]),
+      .write = PipeWrite::make_from_os_specific_handle(fds[1]),
   };
 }
 

@@ -58,6 +58,12 @@ void File::close() noexcept {
   }
 }
 
+File File::make_from_os_specific_handle(os::Handle handle) noexcept {
+  File file;
+  file.m_fd = handle;
+  return file;
+}
+
 Fut<File, Error<AllocationError, SyscallError>>
 File::open(Reactor &, char const *path, OpenFlags flags, OpenPerms perms) noexcept {
   // Actually a blocking open. Future is used as interface in order to provide capability for other
@@ -65,12 +71,12 @@ File::open(Reactor &, char const *path, OpenFlags flags, OpenPerms perms) noexce
   int fd = ::open(path,
                   static_cast<int>(flags) | O_NONBLOCK,
                   static_cast<int>(perms) | S_IRWXU | S_IRWXG | S_IRWXO);
+
+  using Fut = Fut<File, Error<AllocationError, SyscallError>>;
   if (fd == -1) {
-    co_return Failure{SyscallError::current()};
+    return Fut::make_ready(Failure{SyscallError::current()});
   }
-  File self;
-  self.m_fd = fd;
-  co_return self;
+  return Fut::make_ready(make_from_os_specific_handle(fd));
 }
 
 } // namespace corosig

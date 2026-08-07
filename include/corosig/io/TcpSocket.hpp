@@ -23,6 +23,10 @@ public:
   static Fut<TcpSocket, Error<AllocationError, SyscallError>>
   connect(Reactor &, SockaddrStorage const &addr) noexcept;
 
+  /// @brief Construct a TCP socket which owns given os::Handle
+  /// @warn This is user's responsibility to provide a handle to an actually valid TcpSocket
+  static TcpSocket make_from_os_specific_handle(os::Handle handle) noexcept;
+
   TcpSocket(TcpSocket const &) = delete;
   TcpSocket(TcpSocket &&) noexcept = default;
   TcpSocket &operator=(TcpSocket const &) = delete;

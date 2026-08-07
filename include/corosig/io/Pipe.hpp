@@ -21,6 +21,10 @@ public:
   /// @brief Construct a PipeRead bound to invalid os::Handle
   PipeRead() noexcept = default;
 
+  /// @brief Construct pipe read end which owns given os::Handle
+  /// @warn This is user's responsibility to provide a handle to an actually valid pipe read end
+  static PipeRead make_from_os_specific_handle(os::Handle handle) noexcept;
+
   PipeRead(PipeRead const &) = delete;
   PipeRead(PipeRead &&) noexcept = default;
   PipeRead &operator=(PipeRead const &) = delete;
@@ -65,6 +69,10 @@ struct PipeWrite {
 public:
   /// @brief Construct a PipeWrite bound to invalid os::Handle
   PipeWrite() noexcept = default;
+
+  /// @brief Construct pipe write end which owns given os::Handle
+  /// @warn This is user's responsibility to provide a handle to an actually valid pipe write end
+  static PipeWrite make_from_os_specific_handle(os::Handle handle) noexcept;
 
   PipeWrite(PipeWrite const &) = delete;
   PipeWrite(PipeWrite &&) noexcept = default;
