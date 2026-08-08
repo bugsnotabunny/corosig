@@ -1,6 +1,8 @@
 #include "corosig/io/TcpSocket.hpp"
 
+#include "corosig/Background.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/TcpListener.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
@@ -190,4 +192,26 @@ TEST_CASE("TcpSocket close() invalidates descriptor") {
 TEST_CASE("TcpSocket default constructed socket has invalid handle") {
   TcpSocket sock;
   COROSIG_REQUIRE(sock.underlying_handle() == -1);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("TcpSocket connect_from") {
+  auto foo = [](Reactor &r) -> Fut<int, Error<AllocationError, SyscallError>> {
+    auto listener = TcpListener::make({.addr = Ipv4Addr::loopback().to_sockaddr(0)}).value();
+
+    SockaddrStorage target = listener.address().value();
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(8912);
+
+    COROSIG_REQUIRE(run_in_background(r, TcpSocket::connect_from(r, local, target)));
+    COROSIG_CO_TRY(AcceptResult ar, co_await listener.accept(r));
+
+    COROSIG_REQUIRE(ar.incoming_connection_addr.native_storage.ss_family == AF_INET);
+    auto const *in_a = reinterpret_cast<sockaddr_in const *>(
+        &ar.incoming_connection_addr.native_storage.ss_family);
+    auto const *in_b = reinterpret_cast<sockaddr_in const *>(&local.native_storage);
+    COROSIG_REQUIRE(in_a->sin_port == in_b->sin_port);
+    COROSIG_REQUIRE(in_a->sin_addr.s_addr == in_b->sin_addr.s_addr);
+
+    co_return Ok();
+  };
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }
