@@ -115,7 +115,7 @@ Result<SockaddrStorage, SyscallError> socket_address(int fd) noexcept {
   SockaddrStorage addr;
   socklen_t addr_len = sizeof(SockaddrStorage);
 
-  if (getsockname(fd, (struct sockaddr *)&addr.native_storage, &addr_len) == -1) {
+  if (getsockname(fd, reinterpret_cast<struct sockaddr *>(&addr.native_storage), &addr_len) == -1) {
     return Failure{SyscallError::current()};
   }
   return addr;

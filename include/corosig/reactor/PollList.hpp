@@ -2,12 +2,15 @@
 #define COROSIG_REACTOR_POLL_LIST_HPP
 
 #include "corosig/os/Handle.hpp"
+#include "corosig/util/Bitmask.hpp"
 
 #include <boost/intrusive/list.hpp>
 #include <boost/intrusive/list_hook.hpp>
 #include <boost/intrusive/options.hpp>
 #include <coroutine>
+#include <csignal>
 #include <sys/poll.h>
+#include <type_traits>
 
 namespace corosig {
 
@@ -17,6 +20,9 @@ enum class PollEventExpectance : short { // NOLINT (performance-enum-size)
   CAN_READ = POLLIN,
   CAN_WRITE = POLLOUT,
 };
+
+template <>
+struct IsBitmask<PollEventExpectance> : std::true_type {};
 
 /// @brief Node type for PollList
 struct PollListNode

@@ -47,6 +47,7 @@ void Reactor::destroy_later(GcListNode &to_gc) noexcept {
 }
 
 void Reactor::schedule_when_ready(PollListNode &node) noexcept {
+  node.event |= PollEventExpectance(POLLERR | POLLHUP | POLLNVAL);
   m_polled.push_back(node);
 }
 
@@ -153,7 +154,7 @@ Result<void, SyscallError> Reactor::poll_and_resume_impl(std::span<::pollfd> pol
     PollListNode &node = m_polled.front();
 
     ::pollfd pollfd = poll_fds[i];
-    if (pollfd.fd != node.handle || (pollfd.revents & short(node.event)) == 0) {
+    if (pollfd.fd != node.handle || (pollfd.revents & static_cast<short>(node.event)) == 0) {
       m_polled.pop_front();
       m_polled.push_back(node);
       continue;

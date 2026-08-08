@@ -19,10 +19,23 @@ public:
   /// @brief Construct a TCP socket which refers to invalid os::Handle
   TcpSocket() noexcept = default;
 
-  /// @brief Make a TCP connection to specified addr
+  struct ConnectFromOptions {
+    /// @brief An address to bind local socket to
+    SockaddrStorage const &local;
+
+    /// @brief An address to establish connection with
+    SockaddrStorage const &target;
+  };
+
+  /// @brief Make a TCP connection to specified target addr
   /// @returns Ready-for-write socket or syscall error
   static Fut<TcpSocket, Error<AllocationError, SyscallError>>
-  connect(Reactor &, SockaddrStorage const &addr) noexcept;
+  connect(Reactor &, SockaddrStorage const &target) noexcept;
+
+  /// @brief Make a TCP connection from local addr to specified target addr
+  /// @returns Ready-for-write socket or syscall error
+  static Fut<TcpSocket, Error<AllocationError, SyscallError>>
+  connect_from(Reactor &, SockaddrStorage const &local, SockaddrStorage const &target) noexcept;
 
   /// @brief Construct a TCP socket which owns given os::Handle
   /// @warn This is user's responsibility to provide a handle to an actually valid TcpSocket
