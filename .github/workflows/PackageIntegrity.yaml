@@ -12,7 +12,7 @@ jobs:
       matrix:
         config: [release]
         toolchain: [clang]
-        corosig-version: ["experimental", "v0.1.0"]
+        corosig-version: ["experimental", "v0.1.0", "v0.1.1"]
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v26

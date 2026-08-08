@@ -19,8 +19,8 @@ And as any IO operation, this is faster and fancier when you do it asynchronousl
 If you are an xmake user, add that to your project's `xmake.lua`:
 
 ```lua
-add_repositories("corosig-repo git@github.com:bugsnotabunny/corosig.git v0.1.0")
-add_requires("corosig v0.1.0", { external = true })
+add_repositories("corosig-repo git@github.com:bugsnotabunny/corosig.git v0.1.1")
+add_requires("corosig v0.1.1", { external = true })
 
 -- override boost settings and version, if needed
 add_requireconfs("corosig.boost", { override = true, version = "1.90.0" })
