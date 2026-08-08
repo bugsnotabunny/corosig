@@ -3,6 +3,7 @@
 #include "corosig/Clock.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/container/Vector.hpp"
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/GcList.hpp"
 #include "corosig/reactor/PollList.hpp"
@@ -47,7 +48,6 @@ void Reactor::destroy_later(GcListNode &to_gc) noexcept {
 }
 
 void Reactor::schedule_when_ready(PollListNode &node) noexcept {
-  node.event |= PollEventExpectance(POLLERR | POLLHUP | POLLNVAL);
   m_polled.push_back(node);
 }
 
@@ -76,15 +76,21 @@ Result<void, SyscallError> Reactor::do_event_loop_iteration() noexcept {
   resume_ready();
 
   using namespace std::chrono_literals;
-  int_milliseconds_type poll_timeout = -1ms;
+
+  // some kernels are just fucking stupid and may forget about waking you up when events arrive. if
+  // timeout is infinite, we will get an effective deadlock. this is why we have to wake up
+  // sometimes which forces kernel to check if there were any actual events while we have slept
+  constexpr int_milliseconds_type DEFAULT_TIMEOUT = 100ms;
+  int_milliseconds_type poll_timeout = 100ms;
   if (!m_ready.empty()) {
     poll_timeout = 0ms;
   } else if (!m_sleeping.empty()) {
     poll_timeout = std::max<int_milliseconds_type>(
         0ms, ceil_to_millis(m_sleeping.begin()->awake_time - SteadyClock::now()));
+    poll_timeout = std::min<int_milliseconds_type>(poll_timeout, DEFAULT_TIMEOUT);
   }
 
-  return std::invoke(&Reactor::poll_and_resume_fallback, this, poll_timeout);
+  return std::invoke(m_poll_and_resume_method, this, poll_timeout);
 }
 
 Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type timeout) noexcept {
@@ -92,11 +98,12 @@ Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type
     return Ok{};
   }
 
-  size_t shrink_threshold = m_poll_buf.size() / 2;
+  size_t shrink_threshold = m_poll_buf.capacity() / 4;
   if (m_previous_iteration_buffer > MIN_POLL_BUFFER &&
       m_previous_iteration_buffer < shrink_threshold) {
-    if (m_poll_buf.resize(shrink_threshold)) {
-      (void)m_poll_buf.shrink_to_fit();
+    Vector<::pollfd> new_buf{m_alloc};
+    if (new_buf.reserve(shrink_threshold)) {
+      m_poll_buf = std::move(new_buf);
     }
   }
 
@@ -104,11 +111,9 @@ Result<void, SyscallError> Reactor::poll_and_resume_normal(int_milliseconds_type
   for (PollListNode const &node : m_polled) {
     assert(node.handle != -1);
 
-    auto poll_fd = ::pollfd{
-        .fd = node.handle,
-        .events = static_cast<short>(node.event),
-        .revents = {},
-    };
+    ::pollfd poll_fd;
+    poll_fd.fd = node.handle;
+    poll_fd.events = static_cast<short>(node.event);
     if (auto res = m_poll_buf.push_back(poll_fd); !res) {
       break;
     }
@@ -143,28 +148,42 @@ Reactor::poll_and_resume_fallback(int_milliseconds_type timeout) noexcept {
 
 Result<void, SyscallError> Reactor::poll_and_resume_impl(std::span<::pollfd> poll_fds,
                                                          int_milliseconds_type timeout) noexcept {
-  int ret = ::poll(poll_fds.data(), poll_fds.size(), timeout.count());
+  int const ret = ::poll(poll_fds.data(), poll_fds.size(), timeout.count());
   if (ret == -1) {
     return Failure{SyscallError::current()};
   }
   // polled list may become empty if some coroutine cancels execution which may trigger deletion
   // of some of list nodes
+  PollList polled = std::move(m_polled);
 
-  for (size_t i = 0; !m_polled.empty() && i < static_cast<size_t>(ret); ++i) {
-    PollListNode &node = m_polled.front();
+  size_t handled = 0;
+  for (size_t i = 0; handled < static_cast<size_t>(ret) && i < poll_fds.size() && !polled.empty();
+       ++i) {
 
-    ::pollfd pollfd = poll_fds[i];
-    if (pollfd.fd != node.handle || (pollfd.revents & static_cast<short>(node.event)) == 0) {
-      m_polled.pop_front();
+    PollListNode &node = polled.front();
+
+    ::pollfd const pollfd = poll_fds[i];
+    if (pollfd.fd != node.handle) {
+      if (pollfd.revents != 0) {
+        ++handled;
+      }
+      continue;
+    }
+    if (pollfd.revents == 0) {
+      polled.pop_front();
       m_polled.push_back(node);
       continue;
     }
 
-    m_polled.pop_front();
+    polled.pop_front();
     assert(node.waiting_coro != nullptr);
     assert(!node.waiting_coro.done());
     node.waiting_coro.resume();
+    ++handled;
   }
+
+  m_polled.splice(m_polled.end(), polled);
+  assert(polled.empty());
 
   return Ok{};
 }

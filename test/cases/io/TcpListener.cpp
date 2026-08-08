@@ -201,7 +201,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener move semantics") {
 
     TcpListener listener2(std::move(listener1));
 
-    COROSIG_REQUIRE(listener1.underlying_handle() == -1);
+    COROSIG_REQUIRE(listener1.underlying_handle() == -1); // NOLINT
     COROSIG_REQUIRE(listener2.underlying_handle() >= 0);
     COROSIG_REQUIRE(listener2.underlying_handle() == fd_before);
 
@@ -233,7 +233,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener move assignment") {
     TcpListener listener2;
     listener2 = std::move(listener1);
 
-    COROSIG_REQUIRE(listener1.underlying_handle() == -1);
+    COROSIG_REQUIRE(listener1.underlying_handle() == -1); // NOLINT
     COROSIG_REQUIRE(listener2.underlying_handle() >= 0);
 
     BackgroundTask client_task = [](Reactor &r, SockaddrStorage addr) -> BackgroundTask {
