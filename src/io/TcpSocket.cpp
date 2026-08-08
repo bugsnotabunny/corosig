@@ -97,6 +97,10 @@ void TcpSocket::close() noexcept {
   return os::posix::close(m_fd.value);
 }
 
+Result<SockaddrStorage, SyscallError> TcpSocket::address() const noexcept {
+  return os::posix::socket_address(m_fd.value);
+}
+
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
 TcpSocket::connect(Reactor &r, SockaddrStorage const &target) noexcept {
   using Fut = Fut<TcpSocket, Error<AllocationError, SyscallError>>;

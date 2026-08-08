@@ -112,6 +112,9 @@ public:
     return try_write_some(std::string_view{arr});
   }
 
+  /// @brief Get an address to which socket has been bound
+  Result<SockaddrStorage, SyscallError> address() const noexcept;
+
   /// @brief Free allocated resources and invalidate underlying handle
   void close() noexcept;
 

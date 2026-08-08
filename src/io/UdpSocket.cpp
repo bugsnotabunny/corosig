@@ -88,6 +88,10 @@ Result<size_t, SyscallError> UdpSocket::try_send_to(std::span<char const> messag
   return static_cast<size_t>(result);
 }
 
+Result<SockaddrStorage, SyscallError> UdpSocket::address() const noexcept {
+  return os::posix::socket_address(m_fd.value);
+}
+
 void UdpSocket::close() noexcept {
   return os::posix::close(m_fd.value);
 }

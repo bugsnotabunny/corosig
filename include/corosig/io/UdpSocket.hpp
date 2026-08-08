@@ -88,6 +88,9 @@ public:
     return try_send_to(std::string_view{arr}, dest);
   }
 
+  /// @brief Get an address to which socket has been bound
+  Result<SockaddrStorage, SyscallError> address() const noexcept;
+
   /// @brief Free allocated resources and invalidate underlying handle
   void close() noexcept;
 
