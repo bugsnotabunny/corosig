@@ -21,10 +21,18 @@ struct AcceptResult {
 /// @brief An asynchronous listener for incoming TCP connections
 struct TcpListener {
   struct Options {
-    SockaddrStorage addr;
+    /// @brief An address to listen at
+    SockaddrStorage const &addr;
+
+    /// @brief Size of a listener's backlog. When there are more pending connections than that,
+    ///        incoming connections may be refused
     size_t backlog_size = std::numeric_limits<size_t>::max();
+
+    /// @brief Allow listening on occupied port if addresses differ with socket occupying that port
     bool reuse_addr = true;
-    bool reuse_port = true;
+
+    /// @brief Allow listening on the same port even if addresses are the same
+    bool reuse_port = false;
   };
 
   /// @brief Construct a ListenerSocket bound to invalid os::Handle
@@ -32,7 +40,7 @@ struct TcpListener {
 
   /// @brief Make new listener socket with given options. If any of underlying syscalls fails, an
   ///        error is returned instead
-  static Result<TcpListener, SyscallError> make(Options const &options) noexcept;
+  static Result<TcpListener, SyscallError> make(Options options) noexcept;
 
   /// @brief Construct listener end which owns given os::Handle
   /// @warn This is user's responsibility to provide a handle to an actually valid listener socket
