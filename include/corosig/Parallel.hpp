@@ -57,7 +57,8 @@ struct WrapVoidAwaitable<AWAITABLE> {
 } // namespace detail
 
 /// @brief Wait when all futures are ready. Return all of their results
-/// @returns Future containing tuple of all awaitable results (void results are replaced with std::monostate)
+/// @returns Future containing tuple of all awaitable results (void results are replaced with
+/// std::monostate)
 template <AnAwaitable... AWAITABLE>
 Fut<std::tuple<detail::WrapVoid<AwaitResult<AWAITABLE>>...>>
 when_all(Reactor &, AWAITABLE &&...awaitables) noexcept {
@@ -91,7 +92,8 @@ auto first_error(std::tuple<RESULTS...> &t) noexcept {
 
 /// @brief Wait when all futures are ready. Return all of values from their results or the first
 ///         error that occurred among them
-/// @returns Future containing tuple of all success values (void results are replaced with std::monostate)
+/// @returns Future containing tuple of all success values (void results are replaced with
+/// std::monostate)
 ///          or error from first failed awaitable
 template <typename... AWAITABLE>
   requires((AnAwaitable<AWAITABLE> && AResult<AwaitResult<AWAITABLE>>) && ...)

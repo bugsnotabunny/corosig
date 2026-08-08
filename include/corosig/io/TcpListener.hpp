@@ -59,8 +59,11 @@ struct TcpListener {
 
   ~TcpListener();
 
-  /// @brief Accept next incoming connection
+  /// @brief Accept next incoming connection or get a syscall error trying
   Fut<AcceptResult, Error<AllocationError, SyscallError>> accept(Reactor &) noexcept;
+
+  /// @brief Accept next incoming connection if it is already in a backlog
+  Result<AcceptResult, SyscallError> try_accept() noexcept;
 
   /// @brief Get an address to which socket has been actually bound
   Result<SockaddrStorage, SyscallError> address() const noexcept;

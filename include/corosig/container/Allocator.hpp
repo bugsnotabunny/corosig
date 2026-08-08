@@ -18,7 +18,9 @@ private:
 public:
   /// @brief Efficiently-aligned and sized memory buffer type
   template <size_t SIZE>
-  struct alignas(BLOCK_SIZE) Memory : std::array<char, SIZE - SIZE % BLOCK_SIZE> {};
+  struct alignas(BLOCK_SIZE) Memory : std::array<char, SIZE - SIZE % BLOCK_SIZE> {
+    using std::array<char, SIZE - SIZE % BLOCK_SIZE>::array;
+  };
 
   /// @brief Construct an Allocator for which allocations always fail
   Allocator() noexcept = default;
