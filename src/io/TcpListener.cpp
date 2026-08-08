@@ -9,6 +9,7 @@
 #include "corosig/reactor/Reactor.hpp"
 #include "posix/FdOps.hpp"
 
+#include <cerrno>
 #include <fcntl.h>
 #include <limits>
 #include <netinet/tcp.h>
@@ -64,8 +65,15 @@ TcpListener::~TcpListener() {
 }
 
 Fut<AcceptResult, Error<AllocationError, SyscallError>> TcpListener::accept(Reactor &) noexcept {
-  co_await PollEvent{m_fd.value, PollEventExpectance::CAN_READ};
+  if (auto res = try_accept(); res.is_ok() || (res.error().value != EWOULDBLOCK)) {
+    co_return res;
+  }
 
+  co_await PollEvent{m_fd.value, PollEventExpectance::CAN_READ};
+  co_return try_accept();
+}
+
+Result<AcceptResult, SyscallError> TcpListener::try_accept() noexcept {
   AcceptResult result;
 
   socklen_t incoming_addr_len = sizeof(SockaddrStorage);
@@ -73,25 +81,25 @@ Fut<AcceptResult, Error<AllocationError, SyscallError>> TcpListener::accept(Reac
                     reinterpret_cast<sockaddr *>(&result.incoming_connection_addr.native_storage),
                     &incoming_addr_len);
   if (fd == -1) {
-    co_return Failure{SyscallError::current()};
+    return Failure{SyscallError::current()};
   }
 
   result.incoming_connection = TcpSocket::make_from_os_specific_handle(fd);
 
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags == -1) {
-    co_return Failure{SyscallError::current()};
+    return Failure{SyscallError::current()};
   }
 
   if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    co_return Failure{SyscallError::current()};
+    return Failure{SyscallError::current()};
   }
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
   (void)::setsockopt(fd, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
 
-  co_return result;
+  return result;
 }
 
 Result<SockaddrStorage, SyscallError> TcpListener::address() const noexcept {
