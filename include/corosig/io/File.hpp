@@ -22,18 +22,49 @@ public:
   /// @note Exact values and underlying type are os-specific
   enum class OpenFlags : int { // NOLINT (performance-enum-size)
     UNSPECIFIED = 0,
+
+    /// @brief Append to the existing file contents
     APPEND = O_APPEND,
+
+    /// @brief Create new file if given path does not exist
     CREATE = O_CREAT,
+
+    /// @brief Make file empty on open
     TRUNCATE = O_TRUNC,
+
+    /// @brief Open file in write only mode
     WRONLY = O_WRONLY,
+
+    /// @brief Open file in read only mode
     RDONLY = O_RDONLY,
+
+    DEFAULT = RDONLY,
   };
 
   /// @brief Permissions to open file with
   /// @note Exact values and underlying type are os-specific
   enum class OpenPerms : int { // NOLINT (performance-enum-size)
-    UNSPECIFIED,
-    // TODO
+    UNSPECIFIED = 0,
+
+    READ = S_IRUSR,
+    WRITE = S_IWUSR,
+    EXEC = S_IXUSR,
+    RW = READ | WRITE,
+    RWX = READ | WRITE | EXEC,
+
+    GRP_READ = S_IRGRP,
+    GRP_WRITE = S_IWGRP,
+    GRP_EXEC = S_IXGRP,
+    GRP_RW = GRP_READ | GRP_WRITE,
+    GRP_RWX = GRP_READ | GRP_WRITE | GRP_EXEC,
+
+    OTH_READ = S_IROTH,
+    OTH_WRITE = S_IWOTH,
+    OTH_EXEC = S_IXOTH,
+    OTH_RW = OTH_READ | OTH_WRITE,
+    OTH_RWX = OTH_READ | OTH_WRITE | OTH_EXEC,
+
+    DEFAULT = READ | WRITE | GRP_READ | OTH_READ,
   };
 
   /// @brief Construct a File bound to invalid os::Handle
@@ -47,8 +78,8 @@ public:
   static Fut<File, Error<AllocationError, SyscallError>>
   open(Reactor &,
        char const *path,
-       OpenFlags = OpenFlags::UNSPECIFIED,
-       OpenPerms = OpenPerms::UNSPECIFIED) noexcept;
+       OpenFlags = OpenFlags::DEFAULT,
+       OpenPerms = OpenPerms::DEFAULT) noexcept;
 
   File(File const &) = delete;
   File(File &&) noexcept = default;
