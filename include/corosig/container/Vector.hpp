@@ -80,6 +80,7 @@ public:
 
   ~Vector() {
     clear();
+    m_alloc.deallocate(m_data);
   }
 
   constexpr auto clone() const noexcept
@@ -120,10 +121,6 @@ public:
     while (!empty()) {
       pop_back();
     }
-    m_alloc.deallocate(m_data);
-    m_data = nullptr;
-    m_size = 0;
-    m_capacity = 0;
   }
 
   constexpr Result<void, AllocationError> shrink_to_fit() noexcept {
