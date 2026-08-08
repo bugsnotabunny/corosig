@@ -16,7 +16,7 @@
 
 namespace corosig {
 
-Result<TcpListener, SyscallError> TcpListener::make(Options const &options) noexcept {
+Result<TcpListener, SyscallError> TcpListener::make(Options options) noexcept {
   int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
