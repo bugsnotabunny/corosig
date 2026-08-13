@@ -223,7 +223,7 @@ private:
 
 #define COROSIG_TRY_IMPL(NAME, TEMPORARY_NAME, RETURN, ...)                                        \
   decltype(auto) TEMPORARY_NAME = __VA_ARGS__;                                                     \
-  if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                                \
+  if constexpr (!::corosig::result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                     \
     if (!TEMPORARY_NAME.is_ok()) {                                                                 \
       RETURN ::corosig::Failure{::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()}; \
     }                                                                                              \
@@ -242,7 +242,7 @@ private:
 #define COROSIG_TRYV_IMPL(TEMPORARY_NAME, RETURN, ...)                                             \
   do {                                                                                             \
     auto TEMPORARY_NAME = __VA_ARGS__;                                                             \
-    if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                              \
+    if constexpr (!::corosig::result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                   \
       if (!TEMPORARY_NAME.is_ok()) {                                                               \
         RETURN ::corosig::Failure{                                                                 \
             ::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()};                     \
@@ -260,7 +260,7 @@ private:
 
 #define COROSIG_TRYT_IMPL(NAME, TEMPORARY_NAME, RETURN, TYPE, ...)                                 \
   auto TEMPORARY_NAME = __VA_ARGS__;                                                               \
-  if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                                \
+  if constexpr (!::corosig::result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                     \
     if (!TEMPORARY_NAME.is_ok()) {                                                                 \
       RETURN static_cast<TYPE>(                                                                    \
           ::corosig::Failure{::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()});   \
@@ -277,7 +277,7 @@ private:
 #define COROSIG_TRYTV_IMPL(TEMPORARY_NAME, RETURN, TYPE, ...)                                      \
   do {                                                                                             \
     auto TEMPORARY_NAME = __VA_ARGS__;                                                             \
-    if constexpr (!result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                              \
+    if constexpr (!::corosig::result_is_always_ok<decltype(TEMPORARY_NAME)>()) {                   \
       if (!TEMPORARY_NAME.is_ok()) {                                                               \
         RETURN static_cast<TYPE>(                                                                  \
             ::corosig::Failure{::std::forward<decltype(TEMPORARY_NAME)>(TEMPORARY_NAME).error()}); \
