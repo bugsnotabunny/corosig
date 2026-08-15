@@ -1,7 +1,9 @@
 #ifndef COROSIG_OS_HANDLE_HPP
 #define COROSIG_OS_HANDLE_HPP
 
-#ifdef __unix__
+#include <unistd.h>
+
+#ifdef _POSIX_VERSION
 
 namespace corosig::os {
 
@@ -10,6 +12,8 @@ using Handle = int;
 
 } // namespace corosig::os
 
+#else
+static_assert(false, "Non-POSIX systems are not currently supported");
 #endif
 
 #endif
