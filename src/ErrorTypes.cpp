@@ -1,7 +1,6 @@
 #include "corosig/ErrorTypes.hpp"
 
 #include <cerrno>
-#include <concepts>
 #include <cstring> // IWYU pragma: keep
 #include <string_view>
 

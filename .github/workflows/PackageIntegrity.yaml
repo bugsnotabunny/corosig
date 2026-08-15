@@ -7,24 +7,38 @@ on:
 
 jobs:
   package-integrity:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
+        os: [macos-latest, ubuntu-latest]
         config: [release]
         toolchain: [clang]
         corosig-version: ["experimental", "v0.1.0", "v0.1.1"]
+    env:
+      DEVENV_PROFILES: --profile caches --profile ${{ matrix.toolchain }}
+
+    defaults:
+      run:
+        shell: devenv ${{ env.DEVENV_PROFILES }} shell -- bash -e {0}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v26
-      - uses: cachix/cachix-action@v14
+      - uses: actions/checkout@v5
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v16
         with:
           name: devenv
 
       - name: devenv.sh install
-        run: nix profile install nixpkgs#devenv
+        run: nix profile add nixpkgs#devenv
+        shell: bash
 
       - name: devenv.sh evaluation
-        run: devenv shell echo
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 5
+          command: devenv ${{ env.DEVENV_PROFILES }} shell echo success
 
-      - run: devenv shell "xmake config --project=.github/package_integrity --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --corosig-version=${{ matrix.corosig-version }} --root -vy"
-      - run: devenv shell "xmake run --project=.github/package_integrity test"
+      - run: xmake config --project=.github/package_integrity --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --corosig-version=${{ matrix.corosig-version }} --root -vy
+      - run: xmake run --project=.github/package_integrity test
