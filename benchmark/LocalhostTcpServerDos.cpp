@@ -71,7 +71,7 @@ void benchmark_body(std::span<char> mem, size_t num_connections) {
 
   auto acceptor_task = [&](Reactor &r, size_t num_connections) -> BackgroundTask {
     auto listener_opt = TcpListener::make({
-        .addr = Ipv4Addr::loopback().to_sockaddr(0),
+        .addr = Ipv4Addr::loopback().to_sockaddr(),
         .reuse_addr = true,
         .reuse_port = true,
     });

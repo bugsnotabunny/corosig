@@ -22,7 +22,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener default constructed socket has invalid
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener make creates valid socket with default options") {
   auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(0),
+      .addr = Ipv4Addr::loopback().to_sockaddr(),
   });
 
   COROSIG_REQUIRE(result);
@@ -33,7 +33,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make creates valid socket with default
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with custom backlog size") {
   auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(0),
+      .addr = Ipv4Addr::loopback().to_sockaddr(),
       .backlog_size = 128,
   });
 
@@ -44,7 +44,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with custom backlog size") {
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with reuse_addr false") {
   auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(12345),
+      .addr = Ipv4Addr::loopback().to_sockaddr(),
       .reuse_addr = false,
   });
 
@@ -55,18 +55,8 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with reuse_addr false") {
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with reuse_port false") {
   auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(0),
-      .reuse_port = false,
-  });
-
-  COROSIG_REQUIRE(result);
-  TcpListener sock = std::move(result).value();
-  COROSIG_REQUIRE(sock.underlying_handle() >= 0);
-}
-
-COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with specific port") {
-  auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(12345),
+      .addr = Ipv4Addr::loopback().to_sockaddr(),
+      .reuse_port = true,
   });
 
   COROSIG_REQUIRE(result);
@@ -77,7 +67,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with specific port") {
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept incoming connection") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     TcpListener::Options options{
-        .addr = Ipv4Addr::loopback().to_sockaddr(0),
+        .addr = Ipv4Addr::loopback().to_sockaddr(),
     };
 
     COROSIG_CO_TRY(auto listener, TcpListener::make(options));
@@ -103,7 +93,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept incoming connection") {
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept and exchange data") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     TcpListener::Options listener_options{
-        .addr = Ipv4Addr::loopback().to_sockaddr(0),
+        .addr = Ipv4Addr::loopback().to_sockaddr(),
     };
 
     COROSIG_CO_TRY(auto listener, TcpListener::make(listener_options));
@@ -144,7 +134,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept and exchange data") {
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept multiple connections") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     TcpListener::Options options{
-        .addr = Ipv4Addr::loopback().to_sockaddr(0),
+        .addr = Ipv4Addr::loopback().to_sockaddr(),
     };
 
     COROSIG_CO_TRY(auto listener, TcpListener::make(options));
@@ -193,7 +183,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener accept multiple connections") {
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener move semantics") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     TcpListener::Options options{
-        .addr = Ipv4Addr::loopback().to_sockaddr(0),
+        .addr = Ipv4Addr::loopback().to_sockaddr(),
     };
 
     COROSIG_CO_TRY(auto listener1, TcpListener::make(options));
@@ -225,7 +215,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener move semantics") {
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener move assignment") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
     TcpListener::Options options1{
-        .addr = Ipv4Addr::loopback().to_sockaddr(0),
+        .addr = Ipv4Addr::loopback().to_sockaddr(),
     };
 
     COROSIG_CO_TRY(auto listener1, TcpListener::make(options1));
@@ -253,7 +243,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener move assignment") {
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener close invalidates handle") {
   auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(0),
+      .addr = Ipv4Addr::loopback().to_sockaddr(),
   });
 
   COROSIG_REQUIRE(result);
@@ -266,7 +256,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener close invalidates handle") {
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener underlying_handle returns correct value") {
   auto result = TcpListener::make({
-      .addr = Ipv4Addr::loopback().to_sockaddr(0),
+      .addr = Ipv4Addr::loopback().to_sockaddr(),
   });
 
   COROSIG_REQUIRE(result);

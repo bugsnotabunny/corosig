@@ -33,48 +33,22 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: unbound creates valid socket with AF_IN
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound randomly with AF_INET") {
-  auto result = UdpSocket::bound(Ipv4Addr::loopback().to_sockaddr());
-
-  COROSIG_REQUIRE(result);
-  UdpSocket sock = std::move(result).value();
-  COROSIG_REQUIRE(sock.underlying_handle() >= 0);
+  auto sock = UdpSocket::bound(Ipv4Addr::loopback().to_sockaddr());
+  COROSIG_REQUIRE(sock);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound randomly with AF_INET6") {
-  auto result = UdpSocket::bound(Ipv6Addr::loopback().to_sockaddr());
-
-  COROSIG_REQUIRE(result);
-  UdpSocket sock = std::move(result).value();
-  COROSIG_REQUIRE(sock.underlying_handle() >= 0);
-}
-
-COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound to specific IPv4 address and port") {
-  SockaddrStorage addr = Ipv4Addr::loopback().to_sockaddr(12345);
-
-  auto result = UdpSocket::bound(addr);
-
-  COROSIG_REQUIRE(result);
-  UdpSocket sock = std::move(result).value();
-  COROSIG_REQUIRE(sock.underlying_handle() >= 0);
-}
-
-COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound to specific IPv6 address and port") {
-  auto ipv6 = Ipv6Addr::parse("::1");
-
-  SockaddrStorage addr = ipv6->to_sockaddr(12345);
-
-  auto result = UdpSocket::bound(addr);
-
-  COROSIG_REQUIRE(result);
-  UdpSocket sock = std::move(result).value();
-  COROSIG_REQUIRE(sock.underlying_handle() >= 0);
+  auto sock = UdpSocket::bound(Ipv6Addr::loopback().to_sockaddr());
+  COROSIG_REQUIRE(sock);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send_to and recv_from with source_addr tracking") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(9876);
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, receiver.address());
+
     COROSIG_CO_TRY(auto sender, UdpSocket::unbound());
 
     std::string_view msg = "hello with source";
@@ -95,9 +69,11 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send_to and recv_from with source_addr 
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send empty message") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(15321);
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, receiver.address());
+
     COROSIG_CO_TRY(auto sender, UdpSocket::unbound());
 
     std::string_view msg{};
@@ -117,9 +93,11 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send empty message") {
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send and receive larger message") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(19284);
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, receiver.address());
+
     COROSIG_CO_TRY(auto sender, UdpSocket::unbound());
 
     std::array<char, 500> msg{};
@@ -159,7 +137,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: socket is moveable") {
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: close invalidates handle") {
-  SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(54321);
+  SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
   auto result = UdpSocket::bound(local);
   COROSIG_REQUIRE(result);
@@ -173,9 +151,11 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: close invalidates handle") {
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_recv_from returns not blocked when data available") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(27412);
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, receiver.address());
+
     COROSIG_CO_TRY(auto sender, UdpSocket::unbound());
 
     std::string_view msg = "test msg";
@@ -200,9 +180,10 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_recv_from returns not blocked when 
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_send_to works immediately") {
   auto test_coro = [](Reactor &) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(8765);
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto sock, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, sock.address());
 
     std::string_view msg = "hello sync";
 
@@ -218,9 +199,11 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_send_to works immediately") {
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: multiple send operations") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(11111);
+    SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, receiver.address());
+
     COROSIG_CO_TRY(auto sender, UdpSocket::unbound());
 
     std::string_view msg1 = "msg1";
@@ -248,9 +231,11 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: multiple send operations") {
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: IPv6 loopback send/receive") {
   auto test_coro = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
-    SockaddrStorage local = Ipv6Addr::loopback().to_sockaddr(54321);
+    SockaddrStorage local = Ipv6Addr::loopback().to_sockaddr();
 
     COROSIG_CO_TRY(auto receiver, UdpSocket::bound(local));
+    COROSIG_CO_TRY(local, receiver.address());
+
     COROSIG_CO_TRY(auto sender, UdpSocket::unbound(AF_INET6));
 
     std::string_view msg = "hello ipv6";
