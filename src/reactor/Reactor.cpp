@@ -226,11 +226,13 @@ void Reactor::resume_ready_sleepers() noexcept {
 
   auto now = SteadyClock::now();
   while (!m_sleeping.empty()) {
-    SleepListNode &node = *m_sleeping.begin();
+    auto node_iter = m_sleeping.begin();
+    SleepListNode &node = *node_iter;
     if (node.awake_time > now) {
       break;
     }
-    m_sleeping.erase(node);
+
+    m_sleeping.erase(node_iter);
     assert(node.waiting_coro != nullptr);
     assert(!node.waiting_coro.done());
     node.waiting_coro.resume();
