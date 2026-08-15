@@ -21,7 +21,7 @@ struct SleepListNode
   }
 
   /// @brief Coro to be resumed
-  std::coroutine_handle<> waiting_coro = nullptr;
+  std::coroutine_handle<> waiting_coro = std::noop_coroutine();
 
   /// @brief When to resume a coro
   SteadyClock::time_point awake_time;
