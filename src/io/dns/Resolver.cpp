@@ -121,6 +121,13 @@ CachelessResolver::formulate_and_process_request(Reactor &r,
                                                  std::span<SockaddrStorage const> dns_server_addrs,
                                                  std::string_view ascii_name,
                                                  std::span<ResolvedAddress<IP>> out) noexcept {
+#ifndef NDEBUG
+  for (SockaddrStorage const &addr : dns_server_addrs) {
+    assert(addr.native_storage.ss_family ==
+           m_udp_socket.address().value().native_storage.ss_family);
+  }
+#endif
+
   if (m_pending_requests.size() == std::numeric_limits<uint16_t>::max()) {
     co_return Failure{ResolveErrorCode::TOO_MANY_PARALLEL_REQUESTS};
   }
@@ -171,6 +178,9 @@ CachelessResolver::process_request(Reactor &r,
 
   Fut periodic_background_send_fut =
       periodic_background_send(r, encoded_message, request, m_udp_socket, dns_server_addrs);
+  if (periodic_background_send_fut.completed() && !periodic_background_send_fut.result().is_ok()) {
+    co_return Failure{periodic_background_send_fut.result().error()};
+  }
 
   // wait until send fails with syscall or receiver gets proper matching answer or receiver gets
   // improper but matching-by-id answer
@@ -178,7 +188,7 @@ CachelessResolver::process_request(Reactor &r,
   co_return request.result;
 }
 
-Fut<void, Error<AllocationError, SyscallError>> CachelessResolver::periodic_background_send(
+Fut<void, AllocationError> CachelessResolver::periodic_background_send(
     Reactor &r,
     std::span<char const> encoded_message,
     PendingRequestBase &this_request,
