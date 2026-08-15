@@ -1,14 +1,21 @@
-name: "Codestyle"
+name: "BuildAndTest"
 
 on:
   push:
 
 jobs:
-  check-codestyle:
-    runs-on: ubuntu-latest
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        config: [asan, tsan, release, minsizerel]
+        toolchain: [clang, gcc]
 
     env:
-      DEVENV_PROFILES: --profile caches --profile codestyle
+      SHELL: --profile caches --profile ${{ matrix.toolchain }}
 
     defaults:
       run:
@@ -32,14 +39,6 @@ jobs:
           max_attempts: 5
           command: devenv ${{ env.DEVENV_PROFILES }} shell echo success
 
-      - name: clang-format checks
-        run: xmake format -ne
-
-      - name: configure project
-        run: xmake config --toolchain=clang --mode=asan -vy
-
-      - name: generate compile-commands
-        run: xmake project -k compile_commands --lsp=clangd -vy
-
-      - name: clang-tidy checks
-        run: xmake check clang.tidy
+      - run: xmake config --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --root -vy
+      - run: xmake build -vy
+      - run: xmake test -vy '*/norandord'
