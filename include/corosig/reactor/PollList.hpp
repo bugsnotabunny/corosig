@@ -8,7 +8,6 @@
 #include <boost/intrusive/list_hook.hpp>
 #include <boost/intrusive/options.hpp>
 #include <coroutine>
-#include <csignal>
 #include <sys/poll.h>
 #include <type_traits>
 
