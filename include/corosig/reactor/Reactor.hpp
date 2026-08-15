@@ -100,11 +100,11 @@ private:
 
   static int_milliseconds_type ceil_to_millis(std::chrono::nanoseconds nanos) noexcept;
 
+  Allocator m_alloc;
   GcList m_gc_list;
   PollList m_polled;
   CoroList m_ready;
   SleepList m_sleeping;
-  Allocator m_alloc;
   size_t m_previous_iteration_buffer{MIN_POLL_BUFFER};
   Vector<::pollfd> m_poll_buf{m_alloc};
   Result<void, SyscallError> (Reactor::*m_poll_and_resume_method)(int_milliseconds_type);
