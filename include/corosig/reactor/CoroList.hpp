@@ -6,7 +6,6 @@
 #include <boost/intrusive/list.hpp>
 #include <boost/intrusive/list_hook.hpp>
 #include <boost/intrusive/options.hpp>
-#include <coroutine>
 
 namespace corosig {
 
