@@ -1,7 +1,7 @@
 #ifndef COROSIG_RESULT_HPP
 #define COROSIG_RESULT_HPP
 
-#include "corosig/meta/AResult.hpp" // IWYU pragma: keep (used in macro)
+#include "corosig/meta/AResult.hpp"
 
 #include <cassert>
 #include <concepts>
@@ -96,7 +96,7 @@ public:
   ///         convertible to this's value and if an error from another result is convirtible to
   ///         this's error
   template <typename RESULT>
-    requires(!std::same_as<Result, std::decay_t<RESULT>> && AResult<RESULT>)
+    requires(!std::same_as<Result, std::decay_t<RESULT>> && AResult<std::decay_t<RESULT>>)
   constexpr Result(RESULT &&other) noexcept
       : Result{converting_ctor_impl(std::forward<RESULT>(other))} {
   }
@@ -197,7 +197,7 @@ private:
     }
   }
 
-  template <AResult RESULT>
+  template <typename RESULT>
   constexpr static Result<R, E> converting_ctor_impl(RESULT &&other_result) noexcept {
     if constexpr (!result_is_always_ok<RESULT>()) {
       if (!other_result.is_ok()) {
@@ -205,7 +205,7 @@ private:
       }
     }
 
-    if constexpr (std::same_as<void, R>) {
+    if constexpr (std::is_void_v<typename std::decay_t<RESULT>::ok_type> || std::is_void_v<R>) {
       return Ok{};
     } else {
       return Ok{std::forward<RESULT>(other_result).value()};
