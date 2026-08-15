@@ -9,6 +9,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <fcntl.h>
 #include <limits>
 #include <netinet/in.h>
 #include <span>
@@ -16,7 +17,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#ifndef __unix__
+#ifndef _POSIX_VERSION
 static_assert(false, "Platform-specific file included on wrong platform");
 #endif
 
@@ -119,6 +120,19 @@ Result<SockaddrStorage, SyscallError> socket_address(int fd) noexcept {
     return Failure{SyscallError::current()};
   }
   return addr;
+}
+
+Result<void, SyscallError> set_nonblocking_mode(int fd) noexcept {
+  int flags = fcntl(fd, F_GETFL, 0);
+  if (flags == -1) {
+    return Failure{SyscallError::current()};
+  }
+
+  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    return Failure{SyscallError::current()};
+  }
+
+  return Ok{};
 }
 
 } // namespace corosig::os::posix

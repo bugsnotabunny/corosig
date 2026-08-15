@@ -13,7 +13,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#ifndef __unix__
+#ifndef _POSIX_VERSION
 static_assert(false, "Platform-specific file included on wrong platform");
 #endif
 
@@ -34,6 +34,8 @@ void close(int &fd) noexcept;
 
 socklen_t addr_length(sockaddr_storage const &storage) noexcept;
 Result<SockaddrStorage, SyscallError> socket_address(int fd) noexcept;
+
+Result<void, SyscallError> set_nonblocking_mode(int fd) noexcept;
 
 } // namespace corosig::os::posix
 

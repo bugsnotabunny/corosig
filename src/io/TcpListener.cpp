@@ -10,7 +10,6 @@
 #include "posix/FdOps.hpp"
 
 #include <cerrno>
-#include <fcntl.h>
 #include <limits>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -18,12 +17,14 @@
 namespace corosig {
 
 Result<TcpListener, SyscallError> TcpListener::make(Options options) noexcept {
-  int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
+  int fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
   }
 
   auto listener = TcpListener::make_from_os_specific_handle(fd);
+
+  COROSIG_TRYV(os::posix::set_nonblocking_mode(fd));
 
   int reuse_addr = static_cast<int>(options.reuse_addr);
   if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(reuse_addr)) != 0) {
@@ -49,7 +50,7 @@ Result<TcpListener, SyscallError> TcpListener::make(Options options) noexcept {
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(fd, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
+  (void)::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 
   return listener;
 }
@@ -65,7 +66,10 @@ TcpListener::~TcpListener() {
 }
 
 Fut<AcceptResult, Error<AllocationError, SyscallError>> TcpListener::accept(Reactor &) noexcept {
-  if (auto res = try_accept(); res.is_ok() || (res.error().value != EWOULDBLOCK)) {
+  // Listener has queue of incoming connections in a kernel space. This effectively checks if there
+  // are connections in that queue
+  if (auto res = try_accept();
+      res.is_ok() || (res.error().value != EAGAIN && res.error().value != EWOULDBLOCK)) {
     co_return res;
   }
 
@@ -86,18 +90,11 @@ Result<AcceptResult, SyscallError> TcpListener::try_accept() noexcept {
 
   result.incoming_connection = TcpSocket::make_from_os_specific_handle(fd);
 
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1) {
-    return Failure{SyscallError::current()};
-  }
-
-  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-    return Failure{SyscallError::current()};
-  }
+  COROSIG_TRYV(os::posix::set_nonblocking_mode(fd));
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(fd, SOL_TCP, TCP_NODELAY, &on, sizeof(on));
+  (void)::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 
   return result;
 }
