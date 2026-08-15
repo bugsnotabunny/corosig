@@ -14,8 +14,8 @@ std::filesystem::path tmp_file() {
   do {
     std::random_device rd;
     std::mt19937 gen{rd()};
-    std::uniform_int_distribution<char> distr{'a', 'z'};
-    auto rand_letter = [&] { return distr(gen); };
+    std::uniform_int_distribution<int> distr{'a', 'z'};
+    auto rand_letter = [&] { return static_cast<char>(distr(gen)); };
     std::ranges::generate_n(filename.begin(), std::size(filename) - 1, rand_letter);
   } while (std::filesystem::exists(tmp_dir / std::string_view{filename.data(), filename.size()}));
   return tmp_dir / std::string_view{filename.data(), filename.size()};
