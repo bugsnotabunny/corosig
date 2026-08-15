@@ -9,7 +9,7 @@ using duration = std::chrono::nanoseconds;
 using rep = duration::rep;
 using period = duration::period;
 
-duration clock_gettime_ns(int clock) {
+duration clock_gettime_ns(clockid_t clock) noexcept {
   timespec ts;
   if (::clock_gettime(clock, &ts) == -1) {
     return duration{-1};
