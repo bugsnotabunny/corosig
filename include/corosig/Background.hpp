@@ -209,7 +209,7 @@ private:
 /// @returns Background task which shall be checked for allocation errors
 template <typename AWAITABLE>
 BackgroundTask run_in_background(Reactor &, AWAITABLE awaitable) noexcept {
-  (void)co_await std::move(awaitable);
+  (void)co_await std::forward<AWAITABLE>(awaitable);
 }
 
 } // namespace corosig
