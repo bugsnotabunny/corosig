@@ -8,6 +8,7 @@ package("corosig")
     add_versions("experimental", "master")
     add_versions("v0.1.0", "v0.1.0")
     add_versions("v0.1.1", "v0.1.1")
+    add_versions("v0.1.2", "v0.1.2")
 
 
     add_deps("boost", { configs = { filesystem = false } })

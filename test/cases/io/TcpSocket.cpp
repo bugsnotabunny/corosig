@@ -11,7 +11,6 @@
 #include <netinet/in.h>
 #include <span>
 #include <sys/socket.h>
-#include <unistd.h>
 
 namespace {
 
