@@ -22,7 +22,7 @@ namespace {
 using namespace corosig;
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
-connect_impl(Reactor &r, SockaddrStorage const &target, TcpSocket sock) noexcept {
+connect_impl(Reactor &, SockaddrStorage const &target, TcpSocket sock) noexcept {
   auto len = os::posix::addr_length(target.native_storage);
   if (::connect(sock.underlying_handle(),
                 reinterpret_cast<sockaddr const *>(&target.native_storage),
@@ -35,7 +35,7 @@ connect_impl(Reactor &r, SockaddrStorage const &target, TcpSocket sock) noexcept
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(sock.underlying_handle(), SOL_TCP, TCP_NODELAY, &on, sizeof(on));
+  (void)::setsockopt(sock.underlying_handle(), IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 
   co_await PollEvent{sock.underlying_handle(),
                      PollEventExpectance::CAN_WRITE | PollEventExpectance::CAN_READ};
@@ -104,21 +104,33 @@ Result<SockaddrStorage, SyscallError> TcpSocket::address() const noexcept {
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
 TcpSocket::connect(Reactor &r, SockaddrStorage const &target) noexcept {
   using Fut = Fut<TcpSocket, Error<AllocationError, SyscallError>>;
-  int sock = ::socket(target.native_storage.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
+  int sock = ::socket(target.native_storage.ss_family, SOCK_STREAM, IPPROTO_TCP);
   if (sock == -1) {
     return Fut::make_ready(Failure{SyscallError::current()});
   }
 
-  return connect_impl(r, target, TcpSocket::make_from_os_specific_handle(sock));
+  auto socket = TcpSocket::make_from_os_specific_handle(sock);
+
+  if (auto res = os::posix::set_nonblocking_mode(sock); !res) {
+    return Fut::make_ready(res);
+  }
+
+  return connect_impl(r, target, std::move(socket));
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>> TcpSocket::connect_from(
     Reactor &r, SockaddrStorage const &local, SockaddrStorage const &target) noexcept {
   using Fut = Fut<TcpSocket, Error<AllocationError, SyscallError>>;
 
-  int sock = ::socket(local.native_storage.ss_family, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
+  int sock = ::socket(local.native_storage.ss_family, SOCK_STREAM, IPPROTO_TCP);
   if (sock == -1) {
     return Fut::make_ready(Failure{SyscallError::current()});
+  }
+
+  auto socket = TcpSocket::make_from_os_specific_handle(sock);
+
+  if (auto res = os::posix::set_nonblocking_mode(sock); !res) {
+    return Fut::make_ready(res);
   }
 
   if (::bind(sock,
@@ -127,7 +139,7 @@ Fut<TcpSocket, Error<AllocationError, SyscallError>> TcpSocket::connect_from(
     return Fut::make_ready(Failure{SyscallError::current()});
   }
 
-  return connect_impl(r, target, TcpSocket::make_from_os_specific_handle(sock));
+  return connect_impl(r, target, std::move(socket));
 }
 
 TcpSocket TcpSocket::make_from_os_specific_handle(os::Handle handle) noexcept {

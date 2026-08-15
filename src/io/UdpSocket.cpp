@@ -23,12 +23,16 @@ UdpSocket UdpSocket::make_from_os_specific_handle(os::Handle handle) noexcept {
 }
 
 Result<UdpSocket, SyscallError> UdpSocket::unbound(sa_family_t family) noexcept {
-  int fd = socket(family, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_UDP);
+  int fd = ::socket(family, SOCK_DGRAM, IPPROTO_UDP);
   if (fd == -1) {
     return Failure{SyscallError::current()};
   }
 
-  return UdpSocket::make_from_os_specific_handle(fd);
+  auto socket = UdpSocket::make_from_os_specific_handle(fd);
+
+  COROSIG_TRYV(os::posix::set_nonblocking_mode(fd));
+
+  return socket;
 }
 
 Result<UdpSocket, SyscallError> UdpSocket::bound(SockaddrStorage const &local) noexcept {

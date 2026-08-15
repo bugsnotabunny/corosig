@@ -8,7 +8,6 @@
 
 #include <array>
 #include <cstddef>
-#include <fcntl.h>
 #include <span>
 #include <unistd.h>
 
@@ -80,14 +79,20 @@ void PipeRead::close() noexcept {
 
 Result<PipePair, SyscallError> PipePair::make() noexcept {
   std::array<int, 2> fds;
-  if (::pipe2(fds.data(), O_NONBLOCK) == -1) {
+
+  if (::pipe(fds.data()) == -1) {
     return Failure{SyscallError::current()};
   }
 
-  return PipePair{
+  PipePair result{
       .read = PipeRead::make_from_os_specific_handle(fds[0]),
       .write = PipeWrite::make_from_os_specific_handle(fds[1]),
   };
+
+  COROSIG_TRYV(os::posix::set_nonblocking_mode(fds[0]));
+  COROSIG_TRYV(os::posix::set_nonblocking_mode(fds[1]));
+
+  return result;
 }
 
 } // namespace corosig
