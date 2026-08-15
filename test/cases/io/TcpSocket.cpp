@@ -20,14 +20,11 @@ int start_echo_server(uint16_t port) {
   int srv_fd = ::socket(AF_INET, SOCK_STREAM, 0);
   REQUIRE(srv_fd >= 0);
 
-  sockaddr_in addr{};
-  addr.sin_family = AF_INET;
-  addr.sin_port = ::htons(port);
-  addr.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
+  SockaddrStorage addr = Ipv4Addr{}.to_sockaddr(port);
 
   int opt = 1;
   setsockopt(srv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  REQUIRE(::bind(srv_fd, (sockaddr *)&addr, sizeof(addr)) == 0);
+  REQUIRE(::bind(srv_fd, (sockaddr *)&addr, sizeof(sockaddr_in)) == 0);
   REQUIRE(::listen(srv_fd, 1) == 0);
 
   std::thread([srv_fd]() {
@@ -205,8 +202,8 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpSocket connect_from") {
     COROSIG_CO_TRY(AcceptResult ar, co_await listener.accept(r));
 
     COROSIG_REQUIRE(ar.incoming_connection_addr.native_storage.ss_family == AF_INET);
-    auto const *in_a = reinterpret_cast<sockaddr_in const *>(
-        &ar.incoming_connection_addr.native_storage.ss_family);
+    auto const *in_a =
+        reinterpret_cast<sockaddr_in const *>(&ar.incoming_connection_addr.native_storage);
     auto const *in_b = reinterpret_cast<sockaddr_in const *>(&local.native_storage);
     COROSIG_REQUIRE(in_a->sin_port == in_b->sin_port);
     COROSIG_REQUIRE(in_a->sin_addr.s_addr == in_b->sin_addr.s_addr);
