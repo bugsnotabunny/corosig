@@ -165,7 +165,7 @@ private:
                   PendingRequestBase &request,
                   std::span<SockaddrStorage const> dns_server_addrs) noexcept;
 
-  Fut<void, Error<AllocationError, SyscallError>>
+  Fut<void, AllocationError>
   periodic_background_send(Reactor &r,
                            std::span<char const> encoded_message,
                            PendingRequestBase &this_request,
