@@ -99,8 +99,6 @@ COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask multiple concurrent tasks") {
       COROSIG_REQUIRE(run_in_background(r, Sleep{20ms}));
     }
 
-    co_await Sleep{20ms};
-
     co_return 0;
   };
 
