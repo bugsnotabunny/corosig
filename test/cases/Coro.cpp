@@ -50,7 +50,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut move constructor with nontrivial move") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Fut::block_on returns error when reactor fails") {
   Result res = Fut<>::promise_type::get_return_object_on_allocation_failure().block_on();
-  COROSIG_REQUIRE(!res.is_ok());
+  COROSIG_REQUIRE(!res);
   COROSIG_REQUIRE(res.error().holds<AllocationError>());
 }
 
@@ -61,7 +61,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Fut can be co_awaited inside a coroutine") {
   };
 
   auto result = BAR(reactor).block_on();
-  REQUIRE(result.is_ok());
+  REQUIRE(result);
   REQUIRE(result.value() == 123 + 99);
 }
 

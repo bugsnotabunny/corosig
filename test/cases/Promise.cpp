@@ -15,7 +15,7 @@ using namespace corosig;
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise creation succeeds") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise creation can fail allocation") {
@@ -23,24 +23,24 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise creation can fail allocation") {
   Reactor small_reactor{small_mem};
 
   auto result = Promise<int>::make(small_reactor);
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error() == AllocationError{});
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise move constructor transfers ownership") {
   auto result1 = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result1.is_ok());
+  COROSIG_REQUIRE(result1);
 
   Promise<int> promise2{std::move(result1.value())};
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise move assignment transfers ownership") {
   auto result1 = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result1.is_ok());
+  COROSIG_REQUIRE(result1);
   Promise<int> promise2 = std::move(result1.value());
 
   auto result3 = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result3.is_ok());
+  COROSIG_REQUIRE(result3);
   promise2 = std::move(result3.value());
 }
 
@@ -50,12 +50,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise with custom type") {
   };
 
   auto result = Promise<CustomType>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Get awaiter from promise") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -64,7 +64,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Get awaiter from promise") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Set value makes awaiter ready") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -78,7 +78,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Set value makes awaiter ready") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Awaiter move constructor") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter1 = promise.get_awaiter();
@@ -91,7 +91,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Awaiter move constructor") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Awaiter move assignment") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter1 = promise.get_awaiter();
@@ -105,7 +105,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Awaiter move assignment") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise with non-copyable type") {
   auto result = Promise<NonCopyable>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<NonCopyable> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -118,7 +118,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise with non-copyable type") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Awaiter destructor decrements refcount") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 
   {
     Promise<int> promise = std::move(result.value());
@@ -140,7 +140,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise destructor with broken promise for Result 
   static_assert(std::convertible_to<Failure<BrokenPromise &&>, TestResult>);
 
   auto result = Promise<TestResult>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 
   Promise<TestResult> promise = std::move(result.value());
 
@@ -151,7 +151,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise destructor with broken promise for Result 
 COROSIG_SIGHANDLER_TEST_CASE("Promise with Result that holds BrokenPromise") {
   auto producer = [](Reactor &r) -> Fut<> {
     auto result = Promise<Result<int, BrokenPromise>>::make(r);
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     Promise<Result<int, BrokenPromise>> promise = std::move(result.value());
 
     auto awaiter = promise.get_awaiter();
@@ -163,12 +163,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise with Result that holds BrokenPromise") {
   };
 
   auto res = producer(reactor).block_on();
-  COROSIG_REQUIRE(res.is_ok());
+  COROSIG_REQUIRE(res);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Set value with different but convertible type") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -184,7 +184,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Set value with different but convertible type") {
 COROSIG_SIGHANDLER_TEST_CASE("Promise used in coroutine producer-consumer") {
   auto producer = [](Reactor &r) -> Fut<> {
     auto result = Promise<int>::make(r);
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     Promise<int> promise = std::move(result.value());
 
     // Get awaiter and move it to consumer
@@ -197,14 +197,14 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise used in coroutine producer-consumer") {
   };
 
   auto res = producer(reactor).block_on();
-  COROSIG_REQUIRE(res.is_ok());
+  COROSIG_REQUIRE(res);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("Set value with const reference type") {
   int const const_value = 777;
 
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -227,7 +227,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Set value with rvalue reference") {
   };
 
   auto result = Promise<MovableType>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<MovableType> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -248,7 +248,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise can be used with large types") {
   };
 
   auto result = Promise<LargeType>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<LargeType> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();
@@ -262,7 +262,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Promise can be used with large types") {
 
 COROSIG_SIGHANDLER_TEST_CASE("Promise with empty optional keeps awaiter not ready") {
   auto result = Promise<int>::make(reactor);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   Promise<int> promise = std::move(result.value());
 
   auto awaiter = promise.get_awaiter();

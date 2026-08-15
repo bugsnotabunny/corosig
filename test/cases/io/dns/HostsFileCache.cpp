@@ -69,7 +69,7 @@ TEST_CASE("HostsFileCache: returns NameNotCached for unknown hostname") {
     std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
     auto result = cache.pull("unknown.example.com", addrs).block_on();
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     COROSIG_REQUIRE(result.value() == 0);
   });
 }
@@ -271,7 +271,7 @@ TEST_CASE("HostsFileCache: handles empty file") {
       std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
       auto result = co_await cache.pull("any.example.com", addrs);
 
-      COROSIG_REQUIRE(result.is_ok());
+      COROSIG_REQUIRE(result);
       COROSIG_REQUIRE(result.value() == 0);
 
       co_return Ok{};

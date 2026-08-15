@@ -131,7 +131,7 @@ struct ErrorVoidResultAwaiter {
 COROSIG_SIGHANDLER_TEST_CASE("when_all: single awaiter returns correct result") {
   IntAwaiter awaiter{42};
   auto result = when_all(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [value] = result.value();
   COROSIG_REQUIRE(value == 42);
 }
@@ -142,7 +142,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: multiple awaiters return correct results
   IntAwaiter awaiter3{3};
 
   auto result = when_all(reactor, awaiter1, awaiter2, awaiter3).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [a, b, c] = result.value();
   COROSIG_REQUIRE(a == 1);
   COROSIG_REQUIRE(b == 2);
@@ -154,7 +154,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: mixed types return correct results") {
   VoidAwaiter void_awaiter;
 
   auto result = when_all(reactor, int_awaiter, void_awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [int_val, void_val] = result.value();
   COROSIG_REQUIRE(int_val == 42);
   static_assert(std::same_as<decltype(int_val), int>);
@@ -164,7 +164,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: mixed types return correct results") {
 COROSIG_SIGHANDLER_TEST_CASE("when_all: void awaiter returns monostate") {
   VoidAwaiter awaiter;
   auto result = when_all(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [value] = result.value();
   COROSIG_REQUIRE(value == std::monostate{});
 }
@@ -174,7 +174,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: handles async awaiters") {
   AsyncIntAwaiter awaiter2{.value = 20, .ready_after = 1};
 
   auto result = when_all(reactor, awaiter1, awaiter2).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [a, b] = result.value();
   COROSIG_REQUIRE(a == 10);
   COROSIG_REQUIRE(b == 20);
@@ -183,7 +183,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all: handles async awaiters") {
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: single successful result") {
   OkIntResultAwaiter awaiter{42};
   auto result = when_all_succeed(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [value] = result.value();
   COROSIG_REQUIRE(value == 42);
 }
@@ -191,7 +191,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: single successful result") {
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: single error result returns error") {
   ErrorIntResultAwaiter awaiter{AllocationError{}};
   auto result = when_all_succeed(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
@@ -201,7 +201,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: multiple successful results retu
   OkStringResultAwaiter awaiter3{"test"};
 
   auto result = when_all_succeed(reactor, awaiter1, awaiter2, awaiter3).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [v1, v2, v3] = result.value();
   COROSIG_REQUIRE(v1 == 1);
   COROSIG_REQUIRE(v2 == 2);
@@ -214,7 +214,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: first error in sequence is retur
   OkStringResultAwaiter awaiter3{"test"};
 
   auto result = when_all_succeed(reactor, awaiter1, awaiter2, awaiter3).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
@@ -224,7 +224,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: error at beginning is returned f
   OkStringResultAwaiter awaiter3{"test"};
 
   auto result = when_all_succeed(reactor, awaiter1, awaiter2, awaiter3).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
@@ -234,14 +234,14 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: multiple errors return first enc
   OkIntResultAwaiter awaiter3{3};
 
   auto result = when_all_succeed(reactor, awaiter1, awaiter2, awaiter3).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: void result returns monostate in tuple") {
   OkVoidResultAwaiter awaiter;
   auto result = when_all_succeed(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [value] = result.value();
   COROSIG_REQUIRE(value == std::monostate{});
 }
@@ -249,7 +249,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: void result returns monostate in
 COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: void error returns error") {
   ErrorVoidResultAwaiter awaiter{AllocationError{}};
   auto result = when_all_succeed(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
@@ -259,7 +259,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: mixed void and non-void results"
   OkStringResultAwaiter string_awaiter{"hello"};
 
   auto result = when_all_succeed(reactor, void_awaiter, int_awaiter, string_awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [void_val, int_val, str_val] = result.value();
   COROSIG_REQUIRE(void_val == std::monostate{});
   COROSIG_REQUIRE(int_val == 42);
@@ -272,7 +272,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: error in mixed void/non-void seq
   OkStringResultAwaiter string_awaiter{"hello"};
 
   auto result = when_all_succeed(reactor, void_awaiter, int_awaiter, string_awaiter).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(std::holds_alternative<AllocationError>(result.error()));
 }
 
@@ -281,7 +281,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: properly unwraps Result types") 
   OkStringResultAwaiter string_awaiter{"success"};
 
   auto result = when_all_succeed(reactor, int_awaiter, string_awaiter).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [int_val, str_val] = result.value();
   COROSIG_REQUIRE(int_val == 100);
   COROSIG_REQUIRE(str_val == "success");
@@ -294,9 +294,9 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_vs_when_all_succeed: when_all preserves R
   OkIntResultAwaiter awaiter{50};
 
   auto when_all_result = when_all(reactor, awaiter).block_on();
-  COROSIG_REQUIRE(when_all_result.is_ok());
+  COROSIG_REQUIRE(when_all_result);
   auto [value] = when_all_result.value();
-  COROSIG_REQUIRE(value.is_ok());
+  COROSIG_REQUIRE(value);
   COROSIG_REQUIRE(value.value() == 50);
 
   static_assert(std::same_as<decltype(value), Result<int, AllocationError>>);
@@ -311,7 +311,7 @@ COROSIG_SIGHANDLER_TEST_CASE("when_all_succeed: handle large number of awaitable
 
   auto result =
       when_all_succeed(reactor, awaiter1, awaiter2, awaiter3, awaiter4, awaiter5).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   auto [v1, v2, v3, v4, v5] = result.value();
   COROSIG_REQUIRE(v1 == 1);
   COROSIG_REQUIRE(v2 == 2);
@@ -374,7 +374,7 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion before deadlin
 
   auto result = as_future(reactor, with_deadline(reactor, awaiter, deadline)).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   COROSIG_REQUIRE(result.value() == 42);
 }
 
@@ -383,7 +383,7 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion before deadlin
   auto deadline = 1s;
 
   auto result = as_future(reactor, with_deadline(reactor, awaiter, deadline)).block_on();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion returns Result") {
@@ -391,8 +391,8 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion returns Result
   auto deadline = 1s;
 
   auto result = as_future(reactor, with_deadline(reactor, awaiter, deadline)).block_on();
-  COROSIG_REQUIRE(result.is_ok());
-  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result);
+  COROSIG_REQUIRE(result.value());
   COROSIG_REQUIRE(result.value().value() == 99);
 }
 
@@ -402,9 +402,9 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: immediate completion with Result er
 
   auto result = as_future(reactor, with_deadline(reactor, awaiter, deadline)).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 
-  COROSIG_REQUIRE(!result.value().is_ok());
+  COROSIG_REQUIRE(!result.value());
   COROSIG_REQUIRE(result.value().error() == AllocationError{});
 }
 
@@ -418,8 +418,8 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: sleeping awaitable completes before
 
   auto result =
       as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
-  COROSIG_REQUIRE(result.is_ok());
-  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result);
+  COROSIG_REQUIRE(result.value());
   COROSIG_REQUIRE(result.value().value() == 100);
 }
 
@@ -434,8 +434,8 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: sleeping awaitable completes exactl
   auto result =
       as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
-  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result);
+  COROSIG_REQUIRE(result.value());
   COROSIG_REQUIRE(result.value().value() == 200);
 }
 
@@ -449,7 +449,7 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: sleeping awaitable times out") {
 
   auto result =
       as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<TimedOutError>());
 }
 
@@ -463,7 +463,7 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: very short deadline times out immed
 
   auto result =
       as_future(reactor, with_deadline(reactor, sleeping_coro(reactor), deadline)).block_on();
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<TimedOutError>());
 }
 
@@ -477,8 +477,8 @@ COROSIG_SIGHANDLER_TEST_CASE("with_deadline: very long deadline allows completio
 
   auto result =
       as_future(reactor, with_deadline(reactor, SLEEPING_CORO(reactor), deadline)).block_on();
-  COROSIG_REQUIRE(result.is_ok());
-  COROSIG_REQUIRE(result.value().is_ok());
+  COROSIG_REQUIRE(result);
+  COROSIG_REQUIRE(result.value());
   COROSIG_REQUIRE(result.value().value() == 700);
 }
 
@@ -512,7 +512,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: empty range succeeds") {
                   co_return Ok{};
                 }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: single element range succeeds") {
@@ -522,7 +522,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: single element range succeeds") 
                   co_return Ok{};
                 }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: multiple elements range succeeds") {
@@ -532,7 +532,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: multiple elements range succeeds
                   co_return Ok{};
                 }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: uses provided tasks") {
@@ -548,7 +548,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: uses provided tasks") {
                        })
           .block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: works with sized range") {
@@ -558,7 +558,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: works with sized range") {
                        [](Reactor &, int) -> Fut<void, AllocationError> { co_return Ok{}; })
           .block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 TEST_CASE("parallel_foreach: works with unsized range") {
@@ -569,24 +569,25 @@ TEST_CASE("parallel_foreach: works with unsized range") {
         parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
           co_return Ok{};
         }).block_on();
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
   });
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks execute concurrently") {
   auto start = SteadyClock::now();
   std::array<int, 3> values{1, 2, 3};
+  constexpr static auto DURATION = 10ms;
 
   auto result = parallel_foreach(reactor, values, [](Reactor &, int) -> Fut<void, AllocationError> {
-                  co_await Sleep{10ms};
+                  co_await Sleep{DURATION};
                   co_return Ok{};
                 }).block_on();
 
   auto duration = SteadyClock::now() - start;
 
-  COROSIG_REQUIRE(result.is_ok());
-  COROSIG_REQUIRE(duration >= 10ms);
-  COROSIG_REQUIRE(duration < 20ms);
+  COROSIG_REQUIRE(result);
+  COROSIG_REQUIRE(duration >= DURATION);
+  COROSIG_REQUIRE(duration < DURATION * 100);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks with different completion times") {
@@ -601,7 +602,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: tasks with different completion 
 
   auto duration = SteadyClock::now() - start;
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   COROSIG_REQUIRE(duration >= 15ms);
 }
 
@@ -618,7 +619,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: fails when single task fails") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
   COROSIG_REQUIRE(call_count == 3);
 }
@@ -636,7 +637,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: fails when first task fails") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
   COROSIG_REQUIRE(call_count == 3);
 }
@@ -650,7 +651,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: preserves value references") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   COROSIG_REQUIRE(values[0] == 2);
   COROSIG_REQUIRE(values[1] == 4);
   COROSIG_REQUIRE(values[2] == 6);
@@ -663,7 +664,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: large range works if there is en
                   return Fut<void, AllocationError>::make_ready(Ok{});
                 }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: sized range uses reserve") {
@@ -674,7 +675,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: sized range uses reserve") {
                   co_return Ok{};
                 }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: with constant ref range") {
@@ -688,7 +689,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: with constant ref range") {
                                  })
                     .block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: nested parallel_foreach ") {
@@ -703,7 +704,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: nested parallel_foreach ") {
         });
       }).block_on();
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   COROSIG_REQUIRE(total == 21);
 }
 
@@ -721,7 +722,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: multiple tasks fail returns firs
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
   COROSIG_REQUIRE(failures == 2);
 }
@@ -740,7 +741,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error occurs after some tasks su
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
   COROSIG_REQUIRE(success_count == 4);
 }
@@ -757,7 +758,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error tasks with different delay
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 }
 
@@ -772,7 +773,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: immediate error in tasks") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 }
 
@@ -787,7 +788,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: all tasks fail") {
         co_return Failure{AllocationError{}};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
   COROSIG_REQUIRE(failure_count == 4);
 }
@@ -803,7 +804,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in small range") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 }
 
@@ -818,7 +819,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in large range") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 }
 
@@ -835,7 +836,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in nested parallel_foreach
         });
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 }
 
@@ -853,7 +854,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: concurrent error scenarios") {
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
   COROSIG_REQUIRE(execution_count == 3);
 }
@@ -872,7 +873,7 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error propagation through comple
         co_return Ok{};
       }).block_on();
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
   COROSIG_REQUIRE(result.error().holds<AllocationError>());
 
   int expected_sum = 1 + 2 + 3 + 4 + 5;

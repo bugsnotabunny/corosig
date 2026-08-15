@@ -25,7 +25,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make creates valid socket with default
       .addr = Ipv4Addr::loopback().to_sockaddr(0),
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
 
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
@@ -37,7 +37,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with custom backlog size") {
       .backlog_size = 128,
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -48,7 +48,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with reuse_addr false") {
       .reuse_addr = false,
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -59,7 +59,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with reuse_port false") {
       .reuse_port = false,
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -69,7 +69,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener make with specific port") {
       .addr = Ipv4Addr::loopback().to_sockaddr(12345),
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -256,7 +256,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener close invalidates handle") {
       .addr = Ipv4Addr::loopback().to_sockaddr(0),
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 
@@ -269,7 +269,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener underlying_handle returns correct valu
       .addr = Ipv4Addr::loopback().to_sockaddr(0),
   });
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   TcpListener sock = std::move(result).value();
   int handle = sock.underlying_handle();
 
@@ -277,7 +277,7 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpListener underlying_handle returns correct valu
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpListener destructor closes handle") {
-  int fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+  int fd = ::socket(AF_INET, SOCK_STREAM, 0);
   COROSIG_REQUIRE(fd >= 0);
 
   {

@@ -28,7 +28,7 @@ auto make_resolver(Reactor &r, dns::CachelessResolver base_resolver) noexcept {
 
 COROSIG_SIGHANDLER_TEST_CASE("CachelessResolver: make creates valid resolver") {
   auto result = dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr());
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("CachelessResolver: make fails on invalid socket") {
@@ -37,7 +37,7 @@ COROSIG_SIGHANDLER_TEST_CASE("CachelessResolver: make fails on invalid socket") 
 
   auto result = dns::CachelessResolver::make(RAND_SEED, invalid_addr);
 
-  COROSIG_REQUIRE(!result.is_ok());
+  COROSIG_REQUIRE(!result);
 }
 
 template <typename RESOLVER>
@@ -55,7 +55,7 @@ static void test_resolve_ipv4(Reactor &reactor) noexcept {
     std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
     auto result = co_await resolver.resolve_name(r, dns_servers, "google.com", addrs);
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     COROSIG_REQUIRE(result.value() > 0);
 
     co_return Ok{};
@@ -76,8 +76,7 @@ static void test_resolve_ipv6(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
-                   dns::CachelessResolver::make(
-                       RAND_SEED, Ipv6Addr::from_groups({0, 0, 0, 0, 0, 0, 0, 0}).to_sockaddr()));
+                   dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
     auto resolver = make_resolver<RESOLVER>(r, std::move(resolver_base));
 
     std::array<SockaddrStorage, 1> dns_servers{
@@ -87,7 +86,7 @@ static void test_resolve_ipv6(Reactor &reactor) noexcept {
     std::array<dns::ResolvedAddress<Ipv6Addr>, 4> addrs{};
     auto result = co_await resolver.resolve_name(r, dns_servers, "google.com", addrs);
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     COROSIG_REQUIRE(result.value() > 0);
 
     co_return Ok{};
@@ -117,7 +116,7 @@ static void test_resolve_name1_ipv4(Reactor &reactor) noexcept {
 
     auto result = co_await resolver.template resolve_name1<Ipv4Addr>(r, dns_servers, "google.com");
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
 
     co_return Ok{};
   };
@@ -137,8 +136,7 @@ static void test_resolve_name1_ipv6(Reactor &reactor) noexcept {
   auto test_coro =
       [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError, dns::ResolveError>> {
     COROSIG_CO_TRY(auto resolver_base,
-                   dns::CachelessResolver::make(
-                       RAND_SEED, Ipv6Addr::from_groups({0, 0, 0, 0, 0, 0, 0, 0}).to_sockaddr()));
+                   dns::CachelessResolver::make(RAND_SEED, Ipv4Addr{}.to_sockaddr()));
     auto resolver = make_resolver<RESOLVER>(r, std::move(resolver_base));
 
     std::array<SockaddrStorage, 1> dns_servers{
@@ -147,7 +145,7 @@ static void test_resolve_name1_ipv6(Reactor &reactor) noexcept {
 
     auto result = co_await resolver.template resolve_name1<Ipv6Addr>(r, dns_servers, "google.com");
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
 
     co_return Ok{};
   };
@@ -179,7 +177,7 @@ static void test_resolve_multiple_servers(Reactor &reactor) noexcept {
     std::array<dns::ResolvedAddress<Ipv4Addr>, 4> addrs{};
     auto result = co_await resolver.resolve_name(r, dns_servers, "google.com", addrs);
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     COROSIG_REQUIRE(result.value() > 0);
 
     co_return Ok{};
@@ -209,7 +207,7 @@ static void test_empty_dns_servers(Reactor &reactor) noexcept {
 
     auto result = co_await resolver.resolve_name(r, dns_servers, "google.com", addrs);
 
-    COROSIG_REQUIRE(!result.is_ok());
+    COROSIG_REQUIRE(!result);
     COROSIG_REQUIRE(result.error() ==
                     dns::ResolveError{dns::ResolveErrorCode::NO_SERVERS_PROVIDED});
 
@@ -242,7 +240,7 @@ static void test_empty_output_buffer(Reactor &reactor) noexcept {
 
     auto result = co_await resolver.resolve_name(r, dns_servers, "google.com", addrs);
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     COROSIG_REQUIRE(result.value() == 0);
 
     co_return Ok{};
@@ -309,7 +307,7 @@ static void test_non_existent_domain(Reactor &reactor) noexcept {
     auto result = co_await resolver.resolve_name(
         r, dns_servers, "this-domain-definitely-does-notexist-12345.invalid", addrs);
 
-    COROSIG_REQUIRE(!result.is_ok());
+    COROSIG_REQUIRE(!result);
 
     co_return Ok{};
   };
@@ -341,7 +339,7 @@ static void test_move_constructor(Reactor &reactor) noexcept {
     auto result =
         co_await resolver2.template resolve_name1<Ipv4Addr>(r, dns_servers, "datatracker.ietf.org");
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
 
     co_return Ok{};
   };
@@ -408,7 +406,7 @@ static void test_ttl_correctly_set(Reactor &reactor) noexcept {
 
     auto after_resolve = SteadyClock::now();
 
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
     auto resolved = result.value();
 
     COROSIG_REQUIRE(resolved.expires_at >= before_resolve);

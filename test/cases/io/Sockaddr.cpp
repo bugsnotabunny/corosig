@@ -110,7 +110,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr", "[ipv4]") {
   auto const *sockaddr = reinterpret_cast<sockaddr_in const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin_family == AF_INET);
-  COROSIG_REQUIRE(sockaddr->sin_port == htons(port));
+  COROSIG_REQUIRE(sockaddr->sin_port == hton(port));
 
   // Compare address
   auto expected = hton<uint32_t>((192 << 24) | (168 << 16) | (1 << 8) | 1);
@@ -302,7 +302,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr roundtrip", "[ipv4]") {
   auto const *sockaddr = reinterpret_cast<sockaddr_in const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin_family == AF_INET);
-  COROSIG_REQUIRE(sockaddr->sin_port == htons(port));
+  COROSIG_REQUIRE(sockaddr->sin_port == hton(port));
 
   // Verify we can reconstruct the address
   auto haddr = ntoh(sockaddr->sin_addr.s_addr);
@@ -321,7 +321,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr roundtrip", "[ipv6]") {
   auto const *sockaddr = reinterpret_cast<sockaddr_in6 const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin6_family == AF_INET6);
-  COROSIG_REQUIRE(sockaddr->sin6_port == htons(port));
+  COROSIG_REQUIRE(sockaddr->sin6_port == hton(port));
 
   // Verify we can reconstruct the address
   auto bytes = addr.value();
@@ -384,7 +384,7 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr to_sockaddr", "[ipv6]") {
   auto const *sockaddr = reinterpret_cast<sockaddr_in6 const *>(&storage.native_storage);
 
   COROSIG_REQUIRE(sockaddr->sin6_family == AF_INET6);
-  COROSIG_REQUIRE(sockaddr->sin6_port == htons(port));
+  COROSIG_REQUIRE(sockaddr->sin6_port == hton(port));
 
   // Verify address by converting back
   std::array<char, INET6_ADDRSTRLEN> buffer;

@@ -1,6 +1,8 @@
 #include "corosig/io/UdpSocket.hpp"
 
+#include "corosig/PollEvent.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
@@ -17,7 +19,7 @@ using namespace corosig;
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: unbound creates valid socket with AF_INET") {
   auto result = UdpSocket::unbound(AF_INET);
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   UdpSocket sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -25,7 +27,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: unbound creates valid socket with AF_IN
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: unbound creates valid socket with AF_INET6") {
   auto result = UdpSocket::unbound(AF_INET6);
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   UdpSocket sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -33,7 +35,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: unbound creates valid socket with AF_IN
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound randomly with AF_INET") {
   auto result = UdpSocket::bound(Ipv4Addr::loopback().to_sockaddr());
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   UdpSocket sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -41,7 +43,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound randomly with AF_INET") {
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound randomly with AF_INET6") {
   auto result = UdpSocket::bound(Ipv6Addr::loopback().to_sockaddr());
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   UdpSocket sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -51,7 +53,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound to specific IPv4 address and port
 
   auto result = UdpSocket::bound(addr);
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   UdpSocket sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -63,7 +65,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: bound to specific IPv6 address and port
 
   auto result = UdpSocket::bound(addr);
 
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
   UdpSocket sock = std::move(result).value();
   COROSIG_REQUIRE(sock.underlying_handle() >= 0);
 }
@@ -88,7 +90,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send_to and recv_from with source_addr 
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send empty message") {
@@ -110,7 +112,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send empty message") {
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send and receive larger message") {
@@ -138,15 +140,15 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: send and receive larger message") {
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: socket is moveable") {
   auto result1 = UdpSocket::unbound();
-  COROSIG_REQUIRE(result1.is_ok());
+  COROSIG_REQUIRE(result1);
 
   auto result2 = UdpSocket::unbound();
-  COROSIG_REQUIRE(result2.is_ok());
+  COROSIG_REQUIRE(result2);
 
   UdpSocket sock1 = std::move(result1).value();
   UdpSocket sock2 = std::move(result2).value();
@@ -160,7 +162,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: close invalidates handle") {
   SockaddrStorage local = Ipv4Addr::loopback().to_sockaddr(54321);
 
   auto result = UdpSocket::bound(local);
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 
   UdpSocket sock = std::move(result).value();
   int fd = sock.underlying_handle();
@@ -182,6 +184,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_recv_from returns not blocked when 
     COROSIG_REQUIRE(sent == msg.size());
 
     std::array<char, 64> recv_buf{};
+    co_await PollEvent{receiver.underlying_handle(), PollEventExpectance::CAN_READ};
     auto recv_result = receiver.try_recv_from(recv_buf, nullptr);
 
     if (!recv_result) {
@@ -192,7 +195,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_recv_from returns not blocked when 
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_send_to works immediately") {
@@ -204,13 +207,13 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: try_send_to works immediately") {
     std::string_view msg = "hello sync";
 
     auto result = sock.try_send_to(msg, local);
-    COROSIG_REQUIRE(result.is_ok());
+    COROSIG_REQUIRE(result);
 
     COROSIG_REQUIRE(result.value() == msg.size());
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: multiple send operations") {
@@ -240,7 +243,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: multiple send operations") {
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: IPv6 loopback send/receive") {
@@ -263,7 +266,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: IPv6 loopback send/receive") {
 
     co_return Ok{};
   };
-  COROSIG_REQUIRE(test_coro(reactor).block_on().is_ok());
+  COROSIG_REQUIRE(test_coro(reactor).block_on());
 }
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: default initialized socket has invalid handle") {
@@ -273,7 +276,7 @@ COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: default initialized socket has invalid 
 
 COROSIG_SIGHANDLER_TEST_CASE("UdpSocket: underlying_handle returns correct value") {
   auto result = UdpSocket::unbound();
-  COROSIG_REQUIRE(result.is_ok());
+  COROSIG_REQUIRE(result);
 
   UdpSocket sock = std::move(result).value();
   int handle = sock.underlying_handle();
