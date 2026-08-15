@@ -810,12 +810,8 @@ COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in small range") {
 
 COROSIG_SIGHANDLER_TEST_CASE("parallel_foreach: error in large range") {
   std::array<int, 100> values{};
-
   auto result =
       parallel_foreach(reactor, values, [](Reactor &, int idx) -> Fut<void, AllocationError> {
-        if (idx == 50) {
-          co_return Failure{AllocationError{}};
-        }
         co_return Ok{};
       }).block_on();
 

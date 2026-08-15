@@ -31,7 +31,8 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
-      : m_reactor{reactor} {
+      : m_reactor{reactor},
+        m_needs_dealloc{std::exchange(reactor.ref_current_coro_was_allocated(), false)} {
   }
 
   /// @brief Construct new coroutine promise bound to reactor. This overload is used when some
@@ -54,8 +55,14 @@ struct CoroutinePromiseType : CoroListNode {
   /// @brief Allocate new coroutine frame using allocator from reactor
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
-  static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, alignof(std::max_align_t));
+  static void *operator new(size_t n,
+                            std::align_val_t align,
+                            Reactor &reactor,
+                            NotReactor auto const &...) noexcept {
+    assert(reactor.ref_current_coro_was_allocated() == false);
+    auto *res = reactor.allocator().allocate(n, static_cast<size_t>(align));
+    reactor.ref_current_coro_was_allocated() = res != nullptr;
+    return res;
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
@@ -63,20 +70,19 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n,
+                            std::align_val_t align,
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, alignof(std::max_align_t));
+    return CoroutinePromiseType::operator new(n, std::align_val_t{align}, reactor);
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
-  static void *operator new(size_t n,
-                            std::align_val_t align,
-                            Reactor &reactor,
-                            NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, static_cast<size_t>(align));
+  static void *operator new(size_t n, Reactor &reactor, NotReactor auto const &...) noexcept {
+    return CoroutinePromiseType::operator new(
+        n, std::align_val_t{alignof(std::max_align_t)}, reactor);
   }
 
   /// @brief Allocate new coroutine frame using allocator from reactor. This overload is used when
@@ -84,11 +90,11 @@ struct CoroutinePromiseType : CoroListNode {
   /// @note C++20 coroutine's required method. For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
   static void *operator new(size_t n,
-                            std::align_val_t align,
                             NotReactor auto const &,
                             Reactor &reactor,
                             NotReactor auto const &...) noexcept {
-    return reactor.allocator().allocate(n, static_cast<size_t>(align));
+    return CoroutinePromiseType::operator new(
+        n, std::align_val_t{alignof(std::max_align_t)}, reactor);
   }
 
   /// @brief Noop
@@ -181,6 +187,7 @@ private:
   std::coroutine_handle<> m_waiting_coro = std::noop_coroutine();
   Reactor &m_reactor;
   Fut<T, E> *m_future = nullptr;
+  bool m_needs_dealloc;
 };
 
 } // namespace detail
@@ -230,8 +237,11 @@ struct [[nodiscard("forgot to await?")]] Fut {
     if (m_handle != nullptr) {
       Reactor &reactor = promise().m_reactor;
       void *addr = m_handle.address();
+      bool needs_dealloc = promise().m_needs_dealloc;
       m_handle.destroy();
-      reactor.allocator().deallocate(addr);
+      if (needs_dealloc) {
+        reactor.allocator().deallocate(addr);
+      }
     }
   }
 
