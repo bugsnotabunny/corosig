@@ -41,4 +41,4 @@ jobs:
 
       - run: xmake config --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --root -vy
       - run: xmake build -vy
-      - run: xmake test -vy '*/default'
+      - run: xmake test -j1 -vy '*/default'
