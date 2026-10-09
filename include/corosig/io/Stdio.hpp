@@ -38,10 +38,8 @@ public:
   /// @brief Write all bytes from string literal, excluding null-terminator
   /// @returns Number of bytes written or a syscall error
   template <size_t N>
-  Fut<size_t, Error<AllocationError, SyscallError>>
-  write(Reactor &r,
-        char const (&arr)[N]) const noexcept // NOLINT(modernize-avoid-c-arrays)
-  {
+  Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &r,
+                                                          char const (&arr)[N]) const noexcept {
     return write(r, std::string_view{arr});
   }
 
@@ -67,9 +65,7 @@ public:
   /// @brief Try write bytes from string literal, excluding null-terminator
   /// @returns Number of bytes written or a syscall error
   template <size_t N>
-  Result<size_t, SyscallError>
-  try_write_some(char const (&arr)[N]) const noexcept // NOLINT(modernize-avoid-c-arrays)
-  {
+  Result<size_t, SyscallError> try_write_some(char const (&arr)[N]) const noexcept {
     return try_write_some(std::string_view{arr});
   }
 

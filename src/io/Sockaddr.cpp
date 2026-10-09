@@ -305,4 +305,16 @@ SockaddrStorage IpvNAddr::to_sockaddr(uint16_t port) const noexcept {
   return visit([&](auto const &addr) { return addr.to_sockaddr(port); });
 }
 
+UnixAddr::UnixAddr(std::u8string_view path) noexcept {
+  auto &unix_storage = reinterpret_cast<sockaddr_un &>(m_storage.native_storage);
+  m_storage.native_storage.ss_family = AF_UNIX;
+  *std::strncpy(unix_storage.sun_path,
+                reinterpret_cast<char const *>(path.data()),
+                sizeof(unix_storage.sun_path) - 1) = '\0';
+}
+
+SockaddrStorage const &UnixAddr::to_sockaddr() const noexcept {
+  return m_storage;
+}
+
 } // namespace corosig

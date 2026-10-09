@@ -1,13 +1,16 @@
 #ifndef COROSIG_IO_SOCKADDR_HPP
 #define COROSIG_IO_SOCKADDR_HPP
 
+#include "corosig/Result.hpp"
 #include "corosig/util/Variant.hpp"
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <string_view>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 namespace corosig {
 
@@ -87,6 +90,26 @@ struct IpvNAddr : Variant<Ipv4Addr, Ipv6Addr> {
   [[nodiscard]] SockaddrStorage to_sockaddr(uint16_t port = 0) const noexcept;
 
   constexpr auto operator<=>(IpvNAddr const &) const noexcept = default;
+};
+
+/// @brief Ipv4/Ipv6 address type
+struct UnixAddr {
+  constexpr static size_t MAX_LEN = sizeof(sockaddr_un{}.sun_path) - 1;
+
+  UnixAddr(std::u8string_view path) noexcept;
+
+  /// @brief Convert this to SockaddrStorage
+  [[nodiscard]] SockaddrStorage const &to_sockaddr() const noexcept;
+
+  constexpr bool operator==(UnixAddr const &) const noexcept;
+  constexpr auto operator<=>(UnixAddr const &) const noexcept;
+
+private:
+  explicit UnixAddr(SockaddrStorage m_storage)
+      : m_storage(m_storage) {
+  }
+
+  SockaddrStorage m_storage{};
 };
 
 } // namespace corosig
