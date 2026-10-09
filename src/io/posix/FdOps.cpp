@@ -4,9 +4,11 @@
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
+#include "corosig/io/StreamSocket.hpp"
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
+#include <boost/predef.h>
 #include <cassert>
 #include <cstddef>
 #include <fcntl.h>
@@ -105,7 +107,7 @@ socklen_t addr_length(sockaddr_storage const &storage) noexcept {
   case AF_INET6:
     return sizeof(sockaddr_in6);
   case AF_UNIX:
-    return sizeof(sockaddr_un);
+    return SUN_LEN(reinterpret_cast<sockaddr_un const *>(&storage));
   default:
     assert(false && "Unsupported address family");
     return std::numeric_limits<socklen_t>::max();
@@ -130,6 +132,44 @@ Result<void, SyscallError> set_nonblocking_mode(int fd) noexcept {
 
   if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
     return Failure{SyscallError::current()};
+  }
+
+  return Ok{};
+}
+
+Result<StreamSocket, SyscallError> make_nonblocking_stream_socket(sa_family_t family,
+                                                                  int protocol) noexcept {
+  int sock = ::socket(family, SOCK_STREAM, protocol);
+  if (sock == -1) {
+    return Failure{SyscallError::current()};
+  }
+
+  auto socket = StreamSocket::make_from_os_specific_handle(sock);
+  COROSIG_TRYV(os::posix::set_nonblocking_mode(sock));
+  return socket;
+}
+
+Result<PollConnect, SyscallError> PollConnect::make(os::Handle sock,
+                                                    SockaddrStorage const &target) noexcept {
+  auto len = os::posix::addr_length(target.native_storage);
+  if (::connect(sock, reinterpret_cast<sockaddr const *>(&target.native_storage), len) == -1) {
+    auto current_error = SyscallError::current();
+    if (current_error.value != EINPROGRESS) {
+      return Failure{current_error};
+    }
+  }
+
+  return PollConnect{sock, PollEventExpectance::CAN_READ | PollEventExpectance::CAN_WRITE};
+}
+
+Result<void, SyscallError> PollConnect::await_resume() noexcept {
+  int socket_error = 0;
+  socklen_t socket_error_len = sizeof(socket_error);
+  if (::getsockopt(handle, SOL_SOCKET, SO_ERROR, &socket_error, &socket_error_len) == -1) {
+    return Failure{SyscallError::current()};
+  }
+  if (socket_error != 0) {
+    return Failure{SyscallError{socket_error}};
   }
 
   return Ok{};

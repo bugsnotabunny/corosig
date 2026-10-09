@@ -2,12 +2,13 @@ Checks: >
     bugprone-*,
     -bugprone-easily-swappable-parameters,
     -bugprone-suspicious-stringview-data-usage,
+    -bugprone-derived-method-shadowing-base-method,
 
     modernize-*,
     -modernize-use-trailing-return-type,
     -modernize-use-integer-sign-comparison,
-    -modernize-use-std-array,
     -modernize-use-nodiscard,
+    -modernize-avoid-c-arrays,
 
     misc-*,
     -misc-const-correctness,
@@ -42,6 +43,7 @@ CheckOptions:
   - { key: readability-function-cognitive-complexity.IgnoreMacros, value: true                                                          }
   - { key: misc-include-cleaner.MissingIncludes,                   value: false                                                         }
   - { key: readability-identifier-naming.ConstantCase,             value: UPPER_CASE                                                    }
+  - { key: readability-identifier-naming.ConstantMemberCase,       value: lower_case                                                    }
   - { key: readability-identifier-naming.LocalConstantCase,        value: lower_case                                                    }
   - { key: readability-identifier-naming.NamespaceCase,            value: lower_case                                                    }
   - { key: readability-identifier-naming.ConstexprVariableCase,    value: UPPER_CASE                                                    }

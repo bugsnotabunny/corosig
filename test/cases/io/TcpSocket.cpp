@@ -3,11 +3,13 @@
 #include "corosig/Background.hpp"
 #include "corosig/ErrorTypes.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/StreamSocket.hpp"
 #include "corosig/io/TcpListener.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "corosig/testing/Signals.hpp"
 
 #include <array>
+#include <concepts>
 #include <netinet/in.h>
 #include <span>
 #include <sys/socket.h>
@@ -15,6 +17,10 @@
 namespace {
 
 using namespace corosig;
+
+static_assert(std::convertible_to<TcpSocket, StreamSocket>);
+static_assert(std::movable<TcpSocket>);
+static_assert(!std::copyable<TcpSocket>);
 
 Fut<void, Error<AllocationError, SyscallError>> run_echo_server(Reactor &r,
                                                                 TcpListener listener) noexcept {
@@ -51,6 +57,11 @@ StartServerResult start_echo_server(Reactor &r) noexcept {
 }
 
 } // namespace
+
+COROSIG_SIGHANDLER_TEST_CASE("TcpSocket default constructed socket has invalid handle") {
+  TcpSocket sock;
+  COROSIG_REQUIRE(sock.underlying_handle() == -1);
+}
 
 COROSIG_SIGHANDLER_TEST_CASE("TcpSocket connect to server succeeds") {
   auto foo = [&](Reactor &r) -> Fut<int, Error<AllocationError, SyscallError>> {
@@ -172,11 +183,6 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpSocket close() invalidates descriptor") {
   COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
 }
 
-COROSIG_SIGHANDLER_TEST_CASE("TcpSocket default constructed socket has invalid handle") {
-  TcpSocket sock;
-  COROSIG_REQUIRE(sock.underlying_handle() == -1);
-}
-
 COROSIG_SIGHANDLER_TEST_CASE("TcpSocket connect_from") {
   auto foo = [](Reactor &r) -> Fut<int, Error<AllocationError, SyscallError>> {
     auto listener = TcpListener::make({.addr = Ipv4Addr::loopback().to_sockaddr(0)}).value();
@@ -193,6 +199,68 @@ COROSIG_SIGHANDLER_TEST_CASE("TcpSocket connect_from") {
     auto const *in_b = reinterpret_cast<sockaddr_in const *>(&local.native_storage);
     COROSIG_REQUIRE(in_a->sin_port == in_b->sin_port);
     COROSIG_REQUIRE(in_a->sin_addr.s_addr == in_b->sin_addr.s_addr);
+
+    co_return Ok();
+  };
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("TcpSocket make_from_os_specific_handle owns given handle") {
+  int fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  COROSIG_REQUIRE(fd >= 0);
+
+  TcpSocket sock = TcpSocket::make_from_os_specific_handle(fd);
+  COROSIG_REQUIRE(sock.underlying_handle() == fd);
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("TcpSocket downcast from StreamSocket preserves socket") {
+  auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
+    auto [addr, server_finished] = start_echo_server(r);
+
+    COROSIG_CO_TRY(auto connected, co_await TcpSocket::connect(r, addr));
+    int fd_before = connected.underlying_handle();
+
+    StreamSocket base = std::move(connected);
+    COROSIG_REQUIRE(base.underlying_handle() == fd_before);
+
+    TcpSocket sock{std::move(base)};
+    COROSIG_REQUIRE(base.underlying_handle() == -1); // NOLINT(bugprone-use-after-move)
+    COROSIG_REQUIRE(sock.underlying_handle() == fd_before);
+
+    constexpr static std::string_view MSG = "downcast";
+    COROSIG_CO_TRYV(co_await sock.write_some(r, MSG));
+    std::array<char, MSG.size()> buf{};
+    COROSIG_CO_TRY(auto read, co_await sock.read(r, buf));
+    COROSIG_REQUIRE(std::string_view{buf.begin(), read} == MSG);
+
+    sock.close();
+    COROSIG_REQUIRE(co_await std::move(server_finished));
+
+    co_return Ok();
+  };
+  COROSIG_REQUIRE(foo(reactor).block_on().is_ok());
+}
+
+COROSIG_SIGHANDLER_TEST_CASE("TcpSocket is usable through StreamSocket interface") {
+  auto foo = [](Reactor &r) -> Fut<void, Error<AllocationError, SyscallError>> {
+    auto [addr, server_finished] = start_echo_server(r);
+
+    COROSIG_CO_TRY(auto connected, co_await TcpSocket::connect(r, addr));
+    StreamSocket sock = std::move(connected);
+
+    constexpr static std::string_view MSG = "through base";
+    COROSIG_CO_TRY(auto written, co_await sock.write_some(r, MSG));
+    COROSIG_REQUIRE(written == MSG.size());
+
+    std::array<char, MSG.size()> buf{};
+    COROSIG_CO_TRY(auto read, co_await sock.read(r, buf));
+    COROSIG_REQUIRE(std::string_view{buf.begin(), read} == MSG);
+
+    COROSIG_CO_TRY(auto sock_addr, sock.address());
+    COROSIG_REQUIRE(sock_addr.native_storage.ss_family == AF_INET);
+
+    sock.close();
+    COROSIG_REQUIRE(co_await std::move(server_finished));
 
     co_return Ok();
   };

@@ -2,150 +2,73 @@
 
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
-#include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/StreamSocket.hpp"
 #include "corosig/os/Handle.hpp"
-#include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/Reactor.hpp"
 #include "posix/FdOps.hpp"
 
-#include <cerrno>
-#include <cstddef>
 #include <netinet/tcp.h>
-#include <span>
 #include <sys/socket.h>
-#include <unistd.h>
 
 namespace {
 
 using namespace corosig;
 
-Fut<TcpSocket, Error<AllocationError, SyscallError>>
-connect_impl(Reactor &, SockaddrStorage const &target, TcpSocket sock) noexcept {
-  auto len = os::posix::addr_length(target.native_storage);
-  if (::connect(sock.underlying_handle(),
-                reinterpret_cast<sockaddr const *>(&target.native_storage),
-                len) == -1) {
-    auto current_error = SyscallError::current();
-    if (current_error.value != EINPROGRESS) {
-      co_return Failure{current_error};
-    }
-  }
+static_assert(std::convertible_to<TcpSocket, StreamSocket>);
+
+Result<TcpSocket, SyscallError> make_disconnected_tcp_socket(sa_family_t family) noexcept {
+  COROSIG_TRY(StreamSocket stream_socket,
+              os::posix::make_nonblocking_stream_socket(family, IPPROTO_TCP));
+
+  TcpSocket socket{std::move(stream_socket)};
 
   int on = 1;
   // Not a hard failure. Just a little bit of performance loss
-  (void)::setsockopt(sock.underlying_handle(), IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+  (void)::setsockopt(socket.underlying_handle(), IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 
-  co_await PollEvent{sock.underlying_handle(),
-                     PollEventExpectance::CAN_WRITE | PollEventExpectance::CAN_READ};
-
-  int socket_error = 0;
-  socklen_t socket_error_len = sizeof(socket_error);
-  if (::getsockopt(
-          sock.underlying_handle(), SOL_SOCKET, SO_ERROR, &socket_error, &socket_error_len) == -1) {
-    co_return Failure{SyscallError::current()};
-  }
-  if (socket_error != 0) {
-    co_return Failure{SyscallError{socket_error}};
-  }
-
-  co_return sock;
+  return socket;
 }
 
 } // namespace
 
 namespace corosig {
 
-TcpSocket::~TcpSocket() {
-  close();
-}
-
-Fut<size_t, Error<AllocationError, SyscallError>> TcpSocket::read(Reactor &r,
-                                                                  std::span<char> buf) noexcept {
-  return os::posix::read(r, m_fd.value, buf);
-}
-
-Fut<size_t, Error<AllocationError, SyscallError>>
-TcpSocket::read_some(Reactor &r, std::span<char> buf) noexcept {
-  return os::posix::read_some(r, m_fd.value, buf);
-}
-
-Result<size_t, SyscallError> TcpSocket::try_read_some(std::span<char> buf) noexcept {
-  return os::posix::try_read_some(m_fd.value, buf);
-}
-
-Fut<size_t, Error<AllocationError, SyscallError>>
-TcpSocket::write(Reactor &r, std::span<char const> buf) noexcept {
-  return os::posix::write(r, m_fd.value, buf);
-}
-
-Fut<size_t, Error<AllocationError, SyscallError>>
-TcpSocket::write_some(Reactor &r, std::span<char const> buf) noexcept {
-  return os::posix::write_some(r, m_fd.value, buf);
-}
-
-Result<size_t, SyscallError> TcpSocket::try_write_some(std::span<char const> buf) noexcept {
-  return os::posix::try_write_some(m_fd.value, buf);
-}
-
-os::Handle TcpSocket::underlying_handle() const noexcept {
-  return m_fd.value;
-}
-
-void TcpSocket::close() noexcept {
-  return os::posix::close(m_fd.value);
-}
-
-Result<SockaddrStorage, SyscallError> TcpSocket::address() const noexcept {
-  return os::posix::socket_address(m_fd.value);
+TcpSocket::TcpSocket(StreamSocket socket) noexcept
+    : StreamSocket(std::move(socket)) {
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
 TcpSocket::connect(Reactor &r, SockaddrStorage const &target) noexcept {
-  using Fut = Fut<TcpSocket, Error<AllocationError, SyscallError>>;
-  int sock = ::socket(target.native_storage.ss_family, SOCK_STREAM, IPPROTO_TCP);
-  if (sock == -1) {
-    return Fut::make_ready(Failure{SyscallError::current()});
-  }
+  COROSIG_CO_TRY(TcpSocket socket, make_disconnected_tcp_socket(target.native_storage.ss_family));
 
-  auto socket = TcpSocket::make_from_os_specific_handle(sock);
+  COROSIG_CO_TRY(auto poll, os::posix::PollConnect::make(socket.underlying_handle(), target));
+  COROSIG_CO_TRYV(co_await poll);
 
-  if (auto res = os::posix::set_nonblocking_mode(sock); !res) {
-    return Fut::make_ready(res);
-  }
-
-  return connect_impl(r, target, std::move(socket));
+  co_return socket;
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>> TcpSocket::connect_from(
     Reactor &r, SockaddrStorage const &local, SockaddrStorage const &target) noexcept {
-  using Fut = Fut<TcpSocket, Error<AllocationError, SyscallError>>;
+  assert(local.native_storage.ss_family == target.native_storage.ss_family);
 
-  int sock = ::socket(local.native_storage.ss_family, SOCK_STREAM, IPPROTO_TCP);
-  if (sock == -1) {
-    return Fut::make_ready(Failure{SyscallError::current()});
-  }
+  COROSIG_CO_TRY(TcpSocket socket, make_disconnected_tcp_socket(target.native_storage.ss_family));
 
-  auto socket = TcpSocket::make_from_os_specific_handle(sock);
-
-  if (auto res = os::posix::set_nonblocking_mode(sock); !res) {
-    return Fut::make_ready(res);
-  }
-
-  if (::bind(sock,
+  if (::bind(socket.underlying_handle(),
              reinterpret_cast<sockaddr const *>(&local.native_storage),
              os::posix::addr_length(local.native_storage)) != 0) {
-    return Fut::make_ready(Failure{SyscallError::current()});
+    co_return Failure{SyscallError::current()};
   }
 
-  return connect_impl(r, target, std::move(socket));
+  COROSIG_CO_TRY(auto poll, os::posix::PollConnect::make(socket.underlying_handle(), target));
+  COROSIG_CO_TRYV(co_await poll);
+
+  co_return socket;
 }
 
 TcpSocket TcpSocket::make_from_os_specific_handle(os::Handle handle) noexcept {
-  TcpSocket sock;
-  sock.m_fd = handle;
-  return sock;
+  return TcpSocket{StreamSocket::make_from_os_specific_handle(handle)};
 }
 
 } // namespace corosig

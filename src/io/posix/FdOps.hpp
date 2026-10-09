@@ -3,8 +3,10 @@
 
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
+#include "corosig/PollEvent.hpp"
 #include "corosig/Result.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/StreamSocket.hpp"
 
 #include <cstddef>
 #include <netinet/in.h>
@@ -36,6 +38,18 @@ socklen_t addr_length(sockaddr_storage const &storage) noexcept;
 Result<SockaddrStorage, SyscallError> socket_address(int fd) noexcept;
 
 Result<void, SyscallError> set_nonblocking_mode(int fd) noexcept;
+
+Result<StreamSocket, SyscallError> make_nonblocking_stream_socket(sa_family_t family,
+                                                                  int protocol) noexcept;
+
+struct PollConnect : PollEvent {
+  static Result<PollConnect, SyscallError> make(os::Handle sock,
+                                                SockaddrStorage const &target) noexcept;
+  Result<void, SyscallError> await_resume() noexcept;
+
+private:
+  using PollEvent::PollEvent;
+};
 
 } // namespace corosig::os::posix
 
