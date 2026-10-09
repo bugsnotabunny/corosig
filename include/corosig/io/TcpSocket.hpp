@@ -3,21 +3,20 @@
 
 #include "corosig/Coro.hpp"
 #include "corosig/ErrorTypes.hpp"
-#include "corosig/Result.hpp"
 #include "corosig/io/Sockaddr.hpp"
+#include "corosig/io/StreamSocket.hpp"
 #include "corosig/os/Handle.hpp"
-#include "corosig/util/SetDefaultOnMove.hpp"
-
-#include <span>
-#include <string_view>
 
 namespace corosig {
 
 /// @brief An asynchronous TCP socket
-struct TcpSocket {
-public:
+struct TcpSocket : StreamSocket {
   /// @brief Construct a TCP socket which refers to invalid os::Handle
   TcpSocket() noexcept = default;
+
+  /// @brief Downcast StreamSocket to TcpSocket
+  /// @warn  This is user's responsibility to ensure that StreamSocket is an actual TCP socket
+  explicit TcpSocket(StreamSocket socket) noexcept;
 
   struct ConnectFromOptions {
     /// @brief An address to bind local socket to
@@ -40,89 +39,6 @@ public:
   /// @brief Construct a TCP socket which owns given os::Handle
   /// @warn This is user's responsibility to provide a handle to an actually valid TcpSocket
   static TcpSocket make_from_os_specific_handle(os::Handle handle) noexcept;
-
-  TcpSocket(TcpSocket const &) = delete;
-  TcpSocket(TcpSocket &&) noexcept = default;
-  TcpSocket &operator=(TcpSocket const &) = delete;
-  TcpSocket &operator=(TcpSocket &&rhs) noexcept {
-    if (this != &rhs) {
-      this->~TcpSocket();
-      new (this) TcpSocket{std::move(rhs)};
-    }
-    return *this;
-  }
-
-  ~TcpSocket();
-
-  /// @brief Read bytes into buffer until it is full
-  /// @returns 0 bytes read if EOF was reached
-  /// @returns Number of bytes read or a syscall error
-  Fut<size_t, Error<AllocationError, SyscallError>> read(Reactor &, std::span<char>) noexcept;
-
-  /// @brief Read bytes into buffer
-  /// @returns 0 bytes read if EOF was reached
-  /// @returns Number of bytes read or a syscall error
-  Fut<size_t, Error<AllocationError, SyscallError>> read_some(Reactor &, std::span<char>) noexcept;
-
-  /// @brief Read bytes into buffer if socket is read-ready
-  /// @returns 0 bytes read if EOF was reached
-  /// @returns Number of bytes read or a syscall error
-  Result<size_t, SyscallError> try_read_some(std::span<char>) noexcept;
-
-  /// @brief Write all bytes from buffer
-  /// @returns Number of bytes written or a syscall error
-  Fut<size_t, Error<AllocationError, SyscallError>> write(Reactor &,
-                                                          std::span<char const>) noexcept;
-
-  /// @brief Write all bytes from string literal, excluding null-terminator
-  /// @returns Number of bytes written or a syscall error
-  template <size_t N>
-  Fut<size_t, Error<AllocationError, SyscallError>>
-  write(Reactor &r,
-        char const (&arr)[N]) noexcept // NOLINT(modernize-avoid-c-arrays)
-  {
-    return write(r, std::string_view{arr});
-  }
-
-  /// @brief Write bytes from buffer
-  /// @returns Number of bytes written or a syscall error
-  Fut<size_t, Error<AllocationError, SyscallError>> write_some(Reactor &,
-                                                               std::span<char const>) noexcept;
-
-  /// @brief Write bytes from string literal, excluding null-terminator
-  /// @returns Number of bytes written or a syscall error
-  template <size_t N>
-  Fut<size_t, Error<AllocationError, SyscallError>>
-  write_some(Reactor &r,
-             char const (&arr)[N]) noexcept // NOLINT(modernize-avoid-c-arrays)
-  {
-    return write_some(r, std::string_view{arr});
-  }
-
-  /// @brief Write bytes from buffer if socket is write-ready
-  /// @returns Number of bytes written or a syscall error
-  Result<size_t, SyscallError> try_write_some(std::span<char const>) noexcept;
-
-  /// @brief Try write bytes from string literal, excluding null-terminator
-  /// @returns Number of bytes written or a syscall error
-  template <size_t N>
-  Result<size_t, SyscallError>
-  try_write_some(char const (&arr)[N]) noexcept // NOLINT(modernize-avoid-c-arrays)
-  {
-    return try_write_some(std::string_view{arr});
-  }
-
-  /// @brief Get an address to which socket has been bound
-  Result<SockaddrStorage, SyscallError> address() const noexcept;
-
-  /// @brief Free allocated resources and invalidate underlying handle
-  void close() noexcept;
-
-  /// @brief Get OS-specific underlying handle
-  [[nodiscard]] os::Handle underlying_handle() const noexcept;
-
-private:
-  SetDefaultOnMove<int, -1> m_fd;
 };
 
 } // namespace corosig
