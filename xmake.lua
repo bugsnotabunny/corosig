@@ -1,4 +1,4 @@
-add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release", "mode.minsizerel")
+add_rules("mode.debug", "mode.coverage", "mode.release", "mode.minsizerel")
 add_rules("plugin.compile_commands.autoupdate", { lsp = "clangd" })
 
 option("tests")
@@ -19,6 +19,18 @@ option("benchmarks")
     set_description("Build benchmarks")
 option_end()
 
+option("asan")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Build with asan, ubsan and lsan")
+option_end()
+
+option("tsan")
+    set_default(false)
+    set_showmenu(true)
+    set_description("Build with tsan")
+option_end()
+
 set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 
@@ -34,14 +46,15 @@ else
     set_optimize("fast")
 end
 
-if is_mode("asan") then
+if has_config("asan") then
     set_policy("build.sanitizer.address", true)
     set_policy("build.sanitizer.undefined", true)
     set_policy("build.sanitizer.leak", true)
-elseif is_mode("tsan") then
-    set_policy("build.sanitizer.thread", true)
 end
 
+if has_config("tsan") then
+    set_policy("build.sanitizer.thread", true)
+end
 
 add_requires("boost 1.90.0", { external = true, configs = { filesystem = false } })
 

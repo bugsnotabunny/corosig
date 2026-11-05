@@ -11,7 +11,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
-        config: [asan, tsan, release, minsizerel]
+        config:
+          [
+            "--mode=debug",
+            "--mode=debug --asan=y",
+            "--mode=debug --tsan=y",
+            "--mode=release",
+            "--mode=minsizerel",
+          ]
         toolchain: [clang, gcc]
 
     env:
@@ -39,6 +46,6 @@ jobs:
           max_attempts: 5
           command: devenv ${{ env.DEVENV_PROFILES }} shell echo success
 
-      - run: xmake config --toolchain=${{ matrix.toolchain }} --mode=${{ matrix.config }} --root -y
+      - run: xmake config --toolchain=${{ matrix.toolchain }} ${{ matrix.config }} --root -y
       - run: xmake build -y
       - run: xmake test -j1 -vy '*/default'
