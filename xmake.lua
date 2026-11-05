@@ -43,7 +43,8 @@ elseif is_mode("minsizerel") then
     add_defines("NDEBUG")
     set_strip("debug")
 else
-    set_optimize("fast")
+    add_cxflags("-g3", "-gz", "-Og")
+    add_ldflags("-g3", "-gz", "-Og")
 end
 
 if has_config("asan") then
@@ -56,8 +57,7 @@ if has_config("tsan") then
     set_policy("build.sanitizer.thread", true)
 end
 
-add_requires("boost 1.90.0", { external = true, configs = { filesystem = false } })
-
+add_requires("boost 1.92.0", { external = true, configs = { filesystem = false } })
 
 target("corosig")
     set_kind("static")
@@ -68,15 +68,15 @@ target("corosig")
     add_packages("boost", { external = true, public = true })
 
     before_build(function (target)
-        if is_mode("asan") then
-            target:add("defines", "COROSIG_ASAN_ENABLED=1")
+        if target:policy("build.sanitizer.address") then
+            target:add("defines", "COROSIG_ASAN_ENABLED=1", { private = true })
         end
     end)
 target_end()
 
 
 if has_config("tests") or has_config("benchmarks") then
-    add_requires("catch2 v3.10.0", { external = true, configs = { main = false, gmock = false } })
+    add_requires("catch2 3.16.0")
 end
 
 
