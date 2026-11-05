@@ -1,4 +1,5 @@
 add_rules("mode.debug", "mode.asan", "mode.tsan", "mode.release", "mode.minsizerel")
+add_rules("plugin.compile_commands.autoupdate", { lsp = "clangd" })
 
 option("tests")
     set_default(true)
