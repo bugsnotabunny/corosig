@@ -33,13 +33,16 @@ struct UniquePtr : std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>> {
 
   UniquePtr(T *p, ALLOCATOR alloc) noexcept
       : std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>>{
-            p, AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)}} {
+            p,
+            AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)},
+        } {
   }
 
   UniquePtr(std::nullptr_t, ALLOCATOR alloc) noexcept
       : std::unique_ptr<T, AllocatorBoundDeleter<ALLOCATOR>>{
             static_cast<T *>(nullptr),
-            AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)}} {
+            AllocatorBoundDeleter<ALLOCATOR>{std::forward<ALLOCATOR>(alloc)},
+        } {
   }
 };
 

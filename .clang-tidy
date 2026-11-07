@@ -3,6 +3,7 @@ Checks: >
     -bugprone-easily-swappable-parameters,
     -bugprone-suspicious-stringview-data-usage,
     -bugprone-derived-method-shadowing-base-method,
+    -bugprone-signed-bitwise
 
     modernize-*,
     -modernize-use-trailing-return-type,
@@ -16,6 +17,8 @@ Checks: >
     -misc-new-delete-overloads,
     -misc-non-private-member-variables-in-classes,
     -misc-multiple-inheritance,
+    -misc-explicit-constructor,
+    -misc-static-assert, # good check actually, but too much false reports. maybe will be reenabled in future
 
     readability-*,
     -readability-redundant-member-init,
@@ -39,23 +42,29 @@ Checks: >
 WarningsAsErrors: "*"
 
 CheckOptions:
-  - { key: bugprone-exception-escape.CheckNothrowFunctions,        value: false                                                         }
-  - { key: readability-function-cognitive-complexity.IgnoreMacros, value: true                                                          }
-  - { key: misc-include-cleaner.MissingIncludes,                   value: false                                                         }
-  - { key: readability-identifier-naming.ConstantCase,             value: UPPER_CASE                                                    }
-  - { key: readability-identifier-naming.ConstantMemberCase,       value: lower_case                                                    }
-  - { key: readability-identifier-naming.LocalConstantCase,        value: lower_case                                                    }
-  - { key: readability-identifier-naming.NamespaceCase,            value: lower_case                                                    }
-  - { key: readability-identifier-naming.ConstexprVariableCase,    value: UPPER_CASE                                                    }
-  - { key: readability-identifier-naming.ClassCase,                value: CamelCase                                                     }
-  - { key: readability-identifier-naming.StructCase,               value: CamelCase                                                     }
-  - { key: readability-identifier-naming.TemplateParameterCase,    value: UPPER_CASE                                                    }
-  - { key: readability-identifier-naming.FunctionCase,             value: lower_case                                                    }
-  - { key: readability-identifier-naming.VariableCase,             value: lower_case                                                    }
-  - { key: readability-identifier-naming.PrivateMemberPrefix,      value: m_                                                            }
-  - { key: readability-identifier-naming.ProtectedMemberPrefix,    value: m_                                                            }
-  - { key: readability-identifier-naming.MacroDefinitionCase,      value: UPPER_CASE                                                    }
-  - { key: readability-identifier-naming.LocalVariableCase,        value: lower_case                                                    }
-  - { key: readability-identifier-naming.PublicMemberCase,         value: lower_case                                                    }
-  - { key: readability-identifier-naming.PrivateMemberCase,        value: lower_case                                                    }
-  - { key: readability-identifier-naming.ProtectedMemberCase,      value: lower_case                                                    }
+    bugprone-exception-escape.CheckNothrowFunctions:        false
+    readability-function-cognitive-complexity.IgnoreMacros: true
+    misc-include-cleaner.MissingIncludes:                   false
+
+    readability-operators-representation.BinaryOperators:   "&&;&=;&;|;&;~;!;!=;||;|=;^;^="
+    readability-operators-representation.OverloadedOperators:   "&&;&=;&;|;&;~;!;!=;||;|=;^;^="
+
+
+
+    readability-identifier-naming.ConstantCase:             UPPER_CASE
+    readability-identifier-naming.ConstantMemberCase:       lower_case
+    readability-identifier-naming.LocalConstantCase:        lower_case
+    readability-identifier-naming.NamespaceCase:            lower_case
+    readability-identifier-naming.ConstexprVariableCase:    UPPER_CASE
+    readability-identifier-naming.ClassCase:                CamelCase
+    readability-identifier-naming.StructCase:               CamelCase
+    readability-identifier-naming.TemplateParameterCase:    UPPER_CASE
+    readability-identifier-naming.FunctionCase:             lower_case
+    readability-identifier-naming.VariableCase:             lower_case
+    readability-identifier-naming.PrivateMemberPrefix:      m_
+    readability-identifier-naming.ProtectedMemberPrefix:    m_
+    readability-identifier-naming.MacroDefinitionCase:      UPPER_CASE
+    readability-identifier-naming.LocalVariableCase:        lower_case
+    readability-identifier-naming.PublicMemberCase:         lower_case
+    readability-identifier-naming.PrivateMemberCase:        lower_case
+    readability-identifier-naming.ProtectedMemberCase:      lower_case

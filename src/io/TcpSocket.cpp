@@ -40,7 +40,7 @@ TcpSocket::TcpSocket(StreamSocket socket) noexcept
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>>
-TcpSocket::connect(Reactor &r, SockaddrStorage const &target) noexcept {
+TcpSocket::connect(Reactor &, SockaddrStorage const &target) noexcept {
   COROSIG_CO_TRY(TcpSocket socket, make_disconnected_tcp_socket(target.native_storage.ss_family));
 
   COROSIG_CO_TRY(auto poll, os::posix::PollConnect::make(socket.underlying_handle(), target));
@@ -50,7 +50,7 @@ TcpSocket::connect(Reactor &r, SockaddrStorage const &target) noexcept {
 }
 
 Fut<TcpSocket, Error<AllocationError, SyscallError>> TcpSocket::connect_from(
-    Reactor &r, SockaddrStorage const &local, SockaddrStorage const &target) noexcept {
+    Reactor &, SockaddrStorage const &local, SockaddrStorage const &target) noexcept {
   assert(local.native_storage.ss_family == target.native_storage.ss_family);
 
   COROSIG_CO_TRY(TcpSocket socket, make_disconnected_tcp_socket(target.native_storage.ss_family));

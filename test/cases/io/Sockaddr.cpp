@@ -130,22 +130,24 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv6Addr from_groups", "[ipv6]") {
   std::array<uint16_t, 8> groups = {0x2001, 0xdb8, 0, 0, 0, 0, 0, 0x1};
   auto addr = Ipv6Addr::from_groups(groups);
 
-  auto expected = std::array<uint8_t, 16>{0x20,
-                                          0x01,
-                                          0x0d,
-                                          0xb8,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x00,
-                                          0x01};
+  auto expected = std::array<uint8_t, 16>{
+      0x20,
+      0x01,
+      0x0d,
+      0xb8,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x00,
+      0x01,
+  };
   COROSIG_REQUIRE(addr.value() == expected);
 }
 
@@ -306,10 +308,12 @@ COROSIG_SIGHANDLER_TEST_CASE("Ipv4Addr to_sockaddr roundtrip", "[ipv4]") {
 
   // Verify we can reconstruct the address
   auto haddr = ntoh(sockaddr->sin_addr.s_addr);
-  auto reconstructed = Ipv4Addr::from_bytes({static_cast<uint8_t>((haddr >> 24) & 0xFF),
-                                             static_cast<uint8_t>((haddr >> 16) & 0xFF),
-                                             static_cast<uint8_t>((haddr >> 8) & 0xFF),
-                                             static_cast<uint8_t>(haddr & 0xFF)});
+  auto reconstructed = Ipv4Addr::from_bytes({
+      static_cast<uint8_t>((haddr >> 24) & 0xFF),
+      static_cast<uint8_t>((haddr >> 16) & 0xFF),
+      static_cast<uint8_t>((haddr >> 8) & 0xFF),
+      static_cast<uint8_t>(haddr & 0xFF),
+  });
   COROSIG_REQUIRE(reconstructed.value() == addr.value());
 }
 

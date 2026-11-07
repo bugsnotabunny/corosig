@@ -46,10 +46,12 @@ TEST_CASE("Cache: pull falls back to MemoryCache when not in hosts file") {
       dns::Cache<> cache{r, hosts_file, r.allocator()};
 
       auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
-      std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs{dns::ResolvedAddress<Ipv4Addr>{
-          .address = Ipv4Addr::parse("10.0.0.1").value(),
-          .expires_at = expires_at,
-      }};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs{
+          dns::ResolvedAddress<Ipv4Addr>{
+              .address = Ipv4Addr::parse("10.0.0.1").value(),
+              .expires_at = expires_at,
+          },
+      };
 
       auto push_result = cache.push("mem.example.com", addrs);
       COROSIG_REQUIRE(push_result.is_ok());
@@ -95,10 +97,12 @@ TEST_CASE("Cache: HostsFileCache takes priority over MemoryCache") {
       dns::Cache<> cache{r, hosts_file, r.allocator()};
 
       auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
-      std::array<dns::ResolvedAddress<Ipv4Addr>, 1> mem_addrs{dns::ResolvedAddress<Ipv4Addr>{
-          .address = Ipv4Addr::parse("10.0.0.50").value(),
-          .expires_at = expires_at,
-      }};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 1> mem_addrs{
+          dns::ResolvedAddress<Ipv4Addr>{
+              .address = Ipv4Addr::parse("10.0.0.50").value(),
+              .expires_at = expires_at,
+          },
+      };
 
       auto push_result = cache.push("priority.example.com", mem_addrs);
       COROSIG_REQUIRE(push_result.is_ok());
@@ -145,10 +149,14 @@ TEST_CASE("Cache: push delegates to MemoryCache") {
 
       auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
       std::array<dns::ResolvedAddress<Ipv4Addr>, 2> addrs{
-          dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.2.1").value(),
-                                         .expires_at = expires_at},
-          dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.2.2").value(),
-                                         .expires_at = expires_at},
+          dns::ResolvedAddress<Ipv4Addr>{
+              .address = Ipv4Addr::parse("192.168.2.1").value(),
+              .expires_at = expires_at,
+          },
+          dns::ResolvedAddress<Ipv4Addr>{
+              .address = Ipv4Addr::parse("192.168.2.2").value(),
+              .expires_at = expires_at,
+          },
       };
 
       auto push_result = cache.push("pushed.example.com", addrs);
@@ -180,10 +188,12 @@ TEST_CASE("Cache: prune delegates to MemoryCache") {
       auto now = SteadyClock::now();
       auto expired_at = now - std::chrono::seconds{3600};
 
-      std::array<dns::ResolvedAddress<Ipv4Addr>, 1> expired_addrs{dns::ResolvedAddress<Ipv4Addr>{
-          .address = Ipv4Addr::parse("192.168.3.1").value(),
-          .expires_at = expired_at,
-      }};
+      std::array<dns::ResolvedAddress<Ipv4Addr>, 1> expired_addrs{
+          dns::ResolvedAddress<Ipv4Addr>{
+              .address = Ipv4Addr::parse("192.168.3.1").value(),
+              .expires_at = expired_at,
+          },
+      };
 
       auto push_result = cache.push("expired.example.com", expired_addrs);
       COROSIG_REQUIRE(push_result.is_ok());

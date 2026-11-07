@@ -17,7 +17,7 @@ UnixStreamSocket::UnixStreamSocket(StreamSocket socket) noexcept
 }
 
 Fut<UnixStreamSocket, Error<AllocationError, SyscallError>>
-UnixStreamSocket::connect(Reactor &r, SockaddrStorage const &target) noexcept {
+UnixStreamSocket::connect(Reactor &, SockaddrStorage const &target) noexcept {
   COROSIG_CO_TRY(StreamSocket stream_socket, os::posix::make_nonblocking_stream_socket(AF_UNIX, 0));
   UnixStreamSocket socket{std::move(stream_socket)};
 

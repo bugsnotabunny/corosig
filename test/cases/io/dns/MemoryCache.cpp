@@ -17,10 +17,14 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: push and pull IPv4 addresses") {
 
   auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 2> addrs{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.2").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.2").value(),
+          .expires_at = expires_at,
+      },
   };
 
   auto push_result = cache.push("example.com", addrs);
@@ -40,10 +44,14 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: push and pull IPv6 addresses") {
 
   auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv6Addr>, 2> addrs{
-      dns::ResolvedAddress<Ipv6Addr>{.address = Ipv6Addr::parse("2001:db8::1").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv6Addr>{.address = Ipv6Addr::parse("2001:db8::2").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv6Addr>{
+          .address = Ipv6Addr::parse("2001:db8::1").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv6Addr>{
+          .address = Ipv6Addr::parse("2001:db8::2").value(),
+          .expires_at = expires_at,
+      },
   };
 
   auto push_result = cache.push("example.com", addrs);
@@ -63,16 +71,24 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: push and pull mixed IPv4 and IPv6 add
 
   auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 2> ipv4s{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.2").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.2").value(),
+          .expires_at = expires_at,
+      },
   };
   std::array<dns::ResolvedAddress<Ipv6Addr>, 2> ipv6s{
-      dns::ResolvedAddress<Ipv6Addr>{.address = Ipv6Addr::parse("2001:db8::1").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv6Addr>{.address = Ipv6Addr::parse("2001:db8::2").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv6Addr>{
+          .address = Ipv6Addr::parse("2001:db8::1").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv6Addr>{
+          .address = Ipv6Addr::parse("2001:db8::2").value(),
+          .expires_at = expires_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("example.com", ipv4s).is_ok());
@@ -108,16 +124,26 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: fills available output buffer") {
 
   auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 5> addrs{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.2").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.3").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.4").value(),
-                                     .expires_at = expires_at},
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.5").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.2").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.3").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.4").value(),
+          .expires_at = expires_at,
+      },
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.5").value(),
+          .expires_at = expires_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("example.com", addrs).is_ok());
@@ -135,14 +161,18 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: pruning removes expired entries") {
 
   auto expired_at = SteadyClock::now() - std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> expired_addrs{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expired_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expired_at,
+      },
   };
 
   auto valid_at = SteadyClock::now() + std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> valid_addrs{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.2").value(),
-                                     .expires_at = valid_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.2").value(),
+          .expires_at = valid_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("expired.example.com", expired_addrs).is_ok());
@@ -167,16 +197,22 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: handles multiple entries with differe
   auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
 
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs1{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expires_at,
+      },
   };
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs2{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("10.0.0.1").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("10.0.0.1").value(),
+          .expires_at = expires_at,
+      },
   };
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs3{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("172.16.0.1").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("172.16.0.1").value(),
+          .expires_at = expires_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("host1.example.com", addrs1).is_ok());
@@ -207,12 +243,16 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: handles multiple address records for 
   auto expires_at = SteadyClock::now() + std::chrono::seconds{3600};
 
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs1{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expires_at,
+      },
   };
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> addrs2{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.2").value(),
-                                     .expires_at = expires_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.2").value(),
+          .expires_at = expires_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("multi.example.com", addrs1).is_ok());
@@ -256,7 +296,8 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: returns allocation failure on OOM") {
   for (size_t i = 0; i < addrs.size(); ++i) {
     addrs[i] = dns::ResolvedAddress<Ipv4Addr>{
         .address = Ipv4Addr::parse(std::format("192.168.1.{}", i + 1)).value(),
-        .expires_at = expires_at};
+        .expires_at = expires_at,
+    };
   }
 
   auto push_result = cache.push("example.com", addrs);
@@ -290,18 +331,24 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: prune with multiple expired entries")
   auto now = SteadyClock::now();
 
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> expired1{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = now - std::chrono::hours{2}},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = now - std::chrono::hours{2},
+      },
   };
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> expired2{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = now - std::chrono::hours{1}},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = now - std::chrono::hours{1},
+      },
   };
 
   auto valid_at = now + std::chrono::hours{1};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> valid{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = valid_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = valid_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("expired1.example.com", expired1).is_ok());
@@ -331,14 +378,18 @@ COROSIG_SIGHANDLER_TEST_CASE("MemoryCache: multiple pulls after prune") {
 
   auto expired_at = now - std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> expired_addrs{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.1").value(),
-                                     .expires_at = expired_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.1").value(),
+          .expires_at = expired_at,
+      },
   };
 
   auto valid_at = now + std::chrono::seconds{3600};
   std::array<dns::ResolvedAddress<Ipv4Addr>, 1> valid_addrs{
-      dns::ResolvedAddress<Ipv4Addr>{.address = Ipv4Addr::parse("192.168.1.2").value(),
-                                     .expires_at = valid_at},
+      dns::ResolvedAddress<Ipv4Addr>{
+          .address = Ipv4Addr::parse("192.168.1.2").value(),
+          .expires_at = valid_at,
+      },
   };
 
   COROSIG_REQUIRE(cache.push("test.example.com", expired_addrs).is_ok());

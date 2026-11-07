@@ -127,7 +127,7 @@ public:
     Vector new_vec{m_alloc};
     COROSIG_TRYV(new_vec.resize_uninitialized(size()));
     for (auto i : std::views::iota(static_cast<size_type>(0), size())) {
-      new (std::addressof(new_vec[i])) value_type{std::move((m_data)[i])};
+      new (std::addressof(new_vec[i])) value_type{std::move(m_data[i])};
     }
     *this = std::move(new_vec);
     return Ok{};

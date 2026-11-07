@@ -30,7 +30,7 @@ struct CoroutinePromiseType : CoroListNode {
   /// @brief Construct new coroutine promise bound to reactor
   /// @note For more detailed explanation check
   ///        https://en.cppreference.com/w/cpp/language/coroutines.html
-  CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
+  explicit CoroutinePromiseType(Reactor &reactor, NotReactor auto const &...) noexcept
       : m_reactor{reactor},
         m_needs_dealloc{std::exchange(reactor.ref_current_coro_was_allocated(), false)} {
   }
@@ -317,7 +317,7 @@ private:
 
   private:
     friend Fut;
-    Awaiter(Fut &future) noexcept
+    explicit Awaiter(Fut &future) noexcept
         : m_future{future} {
     }
 

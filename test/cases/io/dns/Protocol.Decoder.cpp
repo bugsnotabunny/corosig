@@ -187,7 +187,7 @@ TEST_CASE("Label length too big (>63)", "[dns][label][error]") {
       0x00,
       0x00,
       0x00,
-      64 // invalid label length
+      64, // invalid label length
   };
 
   ResponseDecoder d(raw);
@@ -199,7 +199,21 @@ TEST_CASE("Label length too big (>63)", "[dns][label][error]") {
 
 TEST_CASE("Label length exceeds buffer", "[dns][label][error]") {
   std::vector<uint8_t> raw = {
-      0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 5, 'a', 'b' // claims 5, only 2 bytes
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      5,
+      'a',
+      'b', // claims 5, only 2 bytes
   };
 
   ResponseDecoder d(raw);
@@ -211,7 +225,22 @@ TEST_CASE("Label length exceeds buffer", "[dns][label][error]") {
 
 TEST_CASE("Missing root label terminator", "[dns][label][error]") {
   std::vector<uint8_t> raw = {
-      0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 3, 'w', 'w', 'w' // no terminating 0
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      'w',
+      'w',
+      'w', // no terminating 0
   };
 
   ResponseDecoder d(raw);
@@ -223,7 +252,20 @@ TEST_CASE("Missing root label terminator", "[dns][label][error]") {
 
 TEST_CASE("Compression pointer OOB", "[dns][compression][error]") {
   std::vector<uint8_t> raw = {
-      0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0xC0, 0xFF // pointer way outside message
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0xC0,
+      0xFF, // pointer way outside message
   };
 
   ResponseDecoder d(raw);
@@ -235,7 +277,20 @@ TEST_CASE("Compression pointer OOB", "[dns][compression][error]") {
 
 TEST_CASE("Compression pointer infinite loop", "[dns][compression][error]") {
   std::vector<uint8_t> raw = {
-      0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0xC0, 0x0C // points to itself (offset 12)
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0xC0,
+      0x0C, // points to itself (offset 12)
   };
 
   ResponseDecoder d(raw);
@@ -589,7 +644,22 @@ TEST_CASE("Compression pointer to pointer chain (valid)", "[dns][compression][ch
 
 TEST_CASE("Truncated DNS message", "[dns][bounds]") {
   std::vector<uint8_t> raw = {
-      0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 3, 'w', 'w', 'w' // missing rest
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      'w',
+      'w',
+      'w', // missing rest
   };
 
   ResponseDecoder d(raw);

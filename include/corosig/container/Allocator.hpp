@@ -26,7 +26,7 @@ public:
   Allocator() noexcept = default;
 
   /// @brief Construct an Allocator over specified memory buffer
-  Allocator(std::span<char> mem) noexcept;
+  explicit Allocator(std::span<char> mem) noexcept;
 
   Allocator(Allocator const &) = delete;
   Allocator(Allocator &&) noexcept = delete;
@@ -69,7 +69,7 @@ private:
   void push_free_node(size_t idx) noexcept;
   void unlink_free_node(size_t idx) noexcept;
 
-  constexpr static auto INVALID_IDX = static_cast<uint32_t>((2 << 31) - 1);
+  constexpr static auto INVALID_IDX = static_cast<uint32_t>(-1);
 
   uint32_t m_first_free_block_idx = INVALID_IDX;
   uint32_t m_last_free_block_idx = INVALID_IDX;

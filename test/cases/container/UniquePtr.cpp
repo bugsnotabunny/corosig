@@ -72,7 +72,7 @@ TEST_CASE("make_unique returns correct UniquePtr type") {
   auto ptr = corosig::make_unique<LifetimeCounter>(alloc, 123);
   static_assert(std::same_as<std::decay_t<decltype(ptr.value())>,
                              corosig::UniquePtr<LifetimeCounter, MockAllocator &>>);
-  auto ptr2 = corosig::make_unique<LifetimeCounter>(MockAllocator{}, 123);
+  auto ptr2 = corosig::make_unique<LifetimeCounter>(MockAllocator(), 123);
   static_assert(std::same_as<std::decay_t<decltype(ptr.value())>,
                              corosig::UniquePtr<LifetimeCounter, MockAllocator &>>);
 }

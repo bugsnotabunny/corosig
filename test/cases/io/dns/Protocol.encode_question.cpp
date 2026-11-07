@@ -95,7 +95,7 @@ COROSIG_SIGHANDLER_TEST_CASE("write_label: uses compression pointer when suffix 
 
   COROSIG_REQUIRE(out.written() == 14);
 
-  uint16_t encoded = ((buffer[out.written() - 2]) << 8) | (buffer[out.written() - 1]);
+  uint16_t encoded = (buffer[out.written() - 2] << 8) | buffer[out.written() - 1];
   COROSIG_REQUIRE((encoded & 0xC000) == 0xC000);
 }
 

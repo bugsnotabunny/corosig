@@ -96,7 +96,7 @@ struct IpvNAddr : Variant<Ipv4Addr, Ipv6Addr> {
 struct UnixAddr {
   constexpr static size_t MAX_LEN = sizeof(sockaddr_un{}.sun_path) - 1;
 
-  UnixAddr(std::u8string_view path) noexcept;
+  explicit UnixAddr(std::u8string_view path) noexcept;
 
   /// @brief Convert this to SockaddrStorage
   [[nodiscard]] SockaddrStorage const &to_sockaddr() const noexcept;

@@ -390,7 +390,10 @@ COROSIG_SIGHANDLER_TEST_CASE("Resolver<MockCache>: multiple sequential calls") {
     };
 
     std::array<std::string_view, 3> domain_names{
-        "google.com", "github.com", "motherfuckingwebsite.com"};
+        "google.com",
+        "github.com",
+        "motherfuckingwebsite.com",
+    };
 
     for (std::string_view name : domain_names) {
       std::array<dns::ResolvedAddress<Ipv4Addr>, 2> addrs{};

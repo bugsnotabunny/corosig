@@ -134,7 +134,7 @@ Allocator::Allocator(std::span<char> mem) noexcept
 Allocator::~Allocator() {
   assert(m_used == 0 && "Memory leak detected");
 #if COROSIG_ASAN_ENABLED
-  if (m_mem.size() != 0) {
+  if (!m_mem.empty()) {
     m_mem = std::span{m_mem.data() - BLOCK_SIZE, m_mem.size() + BLOCK_SIZE * 2};
     ASAN_UNPOISON_MEMORY_REGION(m_mem.data(), m_mem.size());
   }

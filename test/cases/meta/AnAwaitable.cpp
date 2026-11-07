@@ -40,7 +40,7 @@ struct StringAwaiter {
   void await_suspend(std::coroutine_handle<>) const noexcept {
   }
 
-  static std::string await_resume() noexcept {
+  static std::string_view await_resume() noexcept {
     return "hello";
   }
 };
@@ -138,13 +138,13 @@ COROSIG_SIGHANDLER_TEST_CASE("AnAwaitable metafunctions are sane") {
 
   static_assert(std::same_as<AwaitResult<SimpleAwaiter>, int>);
   static_assert(std::same_as<AwaitResult<VoidAwaiter>, void>);
-  static_assert(std::same_as<AwaitResult<StringAwaiter>, std::string>);
+  static_assert(std::same_as<AwaitResult<StringAwaiter>, std::string_view>);
   static_assert(std::same_as<AwaitResult<RefAwaiter>, int &>);
 
   static_assert(std::same_as<AwaitResult<MemberAwaitable>, int>);
-  static_assert(std::same_as<AwaitResult<MemberAsyncAwaitable>, std::string>);
+  static_assert(std::same_as<AwaitResult<MemberAsyncAwaitable>, std::string_view>);
 
-  static_assert(std::same_as<AwaitResult<NonMemberAwaitable>, std::string>);
+  static_assert(std::same_as<AwaitResult<NonMemberAwaitable>, std::string_view>);
   static_assert(std::same_as<AwaitResult<NonMemberCustomAwaitable>, int &>);
 
   static_assert(HasMemberCoAwait<NestedMemberAwaitable>);

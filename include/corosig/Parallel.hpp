@@ -64,7 +64,8 @@ Fut<std::tuple<detail::WrapVoid<AwaitResult<AWAITABLE>>...>>
 when_all(Reactor &, AWAITABLE &&...awaitables) noexcept {
   co_return std::tuple<detail::WrapVoid<AwaitResult<AWAITABLE>>...>{
       co_await detail::WrapVoidAwaitable<AWAITABLE>{
-          resolve_to_awaiter(std::forward<AWAITABLE>(awaitables))}...,
+          resolve_to_awaiter(std::forward<AWAITABLE>(awaitables)),
+      }...,
   };
 }
 
