@@ -87,7 +87,12 @@ COROSIG_SIGHANDLER_TEST_CASE("BackgroundTask allocation failure") {
   Allocator::Memory<0> mem;
   Reactor limited_reactor{mem};
 
-  auto task = FOO(limited_reactor);
+  auto const task = FOO(limited_reactor);
+
+  COROSIG_REQUIRE(task.error().description() ==
+                  "AllocationError"); // a compiler bug? without this check next
+                                      // check fails on clang with asan enabled
+
   COROSIG_REQUIRE(!task);
 }
 
