@@ -28,7 +28,9 @@ static_assert(dns::ACache<dns::HostsFileCache>);
 struct HostsFileParser {
   template <typename IP>
   static Fut<size_t, Error<AllocationError, SyscallError>>
-  parse_and_collect(Reactor &r, char const *path, std::string_view ascii_name,
+  parse_and_collect(Reactor &r,
+                    char const *path,
+                    std::string_view ascii_name,
                     std::span<dns::ResolvedAddress<IP>> out) noexcept {
     assert(dns::detail::debug_is_ascii(ascii_name));
     if (ascii_name.size() > dns::detail::FQDN_MAX_OCTET_LEN) {
@@ -37,11 +39,9 @@ struct HostsFileParser {
 
     std::array<char, dns::detail::FQDN_MAX_OCTET_LEN> ascii_name_lowercase_buf;
     char const *end =
-        std::ranges::transform(ascii_name, ascii_name_lowercase_buf.begin(),
-                               dns::detail::to_lower)
+        std::ranges::transform(ascii_name, ascii_name_lowercase_buf.begin(), dns::detail::to_lower)
             .out;
-    std::string_view ascii_name_lowercase = {ascii_name_lowercase_buf.begin(),
-                                             end};
+    std::string_view ascii_name_lowercase = {ascii_name_lowercase_buf.begin(), end};
 
     COROSIG_CO_TRY(auto file, co_await File::open(r, path));
     HostsFileParser self{std::move(file)};
@@ -89,8 +89,7 @@ struct HostsFileParser {
 
         if (std::ranges::equal(domain_name, ascii_name_lowercase)) {
           dns::ResolvedAddress<IP> &result = out.front();
-          assert(addr &&
-                 "Addr shall have been set before going into NAME state");
+          assert(addr && "Addr shall have been set before going into NAME state");
           result.address = *addr; // NOLINT (bugprone-unchecked-optional-access)
           // shall only be used for current transaction
           result.expires_at = SteadyClock::time_point{SteadyClock::duration{0}};
@@ -122,12 +121,12 @@ private:
     SKIPPING_LINE,
   };
 
-  explicit HostsFileParser(File input) noexcept : m_input{std::move(input)} {}
+  explicit HostsFileParser(File input) noexcept
+      : m_input{std::move(input)} {
+  }
 
-  Fut<void, Error<AllocationError, SyscallError>>
-  read_to_free_buffer(Reactor &r) noexcept {
-    COROSIG_CO_TRY(size_t bytes_read,
-                   co_await m_input.read(r, get_free_buffer()));
+  Fut<void, Error<AllocationError, SyscallError>> read_to_free_buffer(Reactor &r) noexcept {
+    COROSIG_CO_TRY(size_t bytes_read, co_await m_input.read(r, get_free_buffer()));
     m_used_buffer += bytes_read;
     co_return Ok{};
   }
@@ -156,8 +155,7 @@ private:
     if (it != used_buf.end()) {
       m_state = AT_IP;
     }
-    adwance(std::min(m_buffer.size(),
-                     static_cast<size_t>(&*it - m_buffer.begin() + 1)));
+    adwance(std::min(m_buffer.size(), static_cast<size_t>(&*it - m_buffer.begin() + 1)));
   }
 
   std::span<char> get_free_buffer() noexcept {
@@ -192,7 +190,9 @@ private:
 namespace corosig::dns {
 
 HostsFileCache::HostsFileCache(Reactor &r, char const *path) noexcept
-    : m_reactor{r}, m_path{path} {}
+    : m_reactor{r},
+      m_path{path} {
+}
 
 Fut<size_t, Error<AllocationError, SyscallError>>
 HostsFileCache::pull(std::string_view ascii_name,

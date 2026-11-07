@@ -3,8 +3,8 @@ ColumnLimit: 100
 BreakTemplateDeclarations: Yes
 AllowShortFunctionsOnASingleLine: None
 IncludeBlocks: Regroup
-BinPackArguments: No
-BinPackLongBracedList: No
+BinPackArguments: false
+BinPackLongBracedList: false
 BinPackParameters: OnePerLine
 PackConstructorInitializers: Never
 QualifierAlignment: Right
