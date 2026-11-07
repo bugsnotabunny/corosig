@@ -38,8 +38,5 @@ jobs:
       - name: configure project
         run: xmake config --toolchain=clang --mode=asan -y
 
-      - name: generate compile-commands
-        run: xmake project -k compile_commands --lsp=clangd -y
-
       - name: clang-tidy checks
-        run: xmake check clang.tidy
+        run: xmake tidy-check

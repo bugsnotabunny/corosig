@@ -80,6 +80,63 @@ if has_config("tests") or has_config("benchmarks") then
 end
 
 
+task("tidy-check")
+    set_menu {
+        usage = "xmake tidy-check",
+        description = "Run clang-tidy in parallel and apply fixes",
+        options = {
+            { nil, "fix", "k", nil, "Set the number of parallel jobs" },
+            { 'j', "jobs", "kv", nil, "Set the number of parallel jobs" },
+        }
+    }
+    on_run(function ()
+        import("core.project.config")
+        import("core.project.project")
+        import("core.base.option")
+        import("core.base.task")
+        import("utils.progress")
+        import("async.runjobs")
+
+        config.load()
+
+        local fixdir = path.join(config.builddir(), "clang-tidy-fixes")
+        task.run("project", {kind = "compile_commands", lsp = "clangd", outputdir = fixdir})
+
+        os.tryrm(fixdir)
+        os.mkdir(fixdir)
+
+        local files = {}
+        for _, target in pairs(project.targets()) do
+            for _, sourcefile in ipairs(target:headerfiles()) do
+                table.insert(files, sourcefile)
+            end
+            for _, sourcefile in ipairs(target:sourcefiles()) do
+                table.insert(files, sourcefile)
+            end
+        end
+
+        local jobs = tonumber(option.get("jobs")) or os.default_njob() -- or os.cpuinfo().ncpu
+        print("Running clang-tidy on %d files using %d jobs...", #files, jobs)
+        runjobs("clang-tidy", function (index, total, opt)
+            local file = files[index]
+            progress.show(opt.progress, "${color.build.progress}clang-tidy${clear} %s", file)
+
+            if option.get("fix") then
+                local yamlfile = path.join(fixdir, string.format("fix_%d.yaml", index))
+                local ok = os.execv("clang-tidy", { "-p", fixdir, "--export-fixes=" .. yamlfile, file }, { try = true })
+            else
+                os.execv("clang-tidy", { "-p", fixdir, file })
+            end
+        end, { total = #files, comax = jobs })
+
+        if option.get("fix") then
+            print("Applying fixes...")
+            os.vrunv("clang-apply-replacements", { "--remove-change-desc-files", fixdir })
+        end
+        os.rm(fixdir)
+    end)
+task_end()
+
 target("corosig-testing")
     set_enabled(has_config("tests"))
     set_kind("shared")
