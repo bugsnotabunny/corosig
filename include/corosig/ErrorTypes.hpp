@@ -3,7 +3,6 @@
 
 #include "corosig/util/Variant.hpp"
 
-#include <boost/mp11.hpp>
 #include <boost/mp11/algorithm.hpp>
 #include <concepts>
 #include <string_view>

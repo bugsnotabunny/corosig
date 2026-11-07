@@ -7,6 +7,7 @@
 #include "corosig/testing/TemporaryFileTestListener.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <cstddef>
 #include <fstream>
 #include <span>

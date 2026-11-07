@@ -26,10 +26,8 @@
 #include <coroutine>
 #include <cstddef>
 #include <cstdint>
-#include <netinet/in.h>
 #include <span>
 #include <string_view>
-#include <sys/socket.h>
 #include <variant>
 
 namespace corosig::dns {

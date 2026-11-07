@@ -6,7 +6,6 @@
 #include <boost/intrusive/intrusive_fwd.hpp>
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/options.hpp>
-#include <boost/intrusive/rbtree.hpp>
 #include <boost/intrusive/set_hook.hpp>
 #include <coroutine>
 

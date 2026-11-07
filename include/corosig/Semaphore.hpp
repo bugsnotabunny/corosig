@@ -6,10 +6,7 @@
 #include "corosig/util/SetDefaultOnMove.hpp"
 
 #include <boost/intrusive/intrusive_fwd.hpp>
-#include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/options.hpp>
-#include <boost/intrusive/slist.hpp>
-#include <boost/intrusive/slist_hook.hpp>
 #include <cassert>
 #include <coroutine>
 #include <cstddef>

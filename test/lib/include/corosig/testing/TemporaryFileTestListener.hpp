@@ -1,11 +1,10 @@
 #ifndef COROSIG_TESTING_TEMP_FILE_TEST_LISTENER_HPP
 #define COROSIG_TESTING_TEMP_FILE_TEST_LISTENER_HPP
 
-#include <catch2/catch_all.hpp>
+#include <catch2/reporters/catch_reporter_event_listener.hpp>
 #include <filesystem>
 
 namespace corosig::testing {
-
 extern char const *g_temp_test_file;
 
 struct TemporaryFileTestListener : Catch::EventListenerBase {

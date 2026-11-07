@@ -1,7 +1,6 @@
 #ifndef COROSIG_IO_SOCKADDR_HPP
 #define COROSIG_IO_SOCKADDR_HPP
 
-#include "corosig/Result.hpp"
 #include "corosig/util/Variant.hpp"
 
 #include <array>

@@ -10,6 +10,7 @@
 #include "corosig/reactor/PollList.hpp"
 #include "corosig/reactor/SleepList.hpp"
 
+#include <boost/intrusive/list.hpp>
 #include <boost/intrusive/options.hpp>
 #include <boost/intrusive/set.hpp>
 #include <cstddef>

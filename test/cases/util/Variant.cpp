@@ -3,6 +3,8 @@
 #include "corosig/testing/NonCopyable.hpp"
 #include "corosig/testing/Signals.hpp"
 
+#include <catch2/catch_approx.hpp>
+
 namespace {
 
 using namespace corosig;

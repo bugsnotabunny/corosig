@@ -7,7 +7,6 @@
 #include "corosig/reactor/CoroList.hpp"
 #include "corosig/reactor/Reactor.hpp"
 
-#include <boost/mp11/algorithm.hpp>
 #include <coroutine>
 #include <utility>
 

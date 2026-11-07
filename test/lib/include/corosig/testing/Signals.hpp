@@ -3,14 +3,13 @@
 
 #include "corosig/reactor/Reactor.hpp"
 
-#include <catch2/catch_all.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <concepts>
 #include <csignal>
 #include <cstddef>
 #include <optional>
 #include <source_location>
 #include <string_view>
-#include <type_traits>
 #include <unistd.h>
 #include <utility>
 

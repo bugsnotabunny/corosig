@@ -1,8 +1,7 @@
 #ifndef COROSIG_TESTING_NON_MOVABLE_HPP
 #define COROSIG_TESTING_NON_MOVABLE_HPP
 
-#include <catch2/catch_all.hpp>
-#include <unistd.h>
+#include <compare>
 
 namespace corosig {
 
@@ -16,7 +15,7 @@ struct NonMovable {
   NonMovable &operator=(NonMovable const &) = delete;
   NonMovable &operator=(NonMovable &&) = delete;
 
-  constexpr auto operator<=>(NonMovable const &) const noexcept = default;
+  constexpr std::strong_ordering operator<=>(NonMovable const &) const noexcept = default;
 
   int value;
 };
