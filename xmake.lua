@@ -57,7 +57,7 @@ if has_config("tsan") then
     set_policy("build.sanitizer.thread", true)
 end
 
-add_requires("boost 1.92.0", { external = true, configs = { filesystem = false } })
+add_requires("boost 1.90.0", { configs = { filesystem = false } })
 
 target("corosig")
     set_kind("static")

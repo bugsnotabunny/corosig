@@ -18,7 +18,7 @@
 
     gcc.module = { pkgs, ... }: {
       packages = with pkgs; [
-        llvmPackages_latest.bintools
+        llvmPackages.bintools
         gccStdenv
         xmake
       ];
@@ -26,8 +26,8 @@
 
     clang.module = { pkgs, ... }: {
       packages = with pkgs; [
-        llvmPackages_latest.bintools
-        llvmPackages_latest.libcxxClang
+        llvmPackages.bintools
+        llvmPackages.libcxxClang
         xmake
       ];
     };
